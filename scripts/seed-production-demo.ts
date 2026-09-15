@@ -6,47 +6,52 @@ async function main() {
   // 1. Create Categories
   const makeupCategory = await prisma.category.upsert({
     where: { slug: 'makeup' },
-    update: {},
+    update: { imagePath: '/images/products/lipstick.jpg' },
     create: {
       name: 'مكياج',
       slug: 'makeup',
       description: 'جميع منتجات المكياج',
+      imagePath: '/images/products/lipstick.jpg',
     }
   });
 
   const lipsCategory = await prisma.category.upsert({
     where: { slug: 'lips' },
-    update: {},
+    update: { imagePath: '/images/products/lipstick.jpg' },
     create: {
       name: 'شفاه',
       slug: 'lips',
+      imagePath: '/images/products/lipstick.jpg',
     }
   });
 
   const faceCategory = await prisma.category.upsert({
     where: { slug: 'face' },
-    update: {},
+    update: { imagePath: '/images/products/foundation.jpg' },
     create: {
       name: 'وجه',
       slug: 'face',
+      imagePath: '/images/products/foundation.jpg',
     }
   });
 
   const eyesCategory = await prisma.category.upsert({
     where: { slug: 'eyes' },
-    update: {},
+    update: { imagePath: '/images/products/eyeshadow.jpg' },
     create: {
       name: 'عيون',
       slug: 'eyes',
+      imagePath: '/images/products/eyeshadow.jpg',
     }
   });
 
   const accessoriesCategory = await prisma.category.upsert({
     where: { slug: 'bags-accessories' },
-    update: {},
+    update: { imagePath: '/images/products/handbag.jpg' },
     create: {
       name: 'شنط واكسسوارات',
       slug: 'bags-accessories',
+      imagePath: '/images/products/handbag.jpg',
     }
   });
 
