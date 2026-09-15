@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@theme {
+  --color-charcoal-900: #282321;
+  --color-charcoal-800: #3D3533;
+  --color-charcoal-700: #554A48;
+  --color-charcoal-600: #746663;
+
+  --color-rose-600: #C48E88;
+  --color-rose-500: #D8A6A1;
+  --color-rose-400: #E4BFBC;
+
+  --color-ivory-100: #FAF7F4;
+  --color-ivory-200: #F3EBE3;
+  
+  --font-heading: var(--font-cairo);
+  --font-body: var(--font-tajawal);
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--color-ivory-100)] text-[var(--color-charcoal-900)] font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold text-[var(--color-charcoal-900)];
+  }
+}
+
+@media print {
+  /* Hide Admin Sidebar */
+  nav, header, footer, aside, .sidebar {
+    display: none !important;
+  }
+  
+  /* Hide Filters and Buttons */
+  button, select, input, a, .bg-white.p-4.rounded-lg.shadow-sm.mb-6 {
+    display: none !important;
+  }
+  
+  /* Ensure table takes full width */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+  
+  body {
+    background-color: white !important;
+  }
+}

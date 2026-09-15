@@ -1,0 +1,17 @@
+-- AlterTable
+ALTER TABLE "Invoice" ADD COLUMN     "cashTendered" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "changeDue" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "confirmedByEmployeeId" TEXT,
+ADD COLUMN     "grossTotal" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "netSubtotal" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "paymentStatus" TEXT NOT NULL DEFAULT 'UNPAID',
+ADD COLUMN     "pricesIncludeTaxSnapshot" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "taxAmount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "taxModeSnapshot" TEXT NOT NULL DEFAULT 'DISABLED',
+ADD COLUMN     "taxRateSnapshot" DOUBLE PRECISION NOT NULL DEFAULT 0.0;
+
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN     "paymentStatus" TEXT NOT NULL DEFAULT 'UNPAID';
+
+-- AlterTable
+ALTER TABLE "Payment" ADD COLUMN     "terminalRef" TEXT;
