@@ -337,7 +337,7 @@ export default async function StoreFrontPage({ params }: { params: Promise<Param
                   </div>
                 </div>
                 <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <button className="w-full py-2 bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white rounded-sm text-sm font-bold shadow-md">
+                  <button className="w-full py-2 bg-black hover:bg-zinc-900 text-[var(--color-gold-500)] rounded-sm text-sm font-bold shadow-md transition-colors border border-[var(--color-gold-500)]/30 hover:border-[var(--color-gold-500)]">
                     {isAr ? 'عرض التفاصيل' : 'View Details'}
                   </button>
                 </div>
@@ -396,8 +396,8 @@ export default async function StoreFrontPage({ params }: { params: Promise<Param
             </div>
             
             <div className="pt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/shop" className="px-8 py-3 bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white font-bold rounded-sm transition-all shadow-md">
-                {isAr ? 'تسوقي الآن' : 'Shop Now'}
+              <Link href="/shop" className="px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md">
+                {isAr ? 'تصفح المجموعة' : 'Shop the Collection'}
               </Link>
             </div>
           </div>
@@ -416,13 +416,13 @@ export default async function StoreFrontPage({ params }: { params: Promise<Param
               : 'You can test the Admin Dashboard and POS Cashier without logging in.'}
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
-            <a href="/api/demo-login?role=admin" className="w-full sm:w-auto px-8 py-3 bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white font-bold rounded-sm transition-all shadow-md flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-              {isAr ? 'دخول كمسؤول (Admin)' : 'Login as Admin'}
+            <a href="/api/demo-login?role=admin" className="w-full sm:w-auto px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md flex items-center justify-center gap-2">
+              <span className="text-xl">👩‍💼</span>
+              {isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}
             </a>
-            <a href="/api/demo-login?role=cashier" className="w-full sm:w-auto px-8 py-3 bg-white border-2 border-[var(--color-charcoal-900)] hover:bg-zinc-50 text-[var(--color-charcoal-900)] font-bold rounded-sm transition-all shadow-sm flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-              {isAr ? 'دخول ككاشير (POS)' : 'Login as Cashier (POS)'}
+            <a href="/api/demo-login?role=cashier" className="w-full sm:w-auto px-8 py-3 bg-black border-2 border-[var(--color-gold-500)] hover:bg-zinc-900 text-[var(--color-gold-500)] font-bold rounded-sm transition-all shadow-sm flex items-center justify-center gap-2">
+              <span className="text-xl">🛒</span>
+              {isAr ? 'نظام الكاشير (POS)' : 'POS System'}
             </a>
           </div>
         </div>
