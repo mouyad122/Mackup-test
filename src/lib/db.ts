@@ -11,6 +11,8 @@ const connectionString = (process.env.NODE_ENV === 'test' && process.env.TEST_DA
   ? process.env.TEST_DATABASE_URL
   : (process.env.DATABASE_URL || '');
 
+const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
 // إعداد Connection Pool لتحمل أكبر عدد من المستخدمين بنفس الوقت
 const poolConfig = {
   connectionString,
@@ -22,6 +24,7 @@ const poolConfig = {
   connectionTimeoutMillis: 5000,
   // الحد الأدنى للاتصالات الجاهزة
   min: 2,
+  ...(!isLocal && { ssl: { rejectUnauthorized: false } }),
 };
 
 let pool: Pool;
