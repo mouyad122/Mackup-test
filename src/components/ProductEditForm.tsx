@@ -14,6 +14,7 @@ interface Variant {
   colorHex?: string | null;
   stock: number;
   isActive: boolean;
+  inventorySource: 'INTERNAL' | 'SUPPLIER';
 }
 
 interface Category {
@@ -80,13 +81,13 @@ export function ProductEditForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
-  const [variants, setVariants] = useState<Variant[]>(initialData.variants.length > 0 ? initialData.variants : [{ name: 'Standard', sku: `${initialData.sku}-STD`, price: 25000, colorHex: '', stock: 0, isActive: true }]);
+  const [variants, setVariants] = useState<Variant[]>(initialData.variants.length > 0 ? initialData.variants : [{ name: 'Standard', sku: `${initialData.sku}-STD`, price: 25000, colorHex: '', stock: 0, isActive: true, inventorySource: 'INTERNAL' }]);
 
   const [similarSearch, setSimilarSearch] = useState('');
   const [selectedSimilarIds, setSelectedSimilarIds] = useState<string[]>(initialData.similarProductIds);
 
   const addVariant = () => {
-    setVariants(prev => [...prev, { name: '', sku: '', price: 25000, colorHex: '', stock: 0, isActive: true }]);
+    setVariants(prev => [...prev, { name: '', sku: '', price: 25000, colorHex: '', stock: 0, isActive: true, inventorySource: 'INTERNAL' }]);
   };
 
   const removeVariant = (index: number) => {
@@ -126,7 +127,8 @@ export function ProductEditForm({
         price: typeof v.price === 'string' ? Math.round(parseFloat(v.price) * 1000) : v.price,
         colorHex: v.colorHex || null,
         stock: typeof v.stock === 'string' ? parseInt(v.stock, 10) : v.stock,
-        isActive: v.isActive
+        isActive: v.isActive,
+        inventorySource: v.inventorySource,
       }));
       formData.set('variants', JSON.stringify(variantsForAction));
       formData.set('similarProductIds', JSON.stringify(selectedSimilarIds));
@@ -293,6 +295,14 @@ export function ProductEditForm({
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-3 space-y-2">
+          {variants.map((v, i) => <label key={`source-${i}`} className="flex items-center gap-3 text-xs font-semibold text-zinc-600">
+            {v.name || `Variant ${i + 1}`} · مصدر المخزون
+            <select value={v.inventorySource} onChange={e => updateVariant(i, 'inventorySource', e.target.value)} className="rounded border bg-white p-2">
+              <option value="INTERNAL">مخزون داخلي</option><option value="SUPPLIER">مخزون مورد (يتطلب عرضاً متاحاً)</option>
+            </select>
+          </label>)}
         </div>
       </div>
 

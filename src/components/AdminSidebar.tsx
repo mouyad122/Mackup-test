@@ -21,14 +21,35 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
     { href: '/admin/categories', label: 'المجموعات', permission: 'manage:products' },
     { href: '/admin/orders', label: 'طلبات المتجر', permission: 'manage:orders' },
     { href: '/admin/sales', label: 'المبيعات والفواتير', permission: 'manage:orders' },
+    { href: '/admin/financials', label: 'الملخص المالي', permission: 'manage:settings' },
+    { href: '/admin/transactions', label: 'دفتر الحركات المالية', permission: 'manage:settings' },
+    { href: '/admin/expenses', label: 'المصروفات', permission: 'manage:settings' },
+    { href: '/admin/reports', label: 'تقارير الأعمال', permission: 'manage:settings' },
     { href: '/admin/inventory', label: 'المخزون', permission: 'manage:inventory' },
+    { href: '/admin/suppliers', label: 'الموردون', permission: 'manage:settings' },
+    { href: '/admin/supplier-settlements', label: 'تسويات الموردين', permission: 'manage:settings' },
+    { href: '/admin/captains', label: 'المندوبون والتوصيل', permission: 'manage:settings' },
+    { href: '/admin/deliveries', label: 'إدارة التوصيلات', permission: 'manage:settings' },
+    { href: '/admin/captain-settlements', label: 'تسويات المندوبين', permission: 'manage:settings' },
+    { href: '/admin/coupons', label: 'القسائم والخصومات', permission: 'manage:settings' },
+    { href: '/admin/rewards', label: 'مكافآت العملاء', permission: 'manage:settings' },
     { href: '/admin/employees', label: 'الموظفين والصلاحيات', permission: 'manage:settings' },
+    { href: '/admin/customers', label: 'العملاء', permission: 'manage:settings' },
     { href: '/admin/settings/shipping', label: 'أسعار التوصيل', permission: 'manage:settings' },
     { href: '/admin/content', label: 'المحتوى والمدونة (CMS)', permission: 'manage:settings' }
   ];
 
-  // If ADMIN, they see all links
-  const filteredLinks = roleName?.toUpperCase() === 'ADMIN' ? allLinks : allLinks.filter(l => !l.permission);
+  const normalizedRole = roleName.trim().toUpperCase().replace(/[_-]+/g, ' ');
+  const roleAccess: Record<string, string[]> = {
+    'STORE MANAGER': ['manage:products', 'manage:orders'],
+    'INVENTORY MANAGER': ['manage:products', 'manage:inventory'],
+    'FINANCE MANAGER': ['manage:settings'],
+    'DELIVERY MANAGER': ['manage:orders', 'manage:settings'],
+    'CONTENT MANAGER': ['manage:products', 'manage:settings'],
+  };
+  const filteredLinks = ['ADMIN', 'SUPER ADMIN'].includes(normalizedRole)
+    ? allLinks
+    : allLinks.filter(link => !link.permission || (roleAccess[normalizedRole] || []).includes(link.permission));
 
   return (
     <>

@@ -18,11 +18,8 @@ export async function requireAuth() {
 
 export async function requirePermission(action: string) {
   const session = await requireAuth();
-  
-  // Enforce strict role-based permissions
-  const roleName = session.employee.role.name.toUpperCase();
-
-  if (roleName === 'ADMIN') {
+  const roleName = session.employee.role.name.trim().toUpperCase().replace(/[_-]+/g, ' ');
+  if (roleName === 'ADMIN' || roleName === 'SUPER ADMIN') {
     return session;
   }
 
@@ -30,13 +27,21 @@ export async function requirePermission(action: string) {
     return session;
   }
 
+  const aliases: Record<string, string[]> = {
+    manage_orders: ['manage:orders'],
+    'orders.confirm': ['manage:orders'],
+  };
+  const granted = await getEmployeePermissions(session.employeeId);
+  if ([action, ...(aliases[action] || [])].some(permission => granted.includes(permission))) return session;
+
   throw new Error(`Unauthorized Access: ${roleName} does not have permission for ${action}`);
 }
 
 export async function requireSuperAdmin() {
   const session = await requireAuth();
   
-  if (session.employee.role.name !== 'Admin' && session.employee.role.name !== 'Super Admin') {
+  const roleName = session.employee.role.name.trim().toUpperCase().replace(/[_-]+/g, ' ');
+  if (roleName !== 'ADMIN' && roleName !== 'SUPER ADMIN') {
     throw new Error('Unauthorized Access: Super Admin required');
   }
   
@@ -67,7 +72,7 @@ export async function getEmployeePermissions(employeeId: string): Promise<string
 
   // Apply explicit DENY overrides
   for (const o of overrides) {
-    if (o.effect === 'DENY') {
+    if (o.effect === 'DENY' && (!o.expiresAt || o.expiresAt > now)) {
       allowed.delete(o.permission.action);
     }
   }

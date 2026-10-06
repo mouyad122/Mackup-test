@@ -38,7 +38,9 @@ export default async function AdminShippingPage() {
               <th className="px-6 py-4 font-bold">المحافظة</th>
               <th className="px-6 py-4 font-bold">الحالة</th>
               <th className="px-6 py-4 font-bold">رسوم التوصيل (الحالية)</th>
-              <th className="px-6 py-4 font-bold">تحديث التكلفة (بالدينار)</th>
+              <th className="px-6 py-4 font-bold">تكلفة شركة التوصيل</th>
+              <th className="px-6 py-4 font-bold">تكلفة المندوب</th>
+              <th className="px-6 py-4 font-bold">تحديث الرسوم والتكاليف</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -56,20 +58,57 @@ export default async function AdminShippingPage() {
                 <td className="px-6 py-4 font-bold text-[var(--color-charcoal-900)]">
                   {filsToDisplay(zone.fee, 'ar')}
                 </td>
+                <td className="px-6 py-4 font-bold text-zinc-700">
+                  {zone.actualDeliveryCost === null ? 'غير محددة' : filsToDisplay(zone.actualDeliveryCost, 'ar')}
+                </td>
+                <td className="px-6 py-4 font-bold text-zinc-700">
+                  {zone.captainEarning === null ? 'غير محدد' : filsToDisplay(zone.captainEarning, 'ar')}
+                </td>
                 <td className="px-6 py-4">
                   <form action={async (formData: FormData) => {
                     'use server';
                     const feeJD = parseFloat(formData.get('fee') as string);
+                    const actualCostJD = parseFloat(formData.get('actualDeliveryCost') as string);
+                    const captainEarningJD = parseFloat(formData.get('captainEarning') as string);
                     const isEnabled = formData.get('isEnabled') === 'on';
-                    await updateShippingZone(zone.id, { fee: Math.round(feeJD * 1000), isEnabled });
+                    const estimatedDeliveryTime = String(formData.get('estimatedDeliveryTime') || '').trim();
+                    if (!Number.isFinite(feeJD) || !Number.isFinite(actualCostJD) || !Number.isFinite(captainEarningJD)) return;
+                    await updateShippingZone(zone.id, {
+                      fee: Math.round(feeJD * 1000),
+                      actualDeliveryCost: Math.round(actualCostJD * 1000),
+                      captainEarning: Math.round(captainEarningJD * 1000),
+                      isEnabled,
+                      estimatedDeliveryTime,
+                    });
                   }} className="flex items-center gap-3">
                     <input 
                       type="number" 
                       name="fee" 
-                      step="0.1"
+                      min="0"
+                      step="0.001"
                       defaultValue={(zone.fee / 1000).toFixed(2)} 
+                      aria-label="رسوم العميل بالدينار"
                       className="w-24 border border-zinc-300 rounded px-2 py-1 outline-none focus:border-[var(--color-champagne-600)]"
                     />
+                    <input
+                      type="number"
+                      name="actualDeliveryCost"
+                      min="0"
+                      step="0.001"
+                      defaultValue={zone.actualDeliveryCost === null ? '' : (zone.actualDeliveryCost / 1000).toFixed(2)}
+                      aria-label="تكلفة شركة التوصيل بالدينار"
+                      className="w-24 border border-zinc-300 rounded px-2 py-1 outline-none focus:border-[var(--color-champagne-600)]"
+                    />
+                    <input
+                      type="number"
+                      name="captainEarning"
+                      min="0"
+                      step="0.001"
+                      defaultValue={zone.captainEarning === null ? '' : (zone.captainEarning / 1000).toFixed(2)}
+                      aria-label="أجر المندوب بالدينار"
+                      className="w-24 border border-zinc-300 rounded px-2 py-1 outline-none focus:border-[var(--color-champagne-600)]"
+                    />
+                    <input type="text" name="estimatedDeliveryTime" defaultValue={zone.estimatedDeliveryTime} aria-label="مدة التوصيل" className="w-28 border border-zinc-300 rounded px-2 py-1" />
                     <label className="flex items-center gap-1 text-xs text-zinc-600">
                       <input type="checkbox" name="isEnabled" defaultChecked={zone.isEnabled} />
                       تفعيل

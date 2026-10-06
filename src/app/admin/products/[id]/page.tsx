@@ -25,7 +25,7 @@ export default async function AdminProductEditPage({
       category: true,
       brand: true,
       images: true,
-      variants: { orderBy: { createdAt: 'asc' } },
+      variants: { orderBy: { createdAt: 'asc' }, include: { supplierOffers: { include: { supplier: true }, orderBy: { unitCost: 'asc' } } } },
       similarProducts: { include: { similar: { include: { images: { where: { isMain: true }, take: 1 } } } }, orderBy: { order: 'asc' } },
     }
   });
@@ -66,7 +66,8 @@ export default async function AdminProductEditPage({
       price: v.price,
       colorHex: v.colorHex,
       stock: v.stock,
-      isActive: v.isActive
+      isActive: v.isActive,
+      inventorySource: v.inventorySource as 'INTERNAL' | 'SUPPLIER',
     })),
     images: product.images.map(img => ({
       id: img.id,
@@ -105,6 +106,10 @@ export default async function AdminProductEditPage({
             imageUrl: p.images[0]?.url || null,
           }))}
         />
+        <section className="mt-8 overflow-hidden rounded-lg border bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4"><div><h2 className="font-bold">عروض الموردين حسب الدرجة</h2><p className="text-xs text-zinc-500">عند إنشاء الطلب يختار النظام أقل تكلفة عرض نشط ومتوفر؛ التكاليف ونسب المشاركة تُحفظ في لقطة الطلب.</p></div><Link className="text-sm underline" href="/admin/suppliers">إدارة العروض والمخزون</Link></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-right text-sm"><thead className="bg-zinc-50"><tr><th className="p-3">الدرجة</th><th className="p-3">المورد</th><th className="p-3">تكلفة الوحدة</th><th className="p-3">حصة المورد</th><th className="p-3">حصة المنصة</th><th className="p-3">المخزون</th><th className="p-3">الحالة</th></tr></thead><tbody className="divide-y">{product.variants.flatMap(v=>v.supplierOffers.map(offer=><tr key={offer.id}><td className="p-3">{v.name}</td><td className="p-3">{offer.supplier.name}</td><td className="p-3">{(offer.unitCost/1000).toFixed(3)} د.أ</td><td className="p-3">{(offer.supplierProfitShareBps/100).toFixed(2)}%</td><td className="p-3">{((10000-offer.supplierProfitShareBps)/100).toFixed(2)}%</td><td className="p-3">{offer.stock}</td><td className="p-3">{offer.isActive&&offer.supplier.isActive?'فعال':'متوقف'}</td></tr>))}</tbody></table></div>
+        </section>
       </main>
     </div>
   );

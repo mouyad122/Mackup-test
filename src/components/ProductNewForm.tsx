@@ -13,6 +13,7 @@ interface Variant {
   colorHex?: string;
   stock: string;
   isActive: boolean;
+  inventorySource: 'INTERNAL' | 'SUPPLIER';
 }
 
 interface Category {
@@ -43,11 +44,11 @@ export function ProductNewForm({
   const [preview, setPreview] = useState<string | null>(null);
   
   const [variants, setVariants] = useState<Variant[]>([
-    { name: 'Standard', sku: '', price: '25.000', colorHex: '', stock: '0', isActive: true }
+    { name: 'Standard', sku: '', price: '25.000', colorHex: '', stock: '0', isActive: true, inventorySource: 'INTERNAL' }
   ]);
 
   const addVariant = () => {
-    setVariants(prev => [...prev, { name: '', sku: '', price: '', colorHex: '', stock: '0', isActive: true }]);
+    setVariants(prev => [...prev, { name: '', sku: '', price: '', colorHex: '', stock: '0', isActive: true, inventorySource: 'INTERNAL' }]);
   };
 
   const removeVariant = (index: number) => {
@@ -74,6 +75,7 @@ export function ProductNewForm({
         colorHex: v.colorHex || null,
         stock: parseInt(v.stock) || 0,
         isActive: v.isActive,
+        inventorySource: v.inventorySource,
       }));
       formData.set('variants', JSON.stringify(variantsForAction));
 
@@ -232,6 +234,14 @@ export function ProductNewForm({
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-3 space-y-2">
+          {variants.map((v, i) => <label key={`source-${i}`} className="flex items-center gap-3 text-xs font-semibold text-zinc-600">
+            {v.name || `Variant ${i + 1}`} · مصدر المخزون
+            <select value={v.inventorySource} onChange={e => updateVariant(i, 'inventorySource', e.target.value)} className="rounded border bg-white p-2">
+              <option value="INTERNAL">مخزون داخلي</option><option value="SUPPLIER">مخزون مورد (يتطلب عرضاً متاحاً)</option>
+            </select>
+          </label>)}
         </div>
       </div>
 

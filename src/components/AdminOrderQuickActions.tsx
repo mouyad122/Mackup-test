@@ -2,6 +2,7 @@
 
 import React, { useTransition } from 'react';
 import { ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 interface Props {
   orderId: string;
@@ -66,31 +67,29 @@ export function AdminOrderQuickActions({
             بدء التجهيز وتأكيد واتساب
             <ExternalLink className="w-4 h-4" />
           </button>
-          <button 
-            onClick={() => handleUpdate('CANCELLED', false)}
-            disabled={isPending}
-            className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 disabled:opacity-50 font-bold py-2.5 px-4 rounded shadow-sm text-sm w-full transition-colors"
-          >
-            إلغاء الطلب (إرجاع للمخزون)
-          </button>
         </>
       )}
-      {(status === 'PREPARING' || status === 'PREPARED') && (
+      {status === 'PREPARING' && (
         <button 
-          onClick={() => handleUpdate('SHIPPED', false)}
+          onClick={() => handleUpdate('PREPARED', false)}
           disabled={isPending}
           className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold py-3 px-4 rounded shadow-sm text-sm w-full transition-colors"
         >
-          تسليم لمندوب التوصيل
+          اكتمل تجهيز الطلب
         </button>
       )}
-      {status === 'SHIPPED' && (
-        <button 
-          onClick={() => handleUpdate('DELIVERED', false)}
+      {status === 'PREPARED' && (
+        <Link href="/admin/captains" className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-4 rounded shadow-sm text-sm w-full text-center transition-colors">
+          تعيين مندوب وإدارة التوصيل
+        </Link>
+      )}
+      {!['DELIVERED', 'REFUNDED', 'CANCELLED'].includes(status) && (
+        <button
+          onClick={() => handleUpdate('CANCELLED', false)}
           disabled={isPending}
-          className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded shadow-sm text-sm w-full transition-colors"
+          className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 disabled:opacity-50 font-bold py-2.5 px-4 rounded shadow-sm text-sm w-full transition-colors"
         >
-          تم التسليم (طلب مكتمل)
+          إلغاء الطلب ومعالجة المخزون
         </button>
       )}
     </div>

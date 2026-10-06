@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { getInventorySettings } from '@/actions/settings-crud';
 import { InventorySettingsForm } from '@/components/InventorySettingsForm';
+import { adjustVariantStock } from '@/actions/inventory';
 
 export default async function AdminInventoryPage() {
   const session = await requireAuth();
@@ -17,8 +18,14 @@ export default async function AdminInventoryPage() {
       stock: true,
       productId: true,
       product: { select: { nameAr: true, id: true } }
+      ,supplierOffers: { include: { supplier: { select: { name: true } } }, orderBy: { unitCost: 'asc' } }
     }
   });
+  const movements = await prisma.inventoryMovement.findMany({ where: { sku: { in: variants.map(v=>v.sku) } }, orderBy: { createdAt: 'desc' }, include: { employee: { select: { name: true } } } });
+  const lastMovement = new Map<string, typeof movements[number]>();
+  for (const movement of movements) if (!lastMovement.has(movement.sku)) lastMovement.set(movement.sku,movement);
+  const movementHistory = new Map<string, typeof movements>();
+  for (const movement of movements) movementHistory.set(movement.sku,[...(movementHistory.get(movement.sku)||[]),movement]);
 
   const settings = await getInventorySettings();
   const threshold = settings.lowStockThreshold;
@@ -123,6 +130,8 @@ export default async function AdminInventoryPage() {
                           <span className="text-zinc-300 text-base leading-none select-none w-4">└</span>
                           <span className="text-zinc-700 font-medium w-28 shrink-0">{v.name}</span>
                           <span className="text-zinc-400 font-mono text-xs flex-1">{v.sku}</span>
+                          <span className="hidden text-xs text-zinc-500 lg:inline">الموردون: {v.supplierOffers.map(o=>`${o.supplier.name} (${o.stock})`).join('، ')||'—'}</span>
+                          <span className="hidden text-xs text-zinc-500 xl:inline">آخر حركة: {lastMovement.get(v.sku)?`${lastMovement.get(v.sku)?.type} · ${new Date(lastMovement.get(v.sku)!.createdAt).toLocaleDateString('ar-JO')} · ${lastMovement.get(v.sku)?.employee.name}`:'—'}</span>
                           <span className={`inline-block px-3 py-0.5 rounded font-bold text-xs ${
                             v.stock === 0
                               ? 'bg-red-100 text-red-800'
@@ -132,6 +141,8 @@ export default async function AdminInventoryPage() {
                           }`}>
                             {v.stock} قطع
                           </span>
+                          <details className="relative"><summary className="cursor-pointer text-xs underline">حركة مخزون</summary><form action={adjustVariantStock} className="absolute left-0 z-10 mt-2 grid w-64 gap-2 rounded border bg-white p-3 shadow"><input type="hidden" name="variantId" value={v.id}/><select name="type" className="rounded border p-2 text-xs"><option value="RECEIVED">استلام</option><option value="RETURN">إرجاع صالح</option><option value="ADJUSTMENT">تعديل</option><option value="DAMAGED">تالف</option></select><input name="quantityDelta" type="number" required placeholder="الكمية (+/-)" className="rounded border p-2 text-xs"/><input name="reason" required minLength={3} placeholder="السبب" className="rounded border p-2 text-xs"/><button className="rounded bg-zinc-900 p-2 text-xs text-white">حفظ الحركة</button></form></details>
+                          <details className="text-xs"><summary className="cursor-pointer underline">السجل ({movementHistory.get(v.sku)?.length||0})</summary><div className="absolute z-10 max-h-48 w-72 overflow-auto rounded border bg-white p-2 shadow">{(movementHistory.get(v.sku)||[]).map(m=><p key={m.id} className="border-b py-1">{m.type} · {m.quantity>0?'+':''}{m.quantity} ({m.quantityBefore}→{m.quantityAfter}) · {m.employee.name} · {new Date(m.createdAt).toLocaleString('ar-JO')}<br/>{m.reference}</p>)}</div></details>
                         </div>
                       ))}
                     </div>

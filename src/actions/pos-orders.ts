@@ -2,6 +2,7 @@
 
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
+import { cancelOrderAndReverseFinancials } from '@/lib/order-cancellation';
 
 export async function getPOSOrders() {
   await requirePermission('pos:access');
@@ -27,6 +28,11 @@ export async function updatePOSOrderStatus(orderId: string, newStatus: string) {
   // We should also check for pos.orders.manage or manage:orders ideally.
   
   try {
+    if (newStatus === 'CANCELLED') {
+      const order = await cancelOrderAndReverseFinancials(orderId, session.employeeId);
+      return { success: true, order };
+    }
+    if (!['CONFIRMED', 'PREPARING', 'PREPARED'].includes(newStatus)) return { success: false, error: 'حالة الطلب غير صالحة' };
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { items: true }
@@ -36,16 +42,15 @@ export async function updatePOSOrderStatus(orderId: string, newStatus: string) {
       return { success: false, error: 'الطلب غير موجود' };
     }
 
-    if (order.status === 'CANCELLED') {
+    if (['CANCELLED', 'REFUNDED', 'DELIVERED'].includes(order.status)) {
       return { success: false, error: 'لا يمكن تعديل طلب ملغي' };
     }
 
-    // Process Transaction
+    const allowedNext: Record<string, string[]> = { CONFIRMED: ['PREPARING'], PREPARING: ['PREPARED'] };
+    if (!allowedNext[order.status]?.includes(newStatus)) return { success: false, error: 'انتقال حالة الطلب غير مسموح' };
     await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: orderId },
-        data: { status: newStatus }
-      });
+      const changed = await tx.order.updateMany({ where: { id: orderId, status: order.status }, data: { status: newStatus } });
+      if (changed.count !== 1) throw new Error('تم تغيير الطلب بالتزامن؛ أعد تحميل الصفحة.');
 
       await tx.orderStatusHistory.create({
         data: {
@@ -55,20 +60,7 @@ export async function updatePOSOrderStatus(orderId: string, newStatus: string) {
         }
       });
 
-      // If CANCELLED, restore inventory
-      if (newStatus === 'CANCELLED') {
-        for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stock: {
-                increment: item.quantity
-              }
-            }
-          });
-        }
-      }
-    });
+    }, { isolationLevel: 'Serializable' });
 
     return { success: true };
   } catch (error: any) {

@@ -85,6 +85,7 @@ export async function createProduct(formData: FormData) {
             stock: Number(v.stock) || 0,
             isActive: v.isActive ?? true,
             usesGlobalPricing: v.usesGlobalPricing ?? true,
+            inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
           }))
         },
         ...(imageUrl ? {
@@ -203,6 +204,7 @@ export async function updateProduct(productId: string, formData: FormData) {
               stock: Number(v.stock) || 0,
               isActive: v.isActive ?? true,
               usesGlobalPricing: v.usesGlobalPricing ?? true,
+              inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
             }
           });
         } else {
@@ -216,6 +218,7 @@ export async function updateProduct(productId: string, formData: FormData) {
               stock: Number(v.stock) || 0,
               isActive: v.isActive ?? true,
               usesGlobalPricing: v.usesGlobalPricing ?? true,
+              inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
             }
           });
         }

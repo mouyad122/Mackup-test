@@ -217,8 +217,10 @@ model ProductVariant {
 
   isActive          Boolean      @default(true)
   usesGlobalPricing Boolean      @default(true)
+  inventorySource   String       @default("INTERNAL") // INTERNAL or SUPPLIER
   
   images            ProductImage[]
+  supplierOffers    SupplierOffer[]
   saleItems         SaleItem[]
   returnItems       ReturnItem[]
   
@@ -226,6 +228,57 @@ model ProductVariant {
   updatedAt         DateTime     @updatedAt
 
   @@index([sku])
+}
+
+// A variant can be sourced from multiple suppliers. Financial values are
+// snapshotted onto OrderItem when a checkout is created.
+model Supplier {
+  id          String          @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  notes       String?
+  isActive    Boolean         @default(true)
+  offers      SupplierOffer[]
+  settlements SupplierSettlement[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([isActive, name])
+}
+
+model SupplierOffer {
+  id                       String         @id @default(uuid())
+  supplierId               String
+  supplier                 Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  variantId                String
+  variant                  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  unitCost                 Int            // fils
+  supplierProfitShareBps   Int            @default(0) // 0-10000 basis points of product margin
+  stock                    Int            @default(0)
+  inventoryMovements       SupplierInventoryMovement[]
+  supplierSku              String?
+  isActive                 Boolean        @default(true)
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  @@unique([supplierId, variantId])
+  @@index([variantId, isActive])
+  @@index([supplierId, isActive])
+}
+
+model SupplierInventoryMovement {
+  id             String        @id @default(uuid())
+  supplierOfferId String
+  supplierOffer  SupplierOffer @relation(fields: [supplierOfferId], references: [id], onDelete: Restrict)
+  quantityDelta  Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason         String
+  reference      String?
+  actorEmployeeId String?
+  createdAt      DateTime      @default(now())
+  @@index([supplierOfferId, createdAt])
 }
 
 model ProductImage {
@@ -264,6 +317,17 @@ model Order {
   status         String // "AWAITING_WHATSAPP", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"
   totalAmount    Int
   shippingCost   Int
+  actualDeliveryCost Int? // carrier cost snapshot in fils; null marks an order predating cost tracking
+  discountAmount    Int               @default(0)
+  couponDiscount    Int               @default(0)
+  rewardDiscount    Int               @default(0)
+  couponCodeSnapshot String?
+  rewardNameSnapshot String?
+  shippingZoneNameSnapshot String?
+  deliveryAssignment DeliveryAssignment?
+  couponRedemption CouponRedemption?
+  rewardRedemptions RewardRedemption[]
+  financialTransactions FinancialTransaction[]
   notes          String?
   idempotencyKey String?              @unique
   items          OrderItem[]
@@ -287,6 +351,14 @@ model OrderItem {
   quantity  Int
   unitPrice Int
   total     Int
+  supplierOfferIdSnapshot String?
+  supplierIdSnapshot String?
+  supplierNameSnapshot String?
+  unitCostSnapshot Int?
+  supplierProfitShareBpsSnapshot Int?
+  supplierAmountSnapshot Int?
+  platformProductProfitSnapshot Int?
+  discountAmountSnapshot Int @default(0)
 }
 
 model OrderStatusHistory {
@@ -328,6 +400,7 @@ model Sale {
   payments       Payment[]
   invoice        Invoice?
   returns        Return[]
+  financialTransactions FinancialTransaction[]
   idempotencyKey String?    @unique
   createdAt      DateTime   @default(now())
 }
@@ -344,6 +417,14 @@ model SaleItem {
   quantity  Int
   unitPrice Int
   total     Int
+  discountAmountSnapshot Int @default(0)
+  supplierOfferIdSnapshot String?
+  supplierIdSnapshot String?
+  supplierNameSnapshot String?
+  unitCostSnapshot Int?
+  supplierProfitShareBpsSnapshot Int?
+  supplierAmountSnapshot Int?
+  platformProductProfitSnapshot Int?
 }
 
 model Payment {
@@ -382,6 +463,7 @@ model Invoice {
   cashTenderedFils      Int     @default(0)
   changeDueFils         Int     @default(0)
   paymentStatus         String  @default("UNPAID") // "UNPAID", "COD_PENDING", "PARTIALLY_PAID", "PAID", "REFUNDED", "PARTIALLY_REFUNDED"
+  refundAmountFils      Int     @default(0)
   confirmedByEmployeeId String? // Employee who confirmed storefront order or processed POS sale
 
   // Cashier Attribution Snapshots
@@ -478,9 +560,182 @@ model ShippingZone {
   nameAr                String
   nameEn                String
   fee                   Int // in minor units (fils)
+  actualDeliveryCost    Int?    // carrier cost in fils; null means not configured
+  captainEarning        Int?    // default captain earnings in fils; null means not configured
   estimatedDeliveryTime String // e.g. "24-48 hours"
   isEnabled             Boolean @default(true)
   freeShippingThreshold Int? // in minor units, null means disabled
+}
+
+model RewardRule {
+  id             String   @id @default(uuid())
+  name           String
+  minimumAmount  Int
+  rewardType     String   // FREE_DELIVERY, PERCENT, FIXED
+  rewardValue    Int      @default(0) // percent integer or fils
+  priority       Int      @default(0)
+  isActive       Boolean  @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  usageLimit     Int?
+  usageCount     Int      @default(0)
+  redemptions    RewardRedemption[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([isActive, minimumAmount])
+}
+
+model Coupon {
+  id                    String             @id @default(uuid())
+  code                  String             @unique
+  name                  String?
+  discountType          String             // PERCENT, FIXED, FREE_DELIVERY
+  discountValue         Int                @default(0)
+  minimumOrderAmount    Int                @default(0)
+  maximumDiscount       Int?
+  startsAt              DateTime?
+  endsAt                DateTime?
+  usageLimit            Int?
+  perCustomerLimit      Int?
+  usageCount            Int                @default(0)
+  isActive              Boolean            @default(true)
+  targets               CouponTarget[]
+  redemptions           CouponRedemption[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  @@index([isActive, startsAt, endsAt])
+}
+
+model CouponTarget {
+  id        String @id @default(uuid())
+  couponId  String
+  coupon    Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  targetType String // PRODUCT, CATEGORY, BRAND
+  targetId   String
+  @@unique([couponId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+model CouponRedemption {
+  id          String   @id @default(uuid())
+  couponId    String
+  coupon      Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customerKey String
+  amount      Int
+  isVoided    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  @@index([couponId, customerKey])
+}
+
+model RewardRedemption {
+  id          String    @id @default(uuid())
+  rewardRuleId String
+  rewardRule  RewardRule @relation(fields: [rewardRuleId], references: [id], onDelete: Restrict)
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  amount      Int       @default(0)
+  isVoided    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  @@unique([rewardRuleId, orderId])
+  @@index([rewardRuleId, isVoided])
+}
+
+model Captain {
+  id          String               @id @default(uuid())
+  name        String
+  phone       String               @unique
+  status      String               @default("AVAILABLE")
+  isActive    Boolean              @default(true)
+  notes       String?
+  assignments DeliveryAssignment[]
+  settlements CaptainSettlement[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model DeliveryAssignment {
+  id                    String   @id @default(uuid())
+  orderId               String   @unique
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  captainId             String
+  captain               Captain  @relation(fields: [captainId], references: [id], onDelete: Restrict)
+  status                String   @default("ASSIGNED")
+  captainEarning        Int      // immutable snapshot, fils
+  customerDeliveryFee   Int      // immutable snapshot, fils
+  actualCarrierCost     Int?     // immutable snapshot, fils
+  assignedByEmployeeId  String?
+  deliveredAt           DateTime?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  financialTransactions FinancialTransaction[]
+  @@index([captainId, status])
+}
+
+model SupplierSettlement {
+  id          String   @id @default(uuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  amount      Int
+  paymentMethod String
+  reference   String?
+  notes       String?
+  createdByEmployeeId String?
+  createdAt   DateTime @default(now())
+  @@index([supplierId, createdAt])
+}
+
+model CaptainSettlement {
+  id          String   @id @default(uuid())
+  captainId   String
+  captain     Captain  @relation(fields: [captainId], references: [id], onDelete: Restrict)
+  amount      Int
+  paymentMethod String
+  reference   String?
+  notes       String?
+  createdByEmployeeId String?
+  createdAt   DateTime @default(now())
+  @@index([captainId, createdAt])
+}
+
+model FinancialTransaction {
+  id          String   @id @default(uuid())
+  businessEventKey String? @unique
+  type        String
+  direction   String   // IN or OUT
+  amount      Int
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  saleId      String?
+  sale        Sale?    @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  supplierId  String?
+  captainId   String?
+  deliveryAssignmentId String?
+  deliveryAssignment DeliveryAssignment? @relation(fields: [deliveryAssignmentId], references: [id], onDelete: Restrict)
+  description String
+  createdByEmployeeId String?
+  createdAt   DateTime @default(now())
+  expense     Expense?
+  @@index([type, createdAt])
+  @@index([supplierId, createdAt])
+  @@index([captainId, createdAt])
+  @@index([orderId, type])
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  category    String
+  amount      Int
+  expenseDate DateTime @default(now())
+  description String
+  reference   String?
+  createdByEmployeeId String?
+  createdAt   DateTime @default(now())
+  financialTransactionId String? @unique
+  financialTransaction FinancialTransaction? @relation(fields: [financialTransactionId], references: [id], onDelete: Restrict)
+  @@index([expenseDate, category])
 }
 
 model RateLimitEvent {

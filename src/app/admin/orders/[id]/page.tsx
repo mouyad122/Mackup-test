@@ -9,6 +9,7 @@ import { notFound, redirect } from 'next/navigation';
 import { OrderWhatsAppButton } from '@/components/OrderWhatsAppButton';
 import { AdminOrderQuickActions } from '@/components/AdminOrderQuickActions';
 import InvoiceLink from '@/components/InvoiceLink';
+import { inspectCancelledOrderReturn } from '@/actions/inventory';
 
 export default async function AdminOrderDetailPage({
   params
@@ -32,7 +33,9 @@ export default async function AdminOrderDetailPage({
       },
       statusHistory: {
         orderBy: { createdAt: 'desc' }
-      }
+      },
+      deliveryAssignment: { include: { captain: true } },
+      invoice: true,
     }
   });
 
@@ -54,13 +57,13 @@ export default async function AdminOrderDetailPage({
     return { success: true };
   }
 
-  const orderSubtotal = order.totalAmount - order.shippingCost;
+  const orderSubtotal = order.totalAmount - order.shippingCost + order.discountAmount;
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[var(--color-ivory-100)] overflow-hidden" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
-      <main className="flex-1 overflow-y-auto p-8 font-sans w-full max-w-full">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
             <div className="flex items-center gap-3">
@@ -90,6 +93,11 @@ export default async function AdminOrderDetailPage({
                 <p><strong>رقم الهاتف:</strong> <span dir="ltr">{order.customerPhone}</span></p>
                 <p><strong>حالة الطلب:</strong> <span className="font-bold">{order.status}</span></p>
                 <p><strong>تاريخ التسجيل:</strong> {new Date(order.createdAt).toLocaleString('ar-JO')}</p>
+                <p><strong>المحافظة:</strong> {order.shippingZoneNameSnapshot || 'غير مسجلة'}</p>
+                <p><strong>البريد الإلكتروني:</strong> غير متاح لهذا الطلب</p>
+                <p><strong>طريقة الدفع:</strong> {order.invoice?.cashAppliedFils ? 'نقداً' : order.invoice?.cardAppliedFils ? 'بطاقة' : 'الدفع عند الاستلام'}</p>
+                <p><strong>حالة الدفع:</strong> {order.paymentStatus}</p>
+                <p className="md:col-span-2"><strong>العنوان:</strong> {order.notes || 'غير مسجل'}</p>
               </div>
             </div>
 
@@ -108,16 +116,16 @@ export default async function AdminOrderDetailPage({
                     <div key={item.id} className="py-4 flex justify-between items-center text-sm">
                       <div>
                         <h4 className="font-bold text-zinc-900">{item.name}</h4>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          الدرجة: {item.size} | SKU: {item.sku}
-                        </p>
+                        <p className="text-xs text-zinc-500 mt-1">الدرجة: {item.size} | SKU: {item.sku}</p>
+                        <p className="text-xs text-zinc-600 mt-1">المورد: {item.supplierNameSnapshot || 'غير مسجل'} · التكلفة: {item.unitCostSnapshot === null ? 'غير مسجلة' : filsToDisplay(item.unitCostSnapshot * item.quantity, 'ar')} · حصة المورد: {item.supplierProfitShareBpsSnapshot === null ? 'غير مسجلة' : `${(item.supplierProfitShareBpsSnapshot / 100).toFixed(2)}%`} · مبلغ المورد: {item.supplierAmountSnapshot === null ? 'غير مسجل' : filsToDisplay(item.supplierAmountSnapshot, 'ar')}</p>
+                        <p className="text-xs text-emerald-800 mt-1">ربح المنتج للمنصة: {item.platformProductProfitSnapshot === null ? 'غير مكتمل' : filsToDisplay(item.platformProductProfitSnapshot, 'ar')}</p>
                         <p className="text-xs text-blue-600 mt-1">
                           مخزون الدرجة الحالي: {currentStock} قطع
                         </p>
                       </div>
                       <div className="text-left">
                         <p className="font-bold text-emerald-600">{filsToDisplay(item.total, 'ar')}</p>
-                        <p className="text-xs text-zinc-500 mt-1">{item.quantity} × {filsToDisplay(item.unitPrice, 'ar')}</p>
+                      <p className="text-xs text-zinc-500 mt-1">{item.quantity} × {filsToDisplay(item.unitPrice, 'ar')}{item.discountAmountSnapshot > 0 ? ` · خصم ${filsToDisplay(item.discountAmountSnapshot, 'ar')}` : ''}</p>
                       </div>
                     </div>
                   );
@@ -132,6 +140,17 @@ export default async function AdminOrderDetailPage({
                   <span>رسوم التوصيل:</span>
                   <span>{filsToDisplay(order.shippingCost, 'ar')}</span>
                 </div>
+                {order.discountAmount > 0 && <div className="flex justify-between text-emerald-700"><span>الخصم {order.couponCodeSnapshot ? `(${order.couponCodeSnapshot})` : ''}:</span><span>−{filsToDisplay(order.discountAmount, 'ar')}</span></div>}
+                {order.couponDiscount > 0 && <div className="flex justify-between text-zinc-600"><span>خصم القسيمة:</span><span>−{filsToDisplay(order.couponDiscount, 'ar')}</span></div>}
+                {order.rewardDiscount > 0 && <div className="flex justify-between text-zinc-600"><span>خصم المكافأة {order.rewardNameSnapshot ? `(${order.rewardNameSnapshot})` : ''}:</span><span>−{filsToDisplay(order.rewardDiscount, 'ar')}</span></div>}
+                <div className="flex justify-between text-zinc-600"><span>تكلفة شركة التوصيل:</span><span>{order.actualDeliveryCost === null ? 'غير مسجلة' : filsToDisplay(order.actualDeliveryCost, 'ar')}</span></div>
+                <div className="flex justify-between text-zinc-600"><span>المندوب:</span><span>{order.deliveryAssignment?.captain.name || 'غير معين'}</span></div>
+                {order.deliveryAssignment && <div className="flex justify-between text-zinc-600"><span>أجر المندوب:</span><span>{filsToDisplay(order.deliveryAssignment.captainEarning, 'ar')}</span></div>}
+                {order.deliveryAssignment && <div className="flex justify-between text-zinc-600"><span>ربح التوصيل:</span><span>{order.deliveryAssignment.actualCarrierCost === null ? 'تكلفة الناقل غير مسجلة' : filsToDisplay(order.deliveryAssignment.customerDeliveryFee - order.deliveryAssignment.actualCarrierCost - order.deliveryAssignment.captainEarning, 'ar')}</span></div>}
+                <div className="flex justify-between text-emerald-800"><span>ربح المنصة للمنتجات:</span><span>{order.items.some(item => item.platformProductProfitSnapshot === null) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.platformProductProfitSnapshot ?? 0),0), 'ar')}</span></div>
+                <div className="flex justify-between text-zinc-600"><span>المبلغ المسجل كمدفوع:</span><span>{order.invoice ? filsToDisplay(order.invoice.cashAppliedFils + order.invoice.cardAppliedFils, 'ar') : 'لم تسجل دفعة'}</span></div>
+                <div className="flex justify-between text-zinc-600"><span>التزام الموردين:</span><span>{order.items.some(item => item.unitCostSnapshot === null) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.unitCostSnapshot ?? 0)*item.quantity+(item.supplierAmountSnapshot ?? 0),0), 'ar')}</span></div>
+                <div className="flex justify-between text-zinc-600"><span>صافي ربح المنصة من الطلب:</span><span>{order.items.some(item => item.platformProductProfitSnapshot === null) || order.actualDeliveryCost === null || (!order.deliveryAssignment && !['CANCELLED','REFUNDED'].includes(order.status)) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.platformProductProfitSnapshot ?? 0),0) + order.shippingCost - order.actualDeliveryCost - (order.deliveryAssignment?.captainEarning ?? 0), 'ar')}</span></div>
                 <div className="flex justify-between text-lg font-bold text-[var(--color-charcoal-900)] pt-2 border-t mt-2">
                   <span>المجموع الإجمالي المطلوب:</span>
                   <span>{filsToDisplay(order.totalAmount, 'ar')}</span>
@@ -159,6 +178,17 @@ export default async function AdminOrderDetailPage({
 
           {/* Actions & Status Management */}
           <div className="space-y-6">
+            {['CANCELLED', 'REFUNDED'].includes(order.status) && order.notes?.includes('[RETURN_PENDING]') && !order.notes.includes('[RETURN_INSPECTED]') && <section className="rounded-lg border border-amber-200 bg-white p-5 shadow-sm">
+              <h3 className="font-bold text-amber-900">فحص البضائع المرتجعة</h3>
+              <p className="my-2 text-xs text-zinc-600">أدخل فقط الكمية التي وصلت فعلياً. الكمية غير المستلمة تبقى غير متاحة للبيع.</p>
+              <form action={inspectCancelledOrderReturn.bind(null, order.id)} className="space-y-3">
+                {order.items.map(item => <div key={item.id} className="grid grid-cols-[1fr_auto] items-center gap-2 border-t pt-2 text-xs">
+                  <span>{item.name} · {item.size} · مطلوب {item.quantity}<input type="hidden" name="orderItemId" value={item.id}/></span>
+                  <div className="flex gap-2"><input name="quantity" type="number" min="0" max={item.quantity} defaultValue="0" className="w-20 rounded border p-2" aria-label="الكمية المستلمة"/><select name="outcome" className="rounded border p-2"><option value="RESTOCKABLE">صالح لإعادة التخزين</option><option value="DAMAGED">تالف</option><option value="SUPPLIER_RETURN">إرجاع للمورد</option><option value="WRITE_OFF">شطب</option></select></div>
+                </div>)}
+                <button className="w-full rounded bg-amber-800 px-3 py-2 text-sm font-bold text-white">حفظ نتيجة الفحص</button>
+              </form>
+            </section>}
             <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm sticky top-6">
               <h3 className="text-lg font-bold text-[var(--color-charcoal-900)] mb-4 border-b pb-2">
                 إدارة الطلب

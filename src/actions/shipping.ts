@@ -37,14 +37,21 @@ export async function initializeShippingZones() {
     }
   }
 }
-export async function updateShippingZone(id: string, data: { fee: number, isEnabled: boolean }) {
+export async function updateShippingZone(id: string, data: { fee: number, actualDeliveryCost: number, captainEarning: number, isEnabled: boolean, estimatedDeliveryTime: string }) {
   await requirePermission('manage:settings');
+
+  if (!Number.isSafeInteger(data.fee) || data.fee < 0 || !Number.isSafeInteger(data.actualDeliveryCost) || data.actualDeliveryCost < 0 || !Number.isSafeInteger(data.captainEarning) || data.captainEarning < 0) {
+    return { success: false, error: 'قيمة رسوم التوصيل غير صالحة' };
+  }
   
   await prisma.shippingZone.update({
     where: { id },
     data: {
       fee: data.fee,
-      isEnabled: data.isEnabled
+      actualDeliveryCost: data.actualDeliveryCost,
+      captainEarning: data.captainEarning,
+      isEnabled: data.isEnabled,
+      estimatedDeliveryTime: data.estimatedDeliveryTime,
     }
   });
   

@@ -11,6 +11,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
 
   const [cart, setCart] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [rewardRules, setRewardRules] = useState<{ name: string; minimumAmount: number; rewardType: string; rewardValue: number }[]>([]);
 
   useEffect(() => {
     const loadCart = () => {
@@ -21,6 +22,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
     };
 
     loadCart();
+    fetch('/api/cart-rewards').then(res => res.json()).then(data => setRewardRules(data.rules || [])).catch(() => setRewardRules([]));
     setMounted(true);
 
     // Listen for same-tab updates (add to cart dispatches this)
@@ -61,6 +63,14 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
   const getSubtotal = () => {
     return cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   };
+
+  const subtotal = getSubtotal();
+  const unlockedReward = [...rewardRules].filter(rule => subtotal >= rule.minimumAmount).at(-1);
+  const unlockedFreeDelivery = rewardRules.some(rule => rule.rewardType === 'FREE_DELIVERY' && subtotal >= rule.minimumAmount);
+  const nextReward = rewardRules.find(rule => subtotal < rule.minimumAmount);
+  const rewardProgress = nextReward
+    ? Math.min(100, Math.round((subtotal / nextReward.minimumAmount) * 100))
+    : rewardRules.length ? 100 : 0;
 
   if (!mounted) return null;
 
@@ -168,6 +178,17 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                   <span>{isAr ? 'يُحسب عند الدفع' : 'Calculated at checkout'}</span>
                 </div>
               </div>
+              {rewardRules.length > 0 && (
+                <div className="mb-6 rounded-md border border-[var(--color-ivory-200)] bg-[var(--color-ivory-100)] p-4" aria-live="polite">
+                  <div className="mb-2 flex justify-between gap-3 text-sm font-semibold">
+                    <span>{unlockedReward ? `تهانينا! فُتحت ${unlockedReward.name}` : nextReward ? `أضف ${filsToDisplay(Math.max(0, nextReward.minimumAmount - subtotal), isAr ? 'ar' : 'en')} للوصول إلى ${nextReward.name}` : 'وصلت إلى جميع المكافآت'}</span>
+                    <span>{rewardProgress}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[var(--color-champagne-600)] transition-all" style={{ width: `${rewardProgress}%` }} /></div>
+                  {unlockedFreeDelivery && <p className="mt-2 text-xs text-emerald-800">تم فتح التوصيل المجاني. تُثبت المكافأة النهائية عند إتمام الطلب.</p>}
+                  {unlockedReward && unlockedReward.rewardType !== 'FREE_DELIVERY' && <p className="mt-2 text-xs text-emerald-800">مكافأتك: {unlockedReward.rewardType === 'PERCENT' ? `${unlockedReward.rewardValue}% خصم` : filsToDisplay(unlockedReward.rewardValue, isAr ? 'ar' : 'en')}، ويُتحقق منها عند إتمام الطلب.</p>}
+                </div>
+              )}
               
               <Link 
                 href={`/${locale}/checkout`}

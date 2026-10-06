@@ -14,6 +14,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
   const [zones, setZones] = useState<any[]>([]);
+  const [rewardRules, setRewardRules] = useState<{ name: string; minimumAmount: number; rewardType: string; rewardValue: number }[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
@@ -39,6 +40,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
         }
       })
       .catch(console.error);
+    fetch('/api/cart-rewards').then(res => res.json()).then(data => setRewardRules(data.rules || [])).catch(() => setRewardRules([]));
 
     setMounted(true);
 
@@ -98,14 +100,25 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
     const zone = getSelectedZone();
     if (!zone) return 0;
     const subtotal = getSubtotal();
-    if (zone.freeShippingThreshold && subtotal >= zone.freeShippingThreshold) {
+    const freeReward = rewardRules.some(rule => rule.rewardType === 'FREE_DELIVERY' && subtotal >= rule.minimumAmount);
+    if ((zone.freeShippingThreshold && subtotal >= zone.freeShippingThreshold) || freeReward) {
       return 0;
     }
     return zone.fee;
   };
 
+  const getRewardDiscount = () => {
+    const subtotal = getSubtotal();
+    const eligible = rewardRules.filter(rule => rule.rewardType !== 'FREE_DELIVERY' && subtotal >= rule.minimumAmount);
+    return Math.max(0, ...eligible.map(rule => rule.rewardType === 'PERCENT'
+      ? Math.floor(subtotal * Math.min(rule.rewardValue, 100) / 100)
+      : Math.min(subtotal, rule.rewardValue)));
+  };
+
+  const getBestReward = () => rewardRules.filter(rule => getSubtotal() >= rule.minimumAmount).at(-1);
+
   const getGrandTotal = () => {
-    return getSubtotal() + getShippingFee();
+    return Math.max(0, getSubtotal() - getRewardDiscount()) + getShippingFee();
   };
 
   const hasUnverifiedItems = cartItems.some(item => item.stockStatus === 'UNVERIFIED');
@@ -226,6 +239,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                 </select>
               </div>
 
+              <div>
+                <label htmlFor="couponCode" className="block text-sm font-medium text-zinc-700 mb-1">{isAr ? 'رمز الخصم (اختياري)' : 'Coupon code (optional)'}</label>
+                <input id="couponCode" name="couponCode" autoCapitalize="characters" maxLength={80} className="w-full rounded border border-zinc-300 px-4 py-2 uppercase" placeholder={isAr ? 'أدخل الرمز' : 'Enter code'} />
+                <p className="mt-1 text-xs text-zinc-500">{isAr ? 'سيتم التحقق من الرمز وتطبيقه بأمان عند إرسال الطلب.' : 'The coupon will be validated securely when placing your order.'}</p>
+              </div>
+
               {/* Hidden payload inputs */}
               <input type="hidden" name="items" value={JSON.stringify(cartItems)} />
             </div>
@@ -313,6 +332,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                     <span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span>
                     <span>{filsToDisplay(getSubtotal(), isAr ? 'ar' : 'en')}</span>
                   </div>
+                  {getRewardDiscount() > 0 && <div className="flex justify-between text-emerald-800"><span>{isAr ? `مكافأة: ${getBestReward()?.name || ''}` : `Reward: ${getBestReward()?.name || ''}`}</span><span>−{filsToDisplay(getRewardDiscount(), isAr ? 'ar' : 'en')}</span></div>}
                   <div className="flex justify-between text-zinc-600">
                     <span>{isAr ? 'رسوم التوصيل' : 'Shipping Fee'}</span>
                     <span>
@@ -322,7 +342,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                     </span>
                   </div>
                   <div className="flex justify-between text-xl font-bold text-[var(--color-charcoal-900)] pt-2 border-t">
-                    <span>{isAr ? 'الإجمالي' : 'Total'}</span>
+                    <span>{isAr ? 'الإجمالي التقديري قبل القسيمة' : 'Estimated total before coupon'}</span>
                     <span>{filsToDisplay(getGrandTotal(), isAr ? 'ar' : 'en')}</span>
                   </div>
                 </div>

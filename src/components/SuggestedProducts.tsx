@@ -19,12 +19,10 @@ interface SuggestedProductsProps {
 }
 
 export default function SuggestedProducts({ products, locale }: SuggestedProductsProps) {
-  if (!products || products.length === 0) return null;
-
   const isAr = locale === 'ar';
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
+  if (!mounted || !products || products.length === 0) return null;
 
   return (
     <section className="mt-16 pt-12 border-t border-[var(--color-ivory-200)]">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { getUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/actions/notifications';
 import { Bell } from 'lucide-react';
@@ -10,19 +10,19 @@ export function AdminNotificationsDropdown() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // refresh every minute
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     const res = await getUnreadNotifications();
     if (res.success && res.notifications) {
       setNotifications(res.notifications);
       setUnreadCount(res.notifications.length);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchNotifications();
+    const interval = setInterval(() => void fetchNotifications(), 60000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const handleMarkAsRead = async (id: string) => {
     await markNotificationAsRead(id);

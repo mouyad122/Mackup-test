@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { calculateInclusiveTax, calculateExclusiveTax, validatePaymentAllocation } from '@/lib/money';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
+import { calculateSupplierSplit, selectSupplierOffer } from '@/lib/business-finance';
 
 // Global mutex map to serialize concurrent checkout execution per product variant
 const checkoutMutexes = new Map<string, Promise<void>>();
@@ -161,6 +162,7 @@ export async function processPOSCheckout(data: any): Promise<
     const saleResult = await prisma.$transaction(async (tx) => {
       let subtotal = 0;
       const saleItemsData = [];
+      const reference = `POS-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
       for (const item of items) {
         const { variantId, quantity } = item;
@@ -168,12 +170,17 @@ export async function processPOSCheckout(data: any): Promise<
         // Authoritative reload of the variant and its parent product from db
         const variant = await tx.productVariant.findUnique({
           where: { id: variantId },
-          include: { product: true }
+          include: {
+            product: true,
+            supplierOffers: { include: { supplier: { select: { id: true, name: true, isActive: true } } }, orderBy: [{ unitCost: 'asc' }, { createdAt: 'asc' }] },
+          }
         });
 
         if (!variant || !variant.isActive) {
           throw new Error(`المنتج غير متوفر (SKU: ${item.sku})`);
         }
+        const offer = variant.inventorySource === 'SUPPLIER' ? selectSupplierOffer(variant.supplierOffers, quantity) : null;
+        if (variant.inventorySource === 'SUPPLIER' && !offer) throw new Error('Product is currently unavailable from all suppliers.');
 
         // 1. Authoritative Price Reload
         let unitPrice = variant.price;
@@ -195,6 +202,12 @@ export async function processPOSCheckout(data: any): Promise<
         if (updatedVariant.count === 0) {
           throw new Error(`مخزون غير كافٍ للدرجة (${variant.name}) من المنتج (${variant.product.nameAr})`);
         }
+        if (offer) {
+          const updatedOffer = await tx.supplierOffer.updateMany({ where: { id: offer.id, isActive: true, stock: { gte: quantity } }, data: { stock: { decrement: quantity } } });
+          if (updatedOffer.count !== 1) throw new Error(`مخزون المورد غير كافٍ للدرجة (${variant.name})`);
+          const afterOffer = await tx.supplierOffer.findUnique({ where: { id: offer.id }, select: { stock: true } });
+          if (afterOffer) await tx.supplierInventoryMovement.create({ data: { supplierOfferId: offer.id, quantityDelta: -quantity, quantityBefore: afterOffer.stock + quantity, quantityAfter: afterOffer.stock, reason: 'POS_SALE', reference, actorEmployeeId: employeeId } });
+        }
 
         const freshVariant = await tx.productVariant.findUnique({
           where: { id: variant.id },
@@ -211,8 +224,15 @@ export async function processPOSCheckout(data: any): Promise<
             }
           });
         }
+        await tx.inventoryMovement.create({ data: {
+          sku: variant.sku, type: 'SALE', quantity: -quantity,
+          quantityBefore: (freshVariant?.stock ?? variant.stock - quantity) + quantity,
+          quantityAfter: freshVariant?.stock ?? variant.stock - quantity,
+          employeeId, reference: `POS_SALE_${reference}`,
+        } });
 
         const total = unitPrice * quantity;
+        const supplierSplit = offer ? calculateSupplierSplit(total, offer.unitCost * quantity, offer.supplierProfitShareBps) : null;
         subtotal += total;
 
         saleItemsData.push({
@@ -222,7 +242,15 @@ export async function processPOSCheckout(data: any): Promise<
           size: variant.name,
           quantity,
           unitPrice,
-          total
+          total,
+          discountAmountSnapshot: 0,
+          supplierOfferIdSnapshot: offer?.id ?? null,
+          supplierIdSnapshot: offer?.supplierId ?? null,
+          supplierNameSnapshot: offer?.supplier.name ?? null,
+          unitCostSnapshot: offer?.unitCost ?? null,
+          supplierProfitShareBpsSnapshot: offer?.supplierProfitShareBps ?? null,
+          supplierAmountSnapshot: supplierSplit?.supplierProfitShare ?? null,
+          platformProductProfitSnapshot: supplierSplit?.platformProductProfit ?? null,
         });
       }
 
@@ -232,7 +260,36 @@ export async function processPOSCheckout(data: any): Promise<
       const taxRate = settings?.taxRate ?? 0.0;
       const pricesIncludeTax = settings?.pricesIncludeTax ?? true;
 
-      const discount = data.discount || 0;
+      const discount = Number(data.discount ?? 0);
+      if (!Number.isSafeInteger(discount) || discount < 0 || discount > subtotal) throw new Error('قيمة الخصم غير صالحة أو تتجاوز قيمة المنتجات.');
+      const marketingSettings = await tx.siteSettings.findUnique({ where: { key: 'marketing_settings' } });
+      let allowNegativeMarginPromotions = false;
+      if (marketingSettings) try { allowNegativeMarginPromotions = JSON.parse(marketingSettings.value)?.allowNegativeMarginPromotions === true; } catch {}
+      const marginBudget = saleItemsData.reduce((sum, line) => sum + (line.unitCostSnapshot === null ? 0 : Math.max(0, line.total - line.unitCostSnapshot * line.quantity)), 0);
+      if (!allowNegativeMarginPromotions && discount > marginBudget) throw new Error('لا يمكن تطبيق الخصم؛ سيتجاوز هامش المنتجات المسجل.');
+      const discountCaps = saleItemsData.map(line => allowNegativeMarginPromotions || line.unitCostSnapshot === null
+        ? (allowNegativeMarginPromotions ? line.total : 0)
+        : Math.max(0, line.total - line.unitCostSnapshot * line.quantity));
+      const plannedDiscounts = saleItemsData.map(line => subtotal > 0 ? Math.floor(discount * line.total / subtotal) : 0);
+      if (plannedDiscounts.length) plannedDiscounts[plannedDiscounts.length - 1] += discount - plannedDiscounts.reduce((sum, value) => sum + value, 0);
+      const lineDiscounts = plannedDiscounts.map((value, index) => Math.min(value, discountCaps[index]));
+      let unallocatedDiscount = discount - lineDiscounts.reduce((sum, value) => sum + value, 0);
+      lineDiscounts.forEach((value, index) => {
+        const extra = Math.min(unallocatedDiscount, Math.max(0, discountCaps[index] - value));
+        lineDiscounts[index] += extra;
+        unallocatedDiscount -= extra;
+      });
+      if (unallocatedDiscount > 0) throw new Error('الخصم يتجاوز الهامش المتاح للمنتجات.');
+      saleItemsData.forEach((line, index) => {
+        const lineDiscount = lineDiscounts[index];
+        line.discountAmountSnapshot = lineDiscount;
+        line.total -= lineDiscount;
+        if (line.unitCostSnapshot !== null) {
+          const split = calculateSupplierSplit(line.total, line.unitCostSnapshot * line.quantity, line.supplierProfitShareBpsSnapshot ?? 0);
+          line.supplierAmountSnapshot = split.supplierProfitShare;
+          line.platformProductProfitSnapshot = split.platformProductProfit;
+        }
+      });
       const subtotalAfterDiscount = Math.max(0, subtotal - discount);
 
       let taxAmount = 0;
@@ -268,8 +325,6 @@ export async function processPOSCheckout(data: any): Promise<
       }
 
       const { cashApplied, cardApplied, cashTendered, changeDue } = validatePaymentAllocation(grandTotal, paymentsData);
-
-      const reference = `POS-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
       // Create Sale with attribution snapshots
       const sale = await tx.sale.create({
@@ -330,6 +385,35 @@ export async function processPOSCheckout(data: any): Promise<
           cashierRoleSnapshot: sellerRoleSnapshot
         }
       });
+
+      // POS product revenue enters the same ledger once. Sale and Payment remain
+      // the operational/cash records; the financial dashboard reads this SALE
+      // entry and must not independently add the Sale total again.
+      await tx.financialTransaction.create({ data: {
+        businessEventKey: `pos:${sale.id}:sale`,
+        type: 'SALE', direction: 'IN', amount: calculatedSubtotal, saleId: sale.id,
+        description: `POS product sale ${sale.reference}`, createdByEmployeeId: employeeId,
+      } });
+      if (discount > 0) await tx.financialTransaction.create({ data: {
+        businessEventKey: `pos:${sale.id}:discount`,
+        type: 'DISCOUNT', direction: 'OUT', amount: discount, saleId: sale.id,
+        description: `POS discount ${sale.reference}`, createdByEmployeeId: employeeId,
+      } });
+      for (const line of saleItemsData) {
+        if (line.unitCostSnapshot === null) continue;
+        const productCost = line.unitCostSnapshot * line.quantity;
+        if (productCost > 0) await tx.financialTransaction.create({ data: {
+          businessEventKey: `pos:${sale.id}:product-cost:${line.variantId}`,
+          type: 'PRODUCT_COST', direction: 'OUT', amount: productCost, saleId: sale.id,
+          supplierId: line.supplierIdSnapshot, description: `POS product cost: ${line.name} (${sale.reference})`, createdByEmployeeId: employeeId,
+        } });
+        const supplierDue = productCost + (line.supplierAmountSnapshot ?? 0);
+        if (line.supplierIdSnapshot && supplierDue > 0) await tx.financialTransaction.create({ data: {
+          businessEventKey: `pos:${sale.id}:supplier-obligation:${line.variantId}`,
+          type: 'SUPPLIER_OBLIGATION', direction: 'OUT', amount: supplierDue, saleId: sale.id,
+          supplierId: line.supplierIdSnapshot, description: `POS supplier obligation: ${line.name} (${sale.reference})`, createdByEmployeeId: employeeId,
+        } });
+      }
 
       // Audit Log
       await tx.auditLog.create({

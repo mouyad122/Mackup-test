@@ -416,14 +416,20 @@ export default async function StoreFrontPage({ params }: { params: Promise<Param
               : 'You can test the Admin Dashboard and POS Cashier without logging in.'}
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
-            <a href="/api/demo-login?role=admin" className="w-full sm:w-auto px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md flex items-center justify-center gap-2">
-              <span className="text-xl">👩‍💼</span>
-              {isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}
-            </a>
-            <a href="/api/demo-login?role=cashier" className="w-full sm:w-auto px-8 py-3 bg-black border-2 border-[var(--color-gold-500)] hover:bg-zinc-900 text-[var(--color-gold-500)] font-bold rounded-sm transition-all shadow-sm flex items-center justify-center gap-2">
-              <span className="text-xl">🛒</span>
-              {isAr ? 'نظام الكاشير (POS)' : 'POS System'}
-            </a>
+            <form action="/api/demo-login" method="GET">
+              <input type="hidden" name="role" value="admin" />
+              <button className="w-full sm:w-auto px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md flex items-center justify-center gap-2">
+                <span className="text-xl">👩‍💼</span>
+                {isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}
+              </button>
+            </form>
+            <form action="/api/demo-login" method="GET">
+              <input type="hidden" name="role" value="cashier" />
+              <button className="w-full sm:w-auto px-8 py-3 bg-black border-2 border-[var(--color-gold-500)] hover:bg-zinc-900 text-[var(--color-gold-500)] font-bold rounded-sm transition-all shadow-sm flex items-center justify-center gap-2">
+                <span className="text-xl">🛒</span>
+                {isAr ? 'نظام الكاشير (POS)' : 'POS System'}
+              </button>
+            </form>
           </div>
         </div>
       </section>
