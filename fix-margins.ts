@@ -1,11 +1,7 @@
 import { prisma } from './src/lib/db';
 
 async function main() {
-  // 1. Fix supplier profit margin (from 25 to 0.25)
-  await prisma.supplier.updateMany({
-    where: { profitMargin: { gt: 1 } },
-    data: { profitMargin: 0.25 }
-  });
+// Removed invalid supplier profit margin update (field does not exist)
 
   // 2. Delete wrong financial transactions for these test orders
   await prisma.financialTransaction.deleteMany({
@@ -26,7 +22,7 @@ async function main() {
         const offer = variant.supplierOffers[0];
         if (offer) {
           const unitCost = offer.unitCost;
-          const actualMargin = offer.supplier.profitMargin > 1 ? offer.supplier.profitMargin / 100 : offer.supplier.profitMargin;
+          const actualMargin = offer.supplierProfitShareBps / 10000;
           const bps = actualMargin * 10000; // Store as BPS
           const supplierShare = Math.floor((item.total - (unitCost * item.quantity)) * actualMargin);
           const supplierAmount = Math.max(0, supplierShare);

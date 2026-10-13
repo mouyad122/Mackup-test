@@ -30,5 +30,18 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "scripts", "e2e"]
+  "exclude": [
+    "node_modules",
+    "scripts",
+    "e2e",
+    "seed-*.ts",
+    "fix-*.ts",
+    "query*.ts",
+    "check-db.ts",
+    "create-admin.ts",
+    "reset-passwords.ts",
+    "update-variants.ts",
+    "update-zones.ts",
+    "wipe-images.ts"
+  ]
 }

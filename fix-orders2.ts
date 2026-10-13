@@ -1,6 +1,6 @@
 import { prisma } from './src/lib/db';
 
-async function main() {
+async function main2() {
   const orders = await prisma.order.findMany({
     include: { items: { include: { product: { include: { variants: { include: { supplierOffers: { include: { supplier: true } } } } } } } } }
   });
@@ -14,8 +14,9 @@ async function main() {
         const offer = variant.supplierOffers[0];
         if (offer) {
           const unitCost = offer.unitCost;
-          const bps = offer.supplier.profitMargin * 100;
-          const supplierShare = Math.floor((item.total - (unitCost * item.quantity)) * offer.supplier.profitMargin);
+          const bps = offer.supplierProfitShareBps;
+          const actualMargin = bps / 10000;
+          const supplierShare = Math.floor((item.total - (unitCost * item.quantity)) * actualMargin);
           const supplierAmount = Math.max(0, supplierShare);
           const platformProfit = Math.max(0, item.total - (unitCost * item.quantity) - supplierAmount);
           const supplierId = offer.supplierId;
@@ -64,4 +65,4 @@ async function main() {
   }
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main2().catch(console.error).finally(() => prisma.$disconnect());

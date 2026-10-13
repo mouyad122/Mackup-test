@@ -41,6 +41,8 @@ model Employee {
   soldSales                                                                  Sale[]                  @relation("SoldSales")
   sessions                                                                   Session[]
   shifts                                                                     Shift[]
+  pendingMfaChallenge                                                        PendingMfaChallenge?
+  importJobs                                                                 ImportJob[]
 }
 
 model EmployeePermission {
@@ -116,6 +118,20 @@ model Product {
   genderId              String?
   seasonId              String?
   familyId              String?
+  brandId               String?
+  barcode               String?                 @unique
+  productType           String?
+  isBestSeller          Boolean                 @default(false)
+  isNew                 Boolean                 @default(false)
+  isTrending            Boolean                 @default(false)
+  tags                  String?
+  ingredients           String?
+  howToUse              String?
+  warnings              String?
+  finish                String?
+  coverage              String?
+  skinType              String?
+  benefits              String?
   isVisible             Boolean                 @default(true)
   isFeatured            Boolean                 @default(false)
   featuredOrder         Int                     @default(0)
@@ -140,38 +156,62 @@ model Product {
   ProductLiquidStock    ProductLiquidStock?
   ProductNote           ProductNote[]
   variants              ProductVariant[]
+  brand                 Brand?                  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  reviews               Review[]
+  ingredientsRelations  ProductIngredient[]
+  similarProducts       ProductSimilar[]        @relation("ProductSimilars")
+  similarOf             ProductSimilar[]        @relation("SimilarOf")
+  slides                HomepageHeroSlide[]
+
+  @@index([brandId])
 }
 
 model ProductVariant {
-  id                String          @id @default(uuid())
-  productId         String
-  size              String
-  sku               String          @unique
-  price             Int
-  compareAt         Int?
-  stock             Int             @default(0)
-  isActive          Boolean         @default(true)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  usesGlobalPricing Boolean         @default(true)
-  inventorySource   String          @default("INTERNAL")
-  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  returnItems       ReturnItem[]
-  saleItems         SaleItem[]
-  supplierOffers    SupplierOffer[]
+  id                 String              @id @default(uuid())
+  productId          String
+  size               String
+  name               String              @default("")
+  barcode            String?             @unique
+  colorName          String?
+  colorHex           String?
+  mainImage          String?
+  swatchImage        String?
+  modelImage         String?
+  shadeId            String?
+  sku                String              @unique
+  price              Int
+  compareAt          Int?
+  stock              Int                 @default(0)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  usesGlobalPricing  Boolean             @default(true)
+  inventorySource    String              @default("INTERNAL")
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  returnItems        ReturnItem[]
+  saleItems          SaleItem[]
+  supplierOffers     SupplierOffer[]
+  images             ProductImage[]
+  inventoryRecords   Inventory[]
+  purchaseOrderItems PurchaseOrderItem[]
+  stockTransfers     StockTransfer[]
+  shade              Shade?              @relation(fields: [shadeId], references: [id], onDelete: SetNull)
 }
 
 model Supplier {
-  id          String               @id @default(uuid())
-  name        String
-  phone       String?
-  email       String?
-  notes       String?
-  isActive    Boolean              @default(true)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  offers      SupplierOffer[]
-  settlements SupplierSettlement[]
+  id               String               @id @default(uuid())
+  name             String
+  phone            String?
+  email            String?
+  notes            String?
+  profitMargin     Float                @default(0)
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  offers           SupplierOffer[]
+  settlements      SupplierSettlement[]
+  purchaseOrders   PurchaseOrder[]
+  supplierInvoices SupplierInvoice[]
 
   @@index([isActive, name])
 }
@@ -212,22 +252,27 @@ model SupplierInventoryMovement {
 }
 
 model ProductImage {
-  id        String   @id @default(uuid())
+  id        String          @id @default(uuid())
   productId String
+  variantId String?
   url       String
   alt       String?
-  isMain    Boolean  @default(false)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String          @default("PRIMARY")
+  isMain    Boolean         @default(false)
+  order     Int             @default(0)
+  createdAt DateTime        @default(now())
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 }
 
 model Category {
-  id          String    @id @default(uuid())
-  slug        String    @unique
+  id          String              @id @default(uuid())
+  slug        String              @unique
   name        String
   description String?
+  imagePath   String?
   products    Product[]
+  slides      HomepageHeroSlide[]
 }
 
 model Order {
@@ -235,6 +280,9 @@ model Order {
   reference                String                 @unique
   customerName             String
   customerPhone            String
+  customerId               String?
+  deliveryBatchId          String?
+  preparedByEmployeeName   String?
   status                   String
   totalAmount              Int
   shippingCost             Int
@@ -257,6 +305,11 @@ model Order {
   items                    OrderItem[]
   statusHistory            OrderStatusHistory[]
   rewardRedemptions        RewardRedemption[]
+  customer                 Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deliveryBatch            DeliveryBatch?         @relation(fields: [deliveryBatchId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([deliveryBatchId])
 }
 
 model OrderItem {
@@ -296,6 +349,8 @@ model Sale {
   reference                  String                 @unique
   employeeId                 String
   customerName               String?                @default("عميل نقدي")
+  customerId                 String?
+  idempotencyKey             String?                @unique
   subtotal                   Int
   tax                        Int
   discount                   Int                    @default(0)
@@ -320,6 +375,9 @@ model Sale {
   employee                   Employee               @relation(fields: [employeeId], references: [id])
   soldBy                     Employee?              @relation("SoldSales", fields: [soldByEmployeeId], references: [id])
   items                      SaleItem[]
+  customer                   Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
 }
 
 model SaleItem {
@@ -407,14 +465,18 @@ model ReturnItem {
 }
 
 model InventoryMovement {
-  id         String   @id @default(uuid())
-  sku        String
-  type       String
-  quantity   Int
-  employeeId String
-  reference  String?
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  id             String     @id @default(uuid())
+  sku            String
+  type           String
+  quantity       Int
+  quantityBefore Int        @default(0)
+  quantityAfter  Int        @default(0)
+  warehouseId    String?
+  employeeId     String
+  reference      String?
+  createdAt      DateTime   @default(now())
+  employee       Employee   @relation(fields: [employeeId], references: [id])
+  warehouse      Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
 }
 
 model StockAdjustment {
@@ -885,4 +947,290 @@ model Season {
   id      String    @id
   name    String    @unique
   Product Product[]
+}
+
+model HomepageHeroSlide {
+  id         String    @id @default(uuid())
+  title      String
+  subtitle   String?
+  imageUrl   String?
+  link       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  product    Product?  @relation(fields: [productId], references: [id])
+  productId  String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+}
+
+// These catalog and ERP records are additive to the original perfume-focused
+// schema.  Existing nullable foreign keys keep historical orders and products
+// valid while the newer administration screens can use the richer relations.
+model PendingMfaChallenge {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  nameAr      String
+  nameEn      String
+  description String?
+  logoUrl     String?
+  isVisible   Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProductSimilar {
+  productId String
+  similarId String
+  order     Int     @default(0)
+  product   Product @relation("ProductSimilars", fields: [productId], references: [id], onDelete: Cascade)
+  similar   Product @relation("SimilarOf", fields: [similarId], references: [id], onDelete: Cascade)
+
+  @@id([productId, similarId])
+  @@index([productId])
+}
+
+model Ingredient {
+  id          String              @id @default(uuid())
+  nameAr      String
+  nameEn      String
+  description String?
+  products    ProductIngredient[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([nameAr, nameEn])
+}
+
+model ProductIngredient {
+  productId    String
+  ingredientId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([productId, ingredientId])
+}
+
+model Shade {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  hexCode   String?
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  variants  ProductVariant[]
+}
+
+model Customer {
+  id             String            @id @default(uuid())
+  firstName      String
+  lastName       String?
+  phone          String            @unique
+  email          String?
+  notes          String?
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  orders         Order[]
+  sales          Sale[]
+  reviews        Review[]
+  addresses      CustomerAddress[]
+  loyaltyAccount LoyaltyAccount?
+}
+
+model CustomerAddress {
+  id         String   @id @default(uuid())
+  customerId String
+  type       String   @default("HOME")
+  city       String
+  street     String
+  building   String?
+  apartment  String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model LoyaltyAccount {
+  id             String   @id @default(uuid())
+  customerId     String   @unique
+  pointsBalance  Int      @default(0)
+  lifetimePoints Int      @default(0)
+  tier           String   @default("BRONZE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  customerId String
+  rating     Int
+  comment    String?
+  isVerified Boolean  @default(false)
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, customerId])
+  @@index([productId, isApproved])
+}
+
+model Warehouse {
+  id                String              @id @default(uuid())
+  name              String              @unique
+  code              String              @unique
+  location          String?
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  inventories       Inventory[]
+  movements         InventoryMovement[]
+  outboundTransfers StockTransfer[]     @relation("TransferFromWarehouse")
+  inboundTransfers  StockTransfer[]     @relation("TransferToWarehouse")
+}
+
+model Inventory {
+  id          String         @id @default(uuid())
+  warehouseId String
+  variantId   String
+  quantity    Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, variantId])
+}
+
+model StockTransfer {
+  id              String         @id @default(uuid())
+  fromWarehouseId String
+  toWarehouseId   String
+  variantId       String
+  quantity        Int
+  status          String         @default("PENDING")
+  createdBy       String
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  fromWarehouse   Warehouse      @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouse     Warehouse      @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  variant         ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+}
+
+model DeliveryBatch {
+  id        String   @id @default(uuid())
+  reference String   @unique
+  status    String   @default("NOT_DELIVERED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  supplierId  String
+  reference   String              @unique
+  status      String              @default("DRAFT")
+  totalAmount Int
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items       PurchaseOrderItem[]
+  receipts    GoodsReceipt[]
+  invoices    SupplierInvoice[]
+}
+
+model PurchaseOrderItem {
+  id               String         @id @default(uuid())
+  purchaseOrderId  String
+  variantId        String
+  quantityOrdered  Int
+  quantityReceived Int            @default(0)
+  unitCost         Int
+  purchaseOrder    PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+}
+
+model GoodsReceipt {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  reference       String        @unique
+  receivedBy      String
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model SupplierInvoice {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  supplierId      String
+  reference       String        @unique
+  totalAmount     Int
+  amountPaid      Int           @default(0)
+  status          String        @default("UNPAID")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  supplier        Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+}
+
+model ImportJob {
+  id           String         @id @default(uuid())
+  status       String
+  fileName     String
+  fileType     String
+  totalRows    Int
+  successRows  Int            @default(0)
+  failedRows   Int            @default(0)
+  skippedRows  Int            @default(0)
+  confirmedBy  String?
+  startedAt    DateTime       @default(now())
+  completedAt  DateTime?
+  errorSummary String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  employeeId   String
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+  rows         ImportJobRow[]
+}
+
+model ImportJobRow {
+  id              String    @id @default(uuid())
+  jobId           String
+  rowNumber       Int
+  sku             String?
+  nameAr          String?
+  rawData         String?
+  normalizedData  String?
+  status          String
+  errorMessage    String?
+  warnings        String?
+  resultStatus    String?
+  entityReference String?
+  createdAt       DateTime  @default(now())
+  job             ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
 }
