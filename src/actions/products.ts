@@ -1,272 +1,178 @@
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/dal';
 import { uploadMedia } from '@/actions/upload';
+import { assignProductSupplier, productSupplierSchema } from '@/lib/product-supplier';
+import { revalidatePath } from 'next/cache';
+import { logAction } from '@/lib/audit';
 
-async function saveUploadedImage(imageFile: File): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', imageFile);
-  const result = await uploadMedia(formData);
-  if (!result.success || !result.url) {
-    throw new Error(result.error || 'فشل رفع الصورة');
+type VariantInput = {
+  id?: string;
+  size: string;
+  sku: string;
+  price: number;
+  isActive?: boolean;
+  inventorySource?: 'INTERNAL' | 'SUPPLIER';
+  supplierId?: string | null;
+  supplierUnitCost?: number | string | null;
+  supplierOfferUpdatedAt?: string | null;
+};
+
+function text(formData: FormData, key: string, required = false) {
+  const value = String(formData.get(key) ?? '').trim();
+  if (required && !value) throw new Error('يرجى تعبئة جميع الحقول المطلوبة.');
+  return value;
+}
+
+function parseVariants(formData: FormData): VariantInput[] {
+  let value: unknown;
+  try { value = JSON.parse(String(formData.get('variants') ?? '[]')); } catch { throw new Error('بيانات خيارات المنتج غير صالحة.'); }
+  if (!Array.isArray(value) || value.length === 0) throw new Error('أضف خياراً واحداً على الأقل للمنتج.');
+  return value.map((raw) => {
+    const item = raw as Partial<VariantInput>;
+    const size = String(item.size ?? '').trim();
+    const sku = String(item.sku ?? '').trim();
+    const price = Number(item.price);
+    if (!size || !sku || !Number.isInteger(price) || price < 0) throw new Error('تحقق من المقاس وSKU والسعر لكل خيار.');
+    return { ...item, size, sku, price } as VariantInput;
+  });
+}
+
+async function uploadedImages(formData: FormData) {
+  const files = formData.getAll('newImages').filter((file): file is File => file instanceof File && file.size > 0);
+  const urls: string[] = [];
+  for (const file of files) {
+    const payload = new FormData();
+    payload.set('file', file);
+    const result = await uploadMedia(payload);
+    if (!result.success || !result.url) throw new Error(result.error || 'فشل رفع الصورة.');
+    urls.push(result.url);
   }
-  return result.url;
+  return urls;
+}
+
+function productFields(formData: FormData) {
+  return {
+    nameAr: text(formData, 'nameAr', true),
+    nameEn: text(formData, 'nameEn', true),
+    sku: text(formData, 'sku', true),
+    categoryId: text(formData, 'categoryId', true),
+    shortDescription: text(formData, 'shortDescription') || null,
+    longDescription: text(formData, 'longDescription') || null,
+    isVisible: formData.get('isVisible') === 'true',
+    isFeatured: formData.get('isFeatured') === 'true',
+  };
+}
+
+async function applySupplier(tx: Prisma.TransactionClient, variantId: string, variant: VariantInput) {
+  if (variant.inventorySource === 'SUPPLIER' && variant.supplierId) {
+    const assignment = productSupplierSchema.safeParse(variant);
+    if (!assignment.success) throw new Error('حدد المورد وكلفة القطعة بشكل صحيح.');
+    await assignProductSupplier(tx, variantId, assignment.data);
+    return;
+  }
+  await tx.supplierOffer.updateMany({ where: { variantId, isActive: true }, data: { isActive: false } });
 }
 
 export async function createProduct(formData: FormData) {
-  await requirePermission('manage:products');
-
+  const session = await requirePermission('manage:products');
   try {
-    const nameAr = formData.get('nameAr') as string;
-    const nameEn = formData.get('nameEn') as string;
-    const sku = formData.get('sku') as string;
-    const shortDescription = (formData.get('shortDescription') as string) || null;
-    const longDescription = (formData.get('longDescription') as string) || null;
-    const isVisible = formData.get('isVisible') === 'true';
-    const isFeatured = formData.get('isFeatured') === 'true';
-    
-    const categoryId = formData.get('categoryId') as string;
-    const brandId = (formData.get('brandId') as string) || null;
-    
-    const productType = (formData.get('productType') as string) || null;
-    const finish = (formData.get('finish') as string) || null;
-    const coverage = (formData.get('coverage') as string) || null;
-    const skinType = (formData.get('skinType') as string) || null;
-    const benefits = (formData.get('benefits') as string) || null;
-    const ingredients = (formData.get('ingredients') as string) || null;
-    const howToUse = (formData.get('howToUse') as string) || null;
+    const data = productFields(formData);
+    const variants = parseVariants(formData);
+    const imageUrls = await uploadedImages(formData);
+    const slug = `${data.sku.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
 
-    const slug = sku.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
-
-    if (!categoryId) throw new Error('التصنيف مطلوب');
-
-    let variants: any[] = [];
-    const variantsJson = formData.get('variants') as string;
-    if (variantsJson) {
-      try { variants = JSON.parse(variantsJson); } catch {}
-    }
-    if (variants.length === 0) {
-      variants = [{ name: 'Standard', sku: `${sku}-STD`, price: 25000, isActive: true }];
-    }
-
-    // Handle image
-    let imageUrl = '';
-    const imageFile = formData.get('image') as File;
-    if (imageFile && imageFile.size > 0) {
-      imageUrl = await saveUploadedImage(imageFile);
-    }
-
-    const product = await prisma.product.create({
-      data: {
-        slug,
-        nameAr,
-        nameEn,
-        sku,
-        shortDescription,
-        longDescription,
-        isVisible,
-        isFeatured,
-        categoryId,
-        brandId,
-        productType,
-        finish,
-        coverage,
-        skinType,
-        benefits,
-        ingredients,
-        howToUse,
-        variants: {
-          create: variants.map((v: any) => ({
-            name: v.name,
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          ...data,
+          slug,
+          variants: { create: variants.map(v => ({
+            size: v.size,
             sku: v.sku,
-            price: Number(v.price),
-            colorHex: v.colorHex || null,
-            stock: Number(v.stock) || 0,
+            price: v.price,
+            stock: 0,
             isActive: v.isActive ?? true,
-            usesGlobalPricing: v.usesGlobalPricing ?? true,
             inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
-          }))
+          })) },
+          ...(imageUrls.length ? { images: { create: imageUrls.map((url, order) => ({ url, alt: data.nameAr, order, isMain: order === 0 })) } } : {}),
         },
-        ...(imageUrl ? {
-          images: {
-            create: [{ url: imageUrl, isMain: true, alt: nameAr, type: 'PRIMARY' }]
-          }
-        } : {})
-      }
-    });
+        include: { variants: true },
+      });
+      for (let index = 0; index < variants.length; index++) await applySupplier(tx, created.variants[index].id, variants[index]);
+      return created;
+    }, { isolationLevel: 'Serializable' });
 
+    await logAction(session.employeeId, 'CREATE_PRODUCT', 'PRODUCT', product.id, { name: data.nameAr });
+    revalidatePath('/admin/products');
+    revalidatePath('/', 'layout');
     return { success: true, productId: product.id };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating product:', error);
-    if (error.code === 'P2002' && error.meta?.target?.includes('sku')) {
-      return { success: false, error: 'رقم المنتج (SKU) مستخدم مسبقاً. يرجى المحاولة مرة أخرى للحصول على رقم جديد.' };
-    }
-    return { success: false, error: error.message };
+    const message = error instanceof Error ? error.message : 'تعذر إنشاء المنتج.';
+    return { success: false, error: message.includes('Unique constraint') ? 'SKU مستخدم مسبقاً.' : message };
   }
 }
 
 export async function updateProduct(productId: string, formData: FormData) {
-  await requirePermission('manage:products');
-
+  const session = await requirePermission('manage:products');
   try {
-    const nameAr = formData.get('nameAr') as string;
-    const nameEn = formData.get('nameEn') as string;
-    const sku = formData.get('sku') as string;
-    const shortDescription = (formData.get('shortDescription') as string) || null;
-    const longDescription = (formData.get('longDescription') as string) || null;
-    const isVisible = formData.get('isVisible') === 'true';
-    const isFeatured = formData.get('isFeatured') === 'true';
-    
-    const categoryId = formData.get('categoryId') as string;
-    const brandId = (formData.get('brandId') as string) || null;
-    
-    const productType = (formData.get('productType') as string) || null;
-    const finish = (formData.get('finish') as string) || null;
-    const coverage = (formData.get('coverage') as string) || null;
-    const skinType = (formData.get('skinType') as string) || null;
-    const benefits = (formData.get('benefits') as string) || null;
-    const ingredients = (formData.get('ingredients') as string) || null;
-    const howToUse = (formData.get('howToUse') as string) || null;
+    const data = productFields(formData);
+    const variants = parseVariants(formData);
+    const incomingIds = variants.flatMap(v => v.id ? [v.id] : []);
+    if (new Set(incomingIds).size !== incomingIds.length) throw new Error('أحد خيارات المنتج مكرر.');
+    const existingImageIds = JSON.parse(String(formData.get('existingImageIds') ?? '[]')) as string[];
+    const imageUrls = await uploadedImages(formData);
 
-    if (!categoryId) throw new Error('التصنيف مطلوب');
-
-    let variants: any[] = [];
-    const variantsJson = formData.get('variants') as string;
-    if (variantsJson) {
-      try { variants = JSON.parse(variantsJson); } catch {}
-    }
-
-    // Handle similar products
-    let similarProductIds: string[] = [];
-    const similarJson = formData.get('similarProductIds') as string;
-    if (similarJson) {
-      try { similarProductIds = JSON.parse(similarJson); } catch {}
-    }
-
-    // Handle image
-    let imageUrl = '';
-    const imageFile = formData.get('image') as File;
-    if (imageFile && imageFile.size > 0) {
-      imageUrl = await saveUploadedImage(imageFile);
-    }
-
-    // Upsert product
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        nameAr,
-        nameEn,
-        sku,
-        shortDescription,
-        longDescription,
-        isVisible,
-        isFeatured,
-        categoryId,
-        brandId,
-        productType,
-        finish,
-        coverage,
-        skinType,
-        benefits,
-        ingredients,
-        howToUse,
+    await prisma.$transaction(async (tx) => {
+      if (incomingIds.length) {
+        const count = await tx.productVariant.count({ where: { productId, id: { in: incomingIds } } });
+        if (count !== incomingIds.length) throw new Error('أحد الخيارات لا يتبع هذا المنتج.');
       }
-    });
+      await tx.product.update({ where: { id: productId }, data });
+      await tx.productVariant.updateMany({ where: { productId, id: { notIn: incomingIds } }, data: { isActive: false } });
 
-    // Upsert variants: soft-delete missing ones and update/create incoming ones
-    if (variants.length > 0) {
-      const incomingIds = variants.map((v: any) => v.id).filter(Boolean);
-      
-      // Mark variants not in the incoming list as inactive (soft delete)
-      if (incomingIds.length > 0) {
-        await prisma.productVariant.updateMany({
-          where: { productId, id: { notIn: incomingIds } },
-          data: { isActive: false }
-        });
-      } else {
-        await prisma.productVariant.updateMany({
-          where: { productId },
-          data: { isActive: false }
-        });
+      for (const variant of variants) {
+        const variantData = {
+          size: variant.size,
+          sku: variant.sku,
+          price: variant.price,
+          isActive: variant.isActive ?? true,
+          inventorySource: variant.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
+        };
+        const saved = variant.id
+          ? await tx.productVariant.update({ where: { id: variant.id }, data: variantData })
+          : await tx.productVariant.create({ data: { productId, stock: 0, ...variantData } });
+        await applySupplier(tx, saved.id, variant);
       }
 
-      // Upsert incoming variants
-      for (const v of variants) {
-        if (v.id) {
-          await prisma.productVariant.update({
-            where: { id: v.id },
-            data: {
-              name: v.name,
-              sku: v.sku,
-              price: Number(v.price),
-              colorHex: v.colorHex || null,
-              stock: Number(v.stock) || 0,
-              isActive: v.isActive ?? true,
-              usesGlobalPricing: v.usesGlobalPricing ?? true,
-              inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
-            }
-          });
-        } else {
-          await prisma.productVariant.create({
-            data: {
-              productId,
-              name: v.name,
-              sku: v.sku,
-              price: Number(v.price),
-              colorHex: v.colorHex || null,
-              stock: Number(v.stock) || 0,
-              isActive: v.isActive ?? true,
-              usesGlobalPricing: v.usesGlobalPricing ?? true,
-              inventorySource: v.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
-            }
-          });
-        }
-      }
-    }
+      await tx.productImage.deleteMany({ where: { productId, id: { notIn: existingImageIds } } });
+      if (imageUrls.length) await tx.productImage.createMany({ data: imageUrls.map((url, index) => ({ productId, url, alt: data.nameAr, order: existingImageIds.length + index, isMain: existingImageIds.length === 0 && index === 0 })) });
+      const images = await tx.productImage.findMany({ where: { productId }, orderBy: { order: 'asc' } });
+      if (images.length && !images.some(image => image.isMain)) await tx.productImage.update({ where: { id: images[0].id }, data: { isMain: true } });
+    }, { isolationLevel: 'Serializable' });
 
-    // Update similar products
-    await prisma.productSimilar.deleteMany({ where: { productId } });
-    if (similarProductIds.length > 0) {
-      const validIds = similarProductIds.filter(id => id !== productId);
-      if (validIds.length > 0) {
-        await prisma.productSimilar.createMany({
-          data: validIds.map((similarId, idx) => ({
-            productId,
-            similarId,
-            order: idx,
-          }))
-        });
-      }
-    }
-
-    // Update image if provided
-    if (imageUrl) {
-      await prisma.productImage.deleteMany({ where: { productId } });
-      await prisma.productImage.create({
-        data: { productId, url: imageUrl, isMain: true, alt: nameAr, type: 'PRIMARY' }
-      });
-    }
-
+    await logAction(session.employeeId, 'UPDATE_PRODUCT', 'PRODUCT', productId);
+    revalidatePath(`/admin/products/${productId}`);
+    revalidatePath('/admin/products');
+    revalidatePath('/admin/suppliers');
+    revalidatePath('/', 'layout');
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating product:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'تعذر تحديث المنتج.' };
   }
 }
 
 export async function getProductsByIds(ids: string[]) {
-  if (!ids || ids.length === 0) return [];
+  if (!ids.length) return [];
   try {
-    const products = await prisma.product.findMany({
+    return await prisma.product.findMany({
       where: { id: { in: ids }, isVisible: true },
-      include: {
-        variants: { orderBy: { price: 'asc' } },
-        images: { orderBy: { order: 'asc' } },
-        category: true,
-      }
+      include: { variants: { orderBy: { price: 'asc' } }, images: { orderBy: { order: 'asc' } }, category: true },
     });
-    return products;
   } catch (error) {
     console.error('Error fetching products by ids:', error);
     return [];

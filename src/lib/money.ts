@@ -1,83 +1,147 @@
-/**
- * MONEY MODULE FOR JORDANIAN FILS (1 JOD = 1000 fils)
- *
- * ROUNDING RULE DOCUMENTATION:
- * The system implements Half-Up Rounding (standard arithmetic rounding: Math.round for positive values).
- * Any fractional value >= 0.5 fils is rounded up to the nearest integer fils.
- * Any fractional value < 0.5 fils is rounded down.
- */
+export class Money {
+  private readonly amountInFils: number;
 
-/**
- * Converts a JOD decimal value (e.g. 10.500) to integer Fils (e.g. 10500).
- */
+  constructor(amountInFils: number) {
+    if (!Number.isInteger(amountInFils)) {
+      // Force integer if somehow a float slipped in
+      this.amountInFils = Math.round(amountInFils);
+    } else {
+      this.amountInFils = amountInFils;
+    }
+  }
+
+  static zero() {
+    return new Money(0);
+  }
+
+  static fromJOD(jod: number) {
+    return new Money(Math.round(jod * 1000));
+  }
+
+  static fromFils(fils: number) {
+    return new Money(fils);
+  }
+
+  getAmount(): number {
+    return this.amountInFils;
+  }
+
+  add(other: Money): Money {
+    return new Money(this.amountInFils + other.amountInFils);
+  }
+
+  subtract(other: Money): Money {
+    return new Money(this.amountInFils - other.amountInFils);
+  }
+
+  multiply(multiplier: number): Money {
+    return new Money(Math.round(this.amountInFils * multiplier));
+  }
+
+  // Divides and allocates remainder to avoid lost pennies
+  allocate(ratios: number[]): Money[] {
+    const totalRatio = ratios.reduce((a, b) => a + b, 0);
+    if (totalRatio === 0) return ratios.map(() => Money.zero());
+
+    let remainder = this.amountInFils;
+    const results = ratios.map((ratio) => {
+      const share = Math.floor((this.amountInFils * ratio) / totalRatio);
+      remainder -= share;
+      return share;
+    });
+
+    // Distribute remainder 1 fil at a time
+    for (let i = 0; i < remainder; i++) {
+      results[i % results.length] += 1;
+    }
+
+    return results.map(r => new Money(r));
+  }
+
+  calculatePercentage(percentage: number): Money {
+    return new Money(Math.round(this.amountInFils * (percentage / 100)));
+  }
+
+  greaterThan(other: Money): boolean {
+    return this.amountInFils > other.amountInFils;
+  }
+
+  greaterThanOrEqual(other: Money): boolean {
+    return this.amountInFils >= other.amountInFils;
+  }
+
+  lessThan(other: Money): boolean {
+    return this.amountInFils < other.amountInFils;
+  }
+
+  equals(other: Money): boolean {
+    return this.amountInFils === other.amountInFils;
+  }
+
+  isZero(): boolean {
+    return this.amountInFils === 0;
+  }
+  
+  isPositive(): boolean {
+    return this.amountInFils > 0;
+  }
+
+  isNegative(): boolean {
+    return this.amountInFils < 0;
+  }
+
+  format(locale: 'ar' | 'en' = 'ar'): string {
+    const jod = this.amountInFils / 1000;
+    const formatted = jod.toFixed(3);
+    return locale === 'ar' ? `${formatted} د.أ` : `${formatted} JOD`;
+  }
+}
+
+// ---------------------------------------------------------
+// LEGACY HELPERS (Refactored to use Money internally)
+// ---------------------------------------------------------
+
 export function jodToFils(jod: number): number {
-  return Math.round(jod * 1000);
+  return Money.fromJOD(jod).getAmount();
 }
 
-/**
- * Formats integer Fils to user-friendly Arabic/English JOD decimal strings.
- * e.g. 10500 fils -> "10.500 د.أ" or "10.500 JOD"
- */
 export function filsToDisplay(fils: number, locale: 'ar' | 'en' = 'ar'): string {
-  const jod = fils / 1000;
-  const formatted = jod.toFixed(3);
-  return locale === 'ar' ? `${formatted} د.أ` : `${formatted} JOD`;
+  return Money.fromFils(fils).format(locale);
 }
 
-/**
- * Calculates a percentage value with explicit Half-Up rounding.
- */
 export function calculatePercentage(amount: number, percentage: number): number {
-  return Math.round(amount * (percentage / 100));
+  return Money.fromFils(amount).calculatePercentage(percentage).getAmount();
 }
 
-/**
- * Extracts inclusive tax from a gross total.
- * taxAmount = grossTotal - (grossTotal / (1 + rate / 100))
- */
 export function calculateInclusiveTax(grossTotal: number, rate: number): number {
   if (rate <= 0) return 0;
-  return Math.round(grossTotal - grossTotal / (1 + rate / 100));
+  // taxAmount = grossTotal - (grossTotal / (1 + rate / 100))
+  const tax = Math.round(grossTotal - grossTotal / (1 + rate / 100));
+  return Money.fromFils(tax).getAmount();
 }
 
-/**
- * Calculates exclusive tax from a net subtotal.
- * taxAmount = netSubtotal * (rate / 100)
- */
 export function calculateExclusiveTax(netSubtotal: number, rate: number): number {
   if (rate <= 0) return 0;
-  return Math.round(netSubtotal * (rate / 100));
+  return Money.fromFils(netSubtotal).calculatePercentage(rate).getAmount();
 }
 
-/**
- * Calculates discount amount based on percentage or absolute fils values.
- */
 export function calculateDiscount(
   subtotal: number,
   discountValue: number,
   isPercentage: boolean
 ): number {
+  const sub = Money.fromFils(subtotal);
   if (isPercentage) {
-    return calculatePercentage(subtotal, discountValue);
+    return sub.calculatePercentage(discountValue).getAmount();
   }
-  return Math.min(subtotal, discountValue);
+  const disc = Money.fromFils(discountValue);
+  return sub.lessThan(disc) ? sub.getAmount() : disc.getAmount();
 }
 
-/**
- * Validates payment allocation constraints:
- * 1. cashApplied + cardApplied = invoiceTotal
- * 2. cashTendered >= cashApplied
- * 3. changeDue = cashTendered - cashApplied
- */
 export function validatePaymentAllocation(
   invoiceTotal: number,
   payments: { method: 'CASH' | 'CARD'; amount: number; amountTendered?: number }[]
-): {
-  cashApplied: number;
-  cardApplied: number;
-  cashTendered: number;
-  changeDue: number;
-} {
+) {
   let cashApplied = 0;
   let cashTendered = 0;
   let cardApplied = 0;
@@ -101,12 +165,10 @@ export function validatePaymentAllocation(
     }
   }
 
-  const changeDue = cashTendered - cashApplied;
-
   return {
     cashApplied,
     cardApplied,
     cashTendered,
-    changeDue
+    changeDue: Math.max(0, cashTendered - cashApplied)
   };
 }

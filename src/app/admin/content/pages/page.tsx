@@ -9,7 +9,7 @@ export default async function AdminPagesCMS() {
   const session = await requireAuth();
 
   // Fetch all current CMS texts for the pages
-  const about = await getCMSContent('brand_story', { titleAr: 'قصتنا', titleEn: 'Our Story', contentAr: 'تأسست ميكاب ديمو لتقديم أفضل المكياج.', contentEn: 'Makeup Demo was founded to provide the best fragrances.' });
+  const about = await getCMSContent('brand_story', { titleAr: 'قصتنا', titleEn: 'Our Story', contentAr: 'تأسست فيلورا بيوتي لتقديم أفضل المكياج.', contentEn: 'Velora Beauty was founded to provide the best makeup.' });
   const ingredients = await getCMSContent('ingredients_page', { titleAr: 'مكونات مكياجنا', titleEn: 'Our Ingredients', contentAr: 'نحن نستخدم مكونات طبيعية 100%.', contentEn: 'We use 100% natural ingredients.' });
   const privacy = await getCMSContent('privacy_policy', { titleAr: 'سياسة الخصوصية', titleEn: 'Privacy Policy', contentAr: 'نحن نحترم خصوصيتك.', contentEn: 'We respect your privacy.' });
   const terms = await getCMSContent('terms_of_service', { titleAr: 'الشروط والأحكام', titleEn: 'Terms of Service', contentAr: 'شروط استخدام الموقع.', contentEn: 'Terms of using the website.' });
@@ -22,7 +22,6 @@ export default async function AdminPagesCMS() {
     addressEn: 'Amman, Jordan - Mecca St',
     hoursAr: '10:00 ص - 10:00 م',
     hoursEn: '10:00 AM - 10:00 PM',
-    phone: '+962785050655'
   });
   async function handleSavePageCMS(formData: FormData) {
     'use server';
@@ -41,7 +40,6 @@ export default async function AdminPagesCMS() {
         addressEn: formData.get('addressEn'),
         hoursAr: formData.get('hoursAr'),
         hoursEn: formData.get('hoursEn'),
-        phone: formData.get('phone'),
       });
     } else {
       await updateCMSContent(key, {
@@ -57,7 +55,7 @@ export default async function AdminPagesCMS() {
   }
 
   const pages = [
-    { key: 'brand_story', label: 'عن ميكاب ديمو / قصتنا', data: about },
+    { key: 'brand_story', label: 'عن فيلورا بيوتي / قصتنا', data: about },
     { key: 'ingredients_page', label: 'مكوناتنا', data: ingredients },
     { key: 'privacy_policy', label: 'سياسة الخصوصية', data: privacy },
     { key: 'terms_of_service', label: 'الشروط والأحكام', data: terms },
@@ -77,7 +75,7 @@ export default async function AdminPagesCMS() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+              <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
                 إدارة صفحات الموقع (الفوتر)
               </h1>
               <p className="text-zinc-650 mt-1">
@@ -91,8 +89,8 @@ export default async function AdminPagesCMS() {
           {pages.map((page) => (
             <form key={page.key} action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-xl font-bold text-[var(--color-charcoal-900)]">{page.label}</h2>
-                <button type="submit" className="bg-[var(--color-charcoal-900)] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[var(--color-charcoal-800)] transition-colors">
+                <h2 className="text-xl font-bold text-[#3F4B32]">{page.label}</h2>
+                <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                   حفظ ({page.label})
                 </button>
               </div>
@@ -123,8 +121,8 @@ export default async function AdminPagesCMS() {
           {/* Shipping Policy Form (Different Schema) */}
           <form action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-xl font-bold text-[var(--color-charcoal-900)]">الشحن والتوصيل (مقدمة الصفحة)</h2>
-              <button type="submit" className="bg-[var(--color-charcoal-900)] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[var(--color-charcoal-800)] transition-colors">
+              <h2 className="text-xl font-bold text-[#3F4B32]">الشحن والتوصيل (مقدمة الصفحة)</h2>
+              <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                 حفظ (الشحن)
               </button>
             </div>
@@ -155,8 +153,8 @@ export default async function AdminPagesCMS() {
           {/* Contact Info Form */}
           <form action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-xl font-bold text-[var(--color-charcoal-900)]">معلومات الاتصال (عنوان وأوقات عمل)</h2>
-              <button type="submit" className="bg-[var(--color-charcoal-900)] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[var(--color-charcoal-800)] transition-colors">
+              <h2 className="text-xl font-bold text-[#3F4B32]">معلومات الاتصال (عنوان وأوقات عمل)</h2>
+              <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                 حفظ (معلومات الاتصال)
               </button>
             </div>
@@ -179,10 +177,6 @@ export default async function AdminPagesCMS() {
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">أوقات العمل بالإنجليزية</label>
                 <input type="text" name="hoursEn" defaultValue={locationInfo.hoursEn} required className="w-full border border-zinc-300 rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-champagne-600)]" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 mb-1">رقم الهاتف / واتساب</label>
-                <input type="text" name="phone" defaultValue={locationInfo.phone} required className="w-full border border-zinc-300 rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-champagne-600)]" dir="ltr" />
               </div>
             </div>
           </form>

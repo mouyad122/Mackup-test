@@ -19,11 +19,15 @@ export async function requireAuth() {
 export async function requirePermission(action: string) {
   const session = await requireAuth();
   const roleName = session.employee.role.name.trim().toUpperCase().replace(/[_-]+/g, ' ');
-  if (roleName === 'ADMIN' || roleName === 'SUPER ADMIN') {
+  if (roleName === 'ADMIN' || roleName === 'SUPER ADMIN' || roleName === 'أدمن رئيسي' || roleName === 'ادمن رئيسي') {
     return session;
   }
 
   if (roleName === 'CASHIER' && action.startsWith('pos:')) {
+    return session;
+  }
+
+  if ((roleName === 'أدمن تشغيلي' || roleName === 'ادمن تشغيلي') && (action.startsWith('manage:orders') || action.startsWith('orders.'))) {
     return session;
   }
 
@@ -41,7 +45,7 @@ export async function requireSuperAdmin() {
   const session = await requireAuth();
   
   const roleName = session.employee.role.name.trim().toUpperCase().replace(/[_-]+/g, ' ');
-  if (roleName !== 'ADMIN' && roleName !== 'SUPER ADMIN') {
+  if (roleName !== 'ADMIN' && roleName !== 'SUPER ADMIN' && roleName !== 'أدمن رئيسي' && roleName !== 'ادمن رئيسي') {
     throw new Error('Unauthorized Access: Super Admin required');
   }
   

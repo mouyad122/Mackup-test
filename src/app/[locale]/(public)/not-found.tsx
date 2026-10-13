@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'الصفحة غير موجودة — 404 | ميكاب ديمو',
+  title: 'الصفحة غير موجودة — 404 | رَواق',
   robots: { index: false },
 };
 
@@ -37,7 +37,7 @@ export default function NotFound() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold font-heading text-[var(--color-charcoal-900)] mb-3">
+        <h1 className="text-2xl font-bold font-heading text-[#3F4B32] mb-3">
           عذراً، الصفحة غير موجودة
         </h1>
         <p className="text-zinc-500 mb-8 leading-relaxed">
@@ -55,7 +55,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/ar"
-            className="px-8 py-3 border-2 border-[var(--color-charcoal-900)] text-[var(--color-charcoal-900)] font-bold rounded-lg hover:bg-[var(--color-charcoal-900)] hover:text-white transition-colors"
+            className="px-8 py-3 border-2 border-[#3F4B32] text-[#3F4B32] font-bold rounded-lg hover:bg-[#3F4B32] hover:text-white transition-colors"
           >
             الصفحة الرئيسية
           </Link>
@@ -67,7 +67,7 @@ export default function NotFound() {
           <div className="flex flex-wrap justify-center gap-4">
             {[
               { href: '/ar/shop', label: 'المتجر' },
-              { href: '/ar/about', label: 'عن ميكاب ديمو' },
+              { href: '/ar/about', label: 'عن رَواق' },
               { href: '/ar/contact', label: 'تواصل معنا' },
               { href: '/ar/store-location', label: 'موقع المعرض' },
             ].map((link) => (

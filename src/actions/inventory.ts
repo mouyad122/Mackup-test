@@ -103,3 +103,102 @@ export async function inspectCancelledOrderReturn(orderId: string, formData: For
   revalidatePath('/admin/inventory');
   revalidatePath(`/admin/orders/${orderId}`);
 }
+
+export async function createStockTransfer(formData: FormData) {
+  const session = await requirePermission('manage:inventory');
+  
+  const parsed = z.object({
+    variantId: z.string().uuid(),
+    fromWarehouseId: z.string().uuid(),
+    toWarehouseId: z.string().uuid(),
+    quantity: z.coerce.number().int().positive()
+  }).safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    throw new Error('بيانات النقل غير صالحة.');
+  }
+
+  const { variantId, fromWarehouseId, toWarehouseId, quantity } = parsed.data;
+
+  if (fromWarehouseId === toWarehouseId) {
+    throw new Error('لا يمكن النقل لنفس المستودع.');
+  }
+
+  await prisma.$transaction(async tx => {
+    const variant = await tx.productVariant.findUnique({
+      where: { id: variantId }
+    });
+    if (!variant) throw new Error('الدرجة غير موجودة.');
+
+    const fromInventory = await tx.inventory.findUnique({
+      where: { warehouseId_variantId: { warehouseId: fromWarehouseId, variantId } }
+    });
+
+    if (!fromInventory || fromInventory.quantity < quantity) {
+      throw new Error('الكمية في المستودع المصدر غير كافية.');
+    }
+
+    await tx.inventory.update({
+      where: { id: fromInventory.id },
+      data: { quantity: { decrement: quantity } }
+    });
+
+    const toInventory = await tx.inventory.upsert({
+      where: { warehouseId_variantId: { warehouseId: toWarehouseId, variantId } },
+      create: { warehouseId: toWarehouseId, variantId, quantity },
+      update: { quantity: { increment: quantity } }
+    });
+
+    const transfer = await tx.stockTransfer.create({
+      data: {
+        fromWarehouseId,
+        toWarehouseId,
+        variantId,
+        quantity,
+        status: 'COMPLETED',
+        createdBy: session.employeeId,
+        completedAt: new Date()
+      }
+    });
+
+    await tx.inventoryMovement.create({
+      data: {
+        sku: variant.sku,
+        type: 'TRANSFER',
+        quantity: -quantity,
+        quantityBefore: fromInventory.quantity,
+        quantityAfter: fromInventory.quantity - quantity,
+        warehouseId: fromWarehouseId,
+        employeeId: session.employeeId,
+        reference: `TRANSFER_OUT:${transfer.id}`
+      }
+    });
+
+    const toQtyBefore = toInventory.quantity - quantity;
+    await tx.inventoryMovement.create({
+      data: {
+        sku: variant.sku,
+        type: 'TRANSFER',
+        quantity: quantity,
+        quantityBefore: toQtyBefore,
+        quantityAfter: toInventory.quantity,
+        warehouseId: toWarehouseId,
+        employeeId: session.employeeId,
+        reference: `TRANSFER_IN:${transfer.id}`
+      }
+    });
+
+    await tx.auditLog.create({
+      data: {
+        employeeId: session.employeeId,
+        action: 'STOCK_TRANSFER',
+        entityType: 'StockTransfer',
+        entityId: transfer.id,
+        details: JSON.stringify({ variantId, fromWarehouseId, toWarehouseId, quantity })
+      }
+    });
+  }, { isolationLevel: 'Serializable' });
+
+  revalidatePath('/admin/inventory');
+  revalidatePath('/admin/inventory/transfers');
+}

@@ -12,9 +12,10 @@ export function OrderWhatsAppButton({
   orderId: string;
 }) {
   const handleWhatsApp = () => {
-    const msg = encodeURIComponent(`مرحباً بك في ميكاب ديمو 🌟.\nتم تأكيد طلبك بنجاح! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية عبر الرابط التالي:\nhttps://www.makeup-makeup.com/ar/invoice/${orderId}`);
+    const invoiceUrl = `${window.location.origin}/ar/invoice/${orderId}`;
+    const msg = encodeURIComponent(`مرحباً بك في فيلورا بيوتي 🌟.\nتم تأكيد طلبك بنجاح! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية عبر الرابط التالي:\n${invoiceUrl}`);
     const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank', 'noopener,noreferrer');
   };
 
   return (

@@ -187,8 +187,7 @@ async function main() {
               stock: v.stock,
               colorHex: v.colorHex,
               price: v.price,
-              isActive: true,
-              usesGlobalPricing: true
+              isActive: true
             }))
           },
           images: {

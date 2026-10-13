@@ -60,7 +60,7 @@ export default async function AdminSalesPage({
       <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
               عمليات البيع والفواتير (POS)
             </h1>
             <p className="text-zinc-650 mt-1">سجل المبيعات المسجلة عبر الكاونتر وجلسات الكاشير</p>
@@ -90,10 +90,10 @@ export default async function AdminSalesPage({
           </div>
           <div className="bg-[var(--color-champagne-50)] rounded-lg shadow-sm border border-[var(--color-champagne-200)] p-6 flex items-center justify-between">
             <div>
-              <p className="text-[var(--color-charcoal-900)] text-sm font-bold mb-1">إجمالي المبيعات للعمليات المطابقة</p>
+              <p className="text-[#3F4B32] text-sm font-bold mb-1">إجمالي المبيعات للعمليات المطابقة</p>
               <p className="text-3xl font-extrabold text-[var(--color-champagne-600)]">{filsToDisplay(totalSalesSum, 'ar')}</p>
             </div>
-            <div className="w-12 h-12 bg-[var(--color-charcoal-900)] text-white rounded-full flex items-center justify-center font-bold text-xl">
+            <div className="w-12 h-12 bg-[#3F4B32] text-white rounded-full flex items-center justify-center font-bold text-xl">
               د.أ
             </div>
           </div>
@@ -142,7 +142,7 @@ export default async function AdminSalesPage({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {new Date(sale.createdAt).toLocaleString('ar-JO')}
+                      {new Date(sale.createdAt).toLocaleString('en-GB')}
                     </td>
                   </tr>
                 );

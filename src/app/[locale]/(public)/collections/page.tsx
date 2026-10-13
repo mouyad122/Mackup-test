@@ -17,16 +17,16 @@ export default async function CollectionsPage({ params }: { params: Promise<{ lo
   return (
     <div className="bg-[var(--color-ivory-100)] min-h-screen pb-20">
       {/* Header Banner */}
-      <div className="bg-[var(--color-charcoal-900)] text-white py-16 text-center border-b-4 border-[var(--color-champagne-600)] relative overflow-hidden">
+      <div className="bg-[#3F4B32] text-white py-16 text-center border-b-4 border-[var(--color-champagne-600)] relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/pattern.png')] opacity-10 bg-repeat" />
         <div className="relative z-10">
           <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4">
-            {isAr ? 'المجموعات العطرية' : 'Our Collections'}
+            {isAr ? 'تشكيلات رَواق' : 'Rawaq collections'}
           </h1>
           <p className="text-zinc-300 text-lg max-w-2xl mx-auto">
             {isAr 
-              ? 'اكتشف مجموعاتنا الحصرية المصممة لتناسب كل حالة مزاجية ومناسبة.' 
-              : 'Discover our exclusive collections tailored for every mood and occasion.'}
+              ? 'تصفحي الفئات المتاحة واختاري ما يناسبك.'
+              : 'Explore the available categories and find what feels like you.'}
           </p>
         </div>
       </div>
@@ -49,7 +49,7 @@ export default async function CollectionsPage({ params }: { params: Promise<{ lo
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-                    <span className="text-zinc-400 font-heading text-lg">ميكاب ديمو</span>
+                    <span className="text-zinc-400 font-heading text-lg">رَواق</span>
                   </div>
                 )}
               </div>
@@ -65,7 +65,7 @@ export default async function CollectionsPage({ params }: { params: Promise<{ lo
 
                 <div className="mt-auto flex items-center justify-between pt-4 border-t border-zinc-100">
                   <p className="text-zinc-600 font-medium text-sm">
-                    {collection._count.products} {isAr ? 'مكياج' : 'Makeup'}
+                    {collection._count.products} {isAr ? 'منتج' : 'products'}
                   </p>
                   <span className="text-[var(--color-champagne-600)] bg-[var(--color-champagne-50)] p-2 rounded-full transform group-hover:scale-110 transition-transform duration-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="rtl:rotate-180"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>

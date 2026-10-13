@@ -1,9 +1,17 @@
 import React from 'react';
 import { getCMSContent } from '@/lib/cms';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isAr = locale === 'ar';
+  return {
+    title: isAr ? 'سياسة الإرجاع | رَواق' : 'Returns Policy | Rawaq',
+  };
+}
 
 export default async function ReturnsPage({ params }: { params: Promise<{ locale: string }> }) {
-  const resolvedParams = await params;
-  const locale = resolvedParams.locale;
+  const { locale } = await params;
   const isAr = locale === 'ar';
 
   const defaultReturns = {
@@ -38,15 +46,20 @@ export default async function ReturnsPage({ params }: { params: Promise<{ locale
   const cms = await getCMSContent('returns_policy', defaultReturns);
 
   return (
-    <div className="container mx-auto px-6 py-16">
-      <div className="max-w-3xl mx-auto bg-white border border-[var(--color-ivory-200)] rounded-lg p-10 shadow-sm">
-        <h1 className="text-4xl font-bold font-heading text-[var(--color-charcoal-900)] mb-8 border-b pb-4">
-          {isAr ? cms.titleAr : cms.titleEn}
-        </h1>
-        <div className="text-zinc-700 leading-relaxed whitespace-pre-line text-sm md:text-base">
-          {isAr ? cms.contentAr : cms.contentEn}
+    <main className="min-h-screen bg-[#F7F3EA]">
+      {/* Header */}
+      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+        <p className="rawaq-eyebrow text-[#B7935F]">YOUR PEACE OF MIND</p>
+        <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? cms.titleAr : cms.titleEn}</h1>
+      </section>
+
+      <section className="py-16 sm:py-20 px-5 sm:px-8 max-w-4xl mx-auto -mt-10 relative z-10">
+        <div className="rounded-3xl border border-[#E9DDCC] bg-white p-8 sm:p-12 shadow-[0_4px_24px_rgba(139,30,45,.04)]">
+          <div className="prose prose-zinc max-w-none text-[#746A64] leading-loose whitespace-pre-line prose-headings:text-[#2B2B2B] prose-strong:text-[#2B2B2B] marker:text-[#B7935F]">
+            {isAr ? cms.contentAr : cms.contentEn}
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

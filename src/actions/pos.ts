@@ -7,14 +7,18 @@ import { calculateInclusiveTax, calculateExclusiveTax, validatePaymentAllocation
 import { checkRateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
 import { calculateSupplierSplit, selectSupplierOffer } from '@/lib/business-finance';
+import { Prisma } from '@prisma/client';
+import { posCheckoutSchema } from '@/lib/schemas';
 
-// Global mutex map to serialize concurrent checkout execution per product variant
-const checkoutMutexes = new Map<string, Promise<void>>();
-
-export async function processPOSCheckout(data: any): Promise<
+export async function processPOSCheckout(rawData: any): Promise<
   | { success: true; saleId: string; reference: string; total: number; error?: never }
   | { success: false; error: string; saleId?: never; reference?: never; total?: never }
 > {
+  const parsed = posCheckoutSchema.safeParse(rawData);
+  if (!parsed.success) {
+    return { success: false, error: 'بيانات غير صالحة' };
+  }
+  const data = parsed.data;
   const { items, customerName, paymentMethod, amountTendered, idempotencyKey } = data;
 
   const headersList = await headers();
@@ -22,21 +26,6 @@ export async function processPOSCheckout(data: any): Promise<
   
   if (!(await checkRateLimit(`pos_checkout_${ipAddress}`, 'pos_checkout', 20, 60))) {
     return { success: false, error: 'تم تجاوز الحد المسموح من الطلبات، يرجى المحاولة بعد دقيقة.' };
-  }
-
-  // 1. Synchronously acquire/register idempotency lock to block race conditions
-  let resolveMutex: (() => void) | null = null;
-  let currentLock: Promise<void> | null = null;
-
-  if (idempotencyKey) {
-    const existingLock = checkoutMutexes.get(idempotencyKey);
-    if (existingLock) {
-      await existingLock;
-    }
-    currentLock = new Promise<void>((resolve) => {
-      resolveMutex = resolve;
-    });
-    checkoutMutexes.set(idempotencyKey, currentLock);
   }
 
   const variantIds = items ? items.map((it: any) => it.variantId).filter(Boolean).sort() : [];
@@ -103,43 +92,6 @@ export async function processPOSCheckout(data: any): Promise<
         });
       }
     }
-
-    // Acquire locks for all items in the cart to serialize execution
-    for (const id of variantIds) {
-      const existingLock = checkoutMutexes.get(id);
-      if (existingLock) {
-        await existingLock;
-      }
-    }
-
-    if (!currentLock) {
-      currentLock = new Promise<void>((resolve) => {
-        resolveMutex = resolve;
-      });
-      if (idempotencyKey) {
-        checkoutMutexes.set(idempotencyKey, currentLock);
-      }
-    }
-
-    for (const id of variantIds) {
-      checkoutMutexes.set(id, currentLock);
-    }
-  let globalPrices: Record<string, number> = {
-    '50ml': 10000,
-    '100ml': 15000,
-    '200ml': 25000
-  };
-  if (prisma.siteSettings) {
-    const settings = await prisma.siteSettings.findUnique({
-      where: { key: 'global_size_prices' }
-    });
-    if (settings) {
-      try {
-        globalPrices = JSON.parse(settings.value);
-      } catch (e) {}
-    }
-  }
-
   // Fetch cashier info outside transaction
   let sellerNameSnapshot = '';
   let sellerEmailSnapshot = '';
@@ -160,6 +112,11 @@ export async function processPOSCheckout(data: any): Promise<
   }
 
     const saleResult = await prisma.$transaction(async (tx) => {
+      // 1. Acquire PostgreSQL Row-Level Locks for all variants involved (sorted to prevent deadlocks)
+      if (variantIds.length > 0) {
+        await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id IN (${Prisma.join(variantIds)}) FOR UPDATE`;
+      }
+
       let subtotal = 0;
       const saleItemsData = [];
       const reference = `POS-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -184,9 +141,6 @@ export async function processPOSCheckout(data: any): Promise<
 
         // 1. Authoritative Price Reload
         let unitPrice = variant.price;
-        if (variant.usesGlobalPricing) {
-          unitPrice = globalPrices[variant.name] || variant.price;
-        }
 
         // 2. Inventory Deductions based on stock (Variant)
         const updatedVariant = await tx.productVariant.updateMany({
@@ -434,21 +388,7 @@ export async function processPOSCheckout(data: any): Promise<
     return saleResult;
 
   } catch (error: any) {
-    return { success: false, error: error.message || 'حدث خطأ غير معروف' };
-  } finally {
-    if (variantIds) {
-      for (const id of variantIds) {
-        if (currentLock && checkoutMutexes.get(id) === currentLock) {
-          checkoutMutexes.delete(id);
-        }
-      }
-    }
-    if (idempotencyKey && currentLock && checkoutMutexes.get(idempotencyKey) === currentLock) {
-      checkoutMutexes.delete(idempotencyKey);
-    }
-    if (resolveMutex) {
-      resolveMutex();
-    }
+    return { success: false, error: 'حدث خطأ غير معروف' };
   }
 }
 
@@ -494,7 +434,7 @@ export async function openShift(openingCashFils: number, terminalId: string) {
 
     return { success: true, shift };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل فتح الوردية' };
+    return { success: false, error: 'فشل فتح الوردية' };
   }
 }
 
@@ -566,7 +506,7 @@ export async function closeShift(actualCashFils: number, notes?: string) {
 
     return { success: true, shift: closedShift };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إغلاق الوردية' };
+    return { success: false, error: 'فشل إغلاق الوردية' };
   }
 }
 
@@ -591,7 +531,7 @@ export async function holdSale(
     });
     return { success: true, heldSale };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل تعليق الطلب' };
+    return { success: false, error: 'فشل تعليق الطلب' };
   }
 }
 
@@ -610,7 +550,7 @@ export async function resumeHeldSale(heldSaleId: string) {
     });
     return { success: true, cartData: held.cartData };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل استرجاع الطلب' };
+    return { success: false, error: 'فشل استرجاع الطلب' };
   }
 }
 
@@ -635,6 +575,117 @@ export async function cancelHeldSale(heldSaleId: string) {
     });
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إلغاء الطلب المعلق' };
+    return { success: false, error: 'فشل إلغاء الطلب المعلق' };
+  }
+}
+
+export async function processPOSRefund(saleId: string, itemsToReturn: { variantId: string; quantity: number }[], reason: string) {
+  try {
+    const session = await requirePermission('pos:access');
+    const employeeId = session.employeeId;
+
+    return await prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: { id: saleId },
+        include: { items: true, invoice: true }
+      });
+
+      if (!sale) throw new Error('الطلب غير موجود');
+
+      let totalRefundAmount = 0;
+      const returnItemsData = [];
+
+      const previousReturns = await tx.return.findMany({
+        where: { saleId: sale.id },
+        include: { items: true }
+      });
+      const previouslyRefunded = previousReturns.reduce((sum, r) => sum + r.totalAmount, 0);
+
+      for (const reqItem of itemsToReturn) {
+        const saleItem = sale.items.find(i => i.variantId === reqItem.variantId);
+        const alreadyReturned = previousReturns.flatMap(r => r.items).filter(i => i.variantId === reqItem.variantId).reduce((sum, i) => sum + i.quantity, 0);
+
+        if (!saleItem || saleItem.quantity < reqItem.quantity + alreadyReturned) {
+          throw new Error('الكمية المرتجعة غير صحيحة أو تتجاوز الكمية المباعة');
+        }
+
+        const refundItemAmount = saleItem.unitPrice * reqItem.quantity;
+        totalRefundAmount += refundItemAmount;
+
+        // Restore stock
+        await tx.productVariant.update({
+          where: { id: reqItem.variantId },
+          data: { stock: { increment: reqItem.quantity } }
+        });
+
+        const variant = await tx.productVariant.findUnique({ where: { id: reqItem.variantId } });
+        
+        await tx.inventoryMovement.create({
+          data: {
+            sku: saleItem.sku,
+            type: 'RETURN',
+            quantity: reqItem.quantity,
+            quantityBefore: variant!.stock - reqItem.quantity,
+            quantityAfter: variant!.stock,
+            employeeId,
+            reference: `POS_RETURN_${sale.reference}`,
+          }
+        });
+
+        returnItemsData.push({
+          saleItemId: saleItem.id,
+          variantId: reqItem.variantId,
+          sku: saleItem.sku,
+          quantity: reqItem.quantity,
+          amount: refundItemAmount,
+          reason,
+        });
+      }
+
+      if (previouslyRefunded + totalRefundAmount > sale.total) {
+        throw new Error('مبلغ الاسترداد يتجاوز الإجمالي المدفوع');
+      }
+
+      const returnDoc = await tx.return.create({
+        data: {
+          employeeId,
+          saleId: sale.id,
+          totalAmount: totalRefundAmount,
+          reason,
+          items: {
+            create: returnItemsData
+          }
+        }
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          businessEventKey: `pos:${sale.id}:refund:${returnDoc.id}`,
+          type: 'REFUND_PRODUCT',
+          direction: 'OUT',
+          amount: totalRefundAmount,
+          saleId: sale.id,
+          description: `POS Refund for ${sale.reference}`,
+          createdByEmployeeId: employeeId,
+        }
+      });
+
+      return { success: true, returnId: returnDoc.id, totalRefundAmount };
+    });
+  } catch (error: any) {
+    return { success: false, error: 'فشل عملية الإرجاع' };
+  }
+}
+
+export async function getSaleByReference(reference: string) {
+  try {
+    await requirePermission('pos:access');
+    const sale = await prisma.sale.findUnique({
+      where: { reference },
+      include: { items: true }
+    });
+    return { success: true, sale };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }

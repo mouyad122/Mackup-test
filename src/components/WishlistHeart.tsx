@@ -68,8 +68,8 @@ export function WishlistHeart({ product, className = '' }: WishlistHeartProps) {
   return (
     <button
       onClick={toggleWishlist}
-      className={`p-2 rounded-full backdrop-blur-md transition-all ${
-        isWished ? 'bg-red-50 text-red-500 shadow-inner' : 'bg-white/70 text-zinc-400 hover:text-red-500 hover:bg-white/90 shadow'
+      className={`rounded-full border p-2.5 backdrop-blur-md transition-all ${
+        isWished ? 'border-[#3F4B32] bg-[#3F4B32] text-white shadow-sm' : 'border-[#B7935F]/75 bg-[#F7F3EA]/95 text-[#3F4B32] shadow-[0_2px_6px_rgba(91,42,30,.10)] hover:border-[#3F4B32] hover:bg-white'
       } ${className}`}
       aria-label={isWished ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
     >

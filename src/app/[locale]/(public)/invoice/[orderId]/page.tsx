@@ -19,7 +19,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
   }
 
   // Format Date
-  const dateStr = order.createdAt.toLocaleDateString('ar-JO', {
+  const dateStr = order.createdAt.toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -32,15 +32,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
       <div className="max-w-2xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden border border-zinc-200">
         
         {/* Invoice Header */}
-        <div className="bg-[var(--color-charcoal-900)] text-white p-8 flex justify-between items-center border-b-4 border-[var(--color-champagne-600)] relative">
+        <div className="bg-[#3F4B32] text-white p-8 flex justify-between items-center border-b-4 border-[var(--color-champagne-600)] relative">
           {/* Logo added for print and display */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 shadow-md">
-              <img src="/logo.png" alt="Makeup Demo Logo" className="max-w-full max-h-full object-contain" />
+              <img src="/brand/logo_rawaq.png" alt="شعار رَواق" className="max-w-full max-h-full object-contain" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold font-heading mb-1">ميكاب ديمو</h1>
-              <p className="text-zinc-300 text-sm">Makeup Demo - فاتورة ضريبية مبسطة</p>
+              <h1 className="text-3xl font-bold font-heading mb-1">رَواق</h1>
+              <p className="text-zinc-300 text-sm">Rawaq - فاتورة الطلب</p>
             </div>
           </div>
           <div className="bg-white/10 p-3 rounded-lg border border-white/20">
@@ -80,12 +80,12 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
               {order.items.map((item) => (
                 <tr key={item.id} className="border-b border-zinc-100">
                   <td className="py-4">
-                    <p className="font-bold text-[var(--color-charcoal-900)]">{item.name}</p>
+                    <p className="font-bold text-[#3F4B32]">{item.name}</p>
                     <p className="text-xs text-zinc-500">{item.size} - SKU: {item.sku}</p>
                   </td>
                   <td className="py-4 text-center font-bold">{item.quantity}</td>
                   <td className="py-4 text-zinc-700">{filsToDisplay(item.unitPrice, 'ar')}</td>
-                  <td className="py-4 font-bold text-[var(--color-charcoal-900)]">{filsToDisplay(item.total, 'ar')}</td>
+                  <td className="py-4 font-bold text-[#3F4B32]">{filsToDisplay(item.total, 'ar')}</td>
                 </tr>
               ))}
             </tbody>
@@ -102,7 +102,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
                 <span>رسوم التوصيل</span>
                 <span>{filsToDisplay(order.shippingCost, 'ar')}</span>
               </div>
-              <div className="flex justify-between font-bold text-xl text-[var(--color-charcoal-900)] pt-3 border-t-2 border-zinc-200">
+              <div className="flex justify-between font-bold text-xl text-[#3F4B32] pt-3 border-t-2 border-zinc-200">
                 <span>الإجمالي</span>
                 <span className="text-[var(--color-champagne-600)]">{filsToDisplay(order.totalAmount, 'ar')}</span>
               </div>
@@ -112,7 +112,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
 
         {/* Footer */}
         <div className="bg-zinc-50 p-6 text-center border-t border-zinc-200">
-          <p className="text-zinc-600 font-bold mb-2">شكراً لثقتكم بميكاب ديمو 🌟</p>
+          <p className="text-zinc-600 font-bold mb-2">شكراً لثقتكم برَواق 🌟</p>
           <p className="text-xs text-zinc-400">للاستفسارات، يرجى التواصل معنا عبر وسائل التواصل المعتمدة.</p>
         </div>
       </div>

@@ -1,78 +1,65 @@
 import React from 'react';
-import { prisma } from '@/lib/db';
-import { filsToDisplay } from '@/lib/money';
 import { getCMSContent } from '@/lib/cms';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isAr = locale === 'ar';
+  return {
+    title: isAr ? 'سياسة الشحن | رَواق' : 'Shipping Policy | Rawaq',
+  };
+}
 
 export default async function ShippingPage({ params }: { params: Promise<{ locale: string }> }) {
-  const resolvedParams = await params;
-  const locale = resolvedParams.locale;
+  const { locale } = await params;
   const isAr = locale === 'ar';
 
-  const defaultIntro = {
+  const defaultShipping = {
     titleAr: 'سياسة الشحن والتوصيل',
-    titleEn: 'Shipping & Delivery Policy',
-    introAr: 'نحن نوفر خدمة توصيل سريعة وموثوقة لجميع المحافظات الأردنية. فيما يلي تفاصيل رسوم ومواعيد الشحن حسب المنطقة:',
-    introEn: 'We offer fast and reliable delivery across all Jordan governorates. Here are the details of shipping fees and estimated times:'
+    titleEn: 'Shipping & Delivery',
+    contentAr: `يسعدنا في رَواق أن نوفر خدمة توصيل سريعة وموثوقة لجميع محافظات المملكة الأردنية الهاشمية.
+
+**مدة التوصيل:**
+- **داخل عمان:** يتم التوصيل خلال 24 إلى 48 ساعة من تأكيد الطلب.
+- **باقي محافظات المملكة:** يتم التوصيل خلال 3 أيام عمل من تأكيد الطلب.
+
+**رسوم التوصيل:**
+- تختلف رسوم التوصيل بناءً على المحافظة وتظهر بوضوح عند إتمام الطلب.
+- نقدم عروض توصيل مجاني بين الحين والآخر، سيتم إعلامك بها عبر الموقع.
+
+**متابعة الطلبات:**
+- بمجرد تأكيد طلبك، سيتم التواصل معك عبر الواتساب لتزويدك بتفاصيل التوصيل ورقم الفاتورة.`,
+    contentEn: `At Rawaq, we are pleased to provide fast and reliable delivery services to all governorates of the Hashemite Kingdom of Jordan.
+
+**Delivery Time:**
+- **Inside Amman:** Delivery within 24 to 48 hours of order confirmation.
+- **Other Governorates:** Delivery within 3 working days of order confirmation.
+
+**Delivery Fees:**
+- Delivery fees vary by governorate and are clearly displayed at checkout.
+- We occasionally offer free shipping promotions, which will be announced on the website.
+
+**Order Tracking:**
+- Once your order is confirmed, we will contact you via WhatsApp with delivery details and your invoice number.`
   };
 
-  const cms = await getCMSContent('shipping_policy', defaultIntro);
-
-  const zones = await prisma.shippingZone.findMany({
-    where: { isEnabled: true }
-  });
+  const cms = await getCMSContent('shipping_policy', defaultShipping);
 
   return (
-    <div className="container mx-auto px-6 py-16">
-      <div className="max-w-3xl mx-auto bg-white border border-[var(--color-ivory-200)] rounded-lg p-10 shadow-sm">
-        <h1 className="text-4xl font-bold font-heading text-[var(--color-charcoal-900)] mb-8 border-b pb-4">
-          {isAr ? cms.titleAr : cms.titleEn}
-        </h1>
-        
-        <p className="text-zinc-700 leading-relaxed mb-8 whitespace-pre-line">
-          {isAr ? cms.introAr : cms.introEn}
-        </p>
+    <main className="min-h-screen bg-[#F7F3EA]">
+      {/* Header */}
+      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+        <p className="rawaq-eyebrow text-[#B7935F]">FAST & RELIABLE</p>
+        <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? cms.titleAr : cms.titleEn}</h1>
+      </section>
 
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-[var(--color-charcoal-900)] mb-4">
-            {isAr ? 'مناطق التوصيل' : 'Delivery Zones'}
-          </h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-right border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 text-sm font-bold text-zinc-700">
-                  <th className="py-3 px-4">{isAr ? 'المنطقة' : 'Zone'}</th>
-                  <th className="py-3 px-4">{isAr ? 'رسوم التوصيل' : 'Shipping Fee'}</th>
-                  <th className="py-3 px-4">{isAr ? 'مدة التوصيل التقريبية' : 'Est. Delivery Time'}</th>
-                  <th className="py-3 px-4">{isAr ? 'توصيل مجاني للطلبات فوق' : 'Free Shipping From'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {zones.map((zone) => (
-                  <tr key={zone.id} className="text-zinc-650">
-                    <td className="py-3 px-4 font-bold">{isAr ? zone.nameAr : zone.nameEn}</td>
-                    <td className="py-3 px-4">{filsToDisplay(zone.fee, isAr ? 'ar' : 'en')}</td>
-                    <td className="py-3 px-4">{zone.estimatedDeliveryTime}</td>
-                    <td className="py-3 px-4">
-                      {zone.freeShippingThreshold 
-                        ? filsToDisplay(zone.freeShippingThreshold, isAr ? 'ar' : 'en')
-                        : (isAr ? 'غير متوفر' : 'N/A')}
-                    </td>
-                  </tr>
-                ))}
-                
-                {zones.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-zinc-500">
-                      {isAr ? 'سيتم تحديد رسوم التوصيل عند الاتصال بالواتساب.' : 'Shipping fees will be calculated at checkout.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      <section className="py-16 sm:py-20 px-5 sm:px-8 max-w-4xl mx-auto -mt-10 relative z-10">
+        <div className="rounded-3xl border border-[#E9DDCC] bg-white p-8 sm:p-12 shadow-[0_4px_24px_rgba(139,30,45,.04)]">
+          <div className="prose prose-zinc max-w-none text-[#746A64] leading-loose whitespace-pre-line prose-headings:text-[#2B2B2B] prose-strong:text-[#2B2B2B] marker:text-[#B7935F]">
+            {isAr ? cms.contentAr : cms.contentEn}
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

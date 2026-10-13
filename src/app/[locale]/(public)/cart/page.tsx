@@ -12,6 +12,8 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
   const [cart, setCart] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
   const [rewardRules, setRewardRules] = useState<{ name: string; minimumAmount: number; rewardType: string; rewardValue: number }[]>([]);
+  const [zones, setZones] = useState<any[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
 
   useEffect(() => {
     const loadCart = () => {
@@ -20,19 +22,19 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
         setCart(saved ? JSON.parse(saved) : []);
       } catch (e) {}
     };
-
     loadCart();
     fetch('/api/cart-rewards').then(res => res.json()).then(data => setRewardRules(data.rules || [])).catch(() => setRewardRules([]));
+    fetch('/api/shipping-zones').then(res => res.json()).then(data => {
+      if (data.success && data.zones) {
+        setZones(data.zones);
+        if (data.zones.length > 0) setSelectedZoneId(data.zones[0].id);
+      }
+    }).catch(console.error);
     setMounted(true);
 
-    // Listen for same-tab updates (add to cart dispatches this)
     window.addEventListener('cart_updated', loadCart);
-    // Cross-tab updates
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'makeup_cart') loadCart();
-    };
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'makeup_cart') loadCart(); };
     window.addEventListener('storage', handleStorage);
-    // Re-check when user returns to this tab
     window.addEventListener('focus', loadCart);
 
     return () => {
@@ -60,9 +62,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
     localStorage.setItem('makeup_cart', JSON.stringify(updated));
   };
 
-  const getSubtotal = () => {
-    return cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  };
+  const getSubtotal = () => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   const subtotal = getSubtotal();
   const unlockedReward = [...rewardRules].filter(rule => subtotal >= rule.minimumAmount).at(-1);
@@ -72,131 +72,139 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
     ? Math.min(100, Math.round((subtotal / nextReward.minimumAmount) * 100))
     : rewardRules.length ? 100 : 0;
 
+  const getShippingFee = () => {
+    const zone = zones.find(z => z.id === selectedZoneId);
+    if (!zone) return 0;
+    if ((zone.freeShippingThreshold && subtotal >= zone.freeShippingThreshold) || unlockedFreeDelivery) {
+      return 0;
+    }
+    return zone.fee;
+  };
+
+  const shippingFee = getShippingFee();
+  const grandTotal = subtotal + shippingFee;
+
   if (!mounted) return null;
 
   return (
-    <div className="container mx-auto px-6 py-16 bg-[var(--color-ivory-100)] min-h-screen">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold font-heading text-[var(--color-charcoal-900)] mb-4">
-          {isAr ? 'سلة التسوق' : 'Shopping Cart'}
-        </h1>
-        <div className="w-24 h-1 bg-[var(--color-champagne-600)] mx-auto" />
+    <div className="min-h-screen bg-[#F7F3EA] pb-24">
+      {/* Header Pattern */}
+      <div className="bg-[#3F4B32] py-16 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+        <p className="rawaq-eyebrow text-[#B7935F]">SHOPPING CART</p>
+        <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? 'سلة المشتريات' : 'Your Cart'}</h1>
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8 -mt-8 relative z-10">
         {cart.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-lg border border-[var(--color-ivory-200)] p-8">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 text-[var(--color-charcoal-600)]"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-            <p className="text-xl text-zinc-500 mb-4">
-              {isAr ? 'سلة التسوق فارغة حالياً.' : 'Your cart is currently empty.'}
-            </p>
-            <Link 
-              href={`/${locale}/shop`}
-              className="inline-block bg-[var(--color-charcoal-900)] text-white px-6 py-3 rounded font-bold"
-            >
-              {isAr ? 'تصفح المتجر' : 'Browse Shop'}
-            </Link>
+          <div className="rounded-3xl border border-[#E9DDCC] bg-white p-16 text-center shadow-sm">
+            <span aria-hidden="true" className="block text-6xl text-[#B7935F]/30 mb-6">✦</span>
+            <h2 className="text-2xl font-bold text-[#2B2B2B] mb-3">{isAr ? 'سلتك فارغة' : 'Your cart is empty'}</h2>
+            <p className="text-[#746A64] mb-8">{isAr ? 'اكتشفي مجموعة رَواق الرائعة.' : 'Discover the beautiful Rawaq collection.'}</p>
+            <Link href={`/${locale}/shop`} className="btn-rawaq-primary">{isAr ? 'تسوّقي الآن' : 'Shop Now'}</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items List */}
-            <div className="lg:col-span-2 space-y-6">
-              {cart.map((item) => (
-                <div 
-                  key={item.sku} 
-                  className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm flex gap-6"
-                >
-                  <div className="w-20 h-20 bg-[var(--color-ivory-200)] rounded-md flex-shrink-0 flex items-center justify-center overflow-hidden">
-                    {item.image ? (
-                      <div 
-                        className="w-full h-full bg-contain bg-center bg-no-repeat" 
-                        style={{ backgroundImage: `url(${item.image.startsWith('local://') ? item.image.replace('local://','/') : item.image})` }} 
-                      />
-                    ) : 'صورة العطر'}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-2">
-                      <h3 className="font-bold text-lg text-[var(--color-charcoal-900)]">
-                        {item.name}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8">
+            
+            {/* Cart Items */}
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-[#E9DDCC] bg-white p-6 sm:p-8 shadow-[0_4px_16px_rgba(139,30,45,.03)]">
+                
+                {rewardRules.length > 0 && (
+                  <div className="flex items-center gap-6 border-b border-[#E9DDCC] pb-6 mb-6">
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="16" fill="none" className="stroke-[#F7F3EA]" strokeWidth="4" />
+                        <circle cx="18" cy="18" r="16" fill="none" className={`stroke-current ${rewardProgress >= 100 ? 'text-[#3F4B32]' : 'text-[#B7935F]'} transition-all duration-700`} strokeWidth="4" strokeDasharray="100" strokeDashoffset={Math.max(0, 100 - rewardProgress)} strokeLinecap="round" />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-[#2B2B2B]">{rewardProgress}%</div>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-[#2B2B2B]">
+                        {rewardProgress >= 100 ? (unlockedReward?.name || (isAr ? 'تم تفعيل المكافأة!' : 'Reward Unlocked!')) : (nextReward?.name || (isAr ? 'مكافأة قريبة' : 'Upcoming Reward'))}
                       </h3>
-                      <button 
-                        onClick={() => removeFromCart(item.sku)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        {isAr ? 'إزالة' : 'Remove'}
-                      </button>
-                    </div>
-
-                    <div className="text-sm text-zinc-500 mb-4">
-                      {item.size} {item.stockStatus === 'UNVERIFIED' && (
-                        <span className="text-amber-600 font-bold block text-xs mt-1">
-                          {isAr ? 'بانتظار تأكيد التوفر' : 'Pending verification'}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center border border-zinc-200 rounded">
-                        <button 
-                          onClick={() => updateQuantity(item.sku, -1)}
-                          className="px-3 py-1 bg-zinc-50 hover:bg-zinc-100 font-bold text-lg"
-                        >
-                          -
-                        </button>
-                        <span className="px-4 font-bold">{item.quantity}</span>
-                        <button 
-                          onClick={() => updateQuantity(item.sku, 1)}
-                          className="px-3 py-1 bg-zinc-50 hover:bg-zinc-100 font-bold text-lg"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <div className="text-[var(--color-champagne-600)] font-bold text-lg">
-                        {filsToDisplay(item.price * item.quantity, isAr ? 'ar' : 'en')}
-                      </div>
+                      <p className="text-sm text-[#746A64] mt-1">
+                        {rewardProgress >= 100 
+                          ? (isAr ? 'لقد حصلت على المكافأة بنجاح.' : 'You have unlocked this reward.')
+                          : nextReward && (isAr ? `أضف بقيمة ${filsToDisplay(nextReward.minimumAmount - subtotal, 'ar')} للحصول عليها.` : `Add ${filsToDisplay(nextReward.minimumAmount - subtotal, 'en')} more to unlock.`)}
+                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
 
-            {/* Cart Summary */}
-            <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm h-fit">
-              <h2 className="text-xl font-bold text-[var(--color-charcoal-900)] mb-6 border-b pb-4">
-                {isAr ? 'ملخص السلة' : 'Summary'}
-              </h2>
-              
-              <div className="space-y-4 text-zinc-700 mb-6">
-                <div className="flex justify-between">
-                  <span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span>
-                  <span className="font-bold">{filsToDisplay(getSubtotal(), isAr ? 'ar' : 'en')}</span>
-                </div>
-                <div className="flex justify-between text-sm text-zinc-500">
-                  <span>{isAr ? 'التوصيل' : 'Shipping'}</span>
-                  <span>{isAr ? 'يُحسب عند الدفع' : 'Calculated at checkout'}</span>
+                <div className="space-y-8">
+                  {cart.map(item => (
+                    <div key={item.sku} className="flex gap-4 sm:gap-6">
+                      <div className="w-24 h-32 rounded-xl border border-[#E9DDCC] bg-[#F7F3EA] flex-shrink-0 flex items-center justify-center overflow-hidden">
+                        {item.image ? (
+                          <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${item.image.startsWith('local://') ? item.image.replace('local://','/') : item.image})` }} />
+                        ) : <span className="text-[#A69A8C]">✦</span>}
+                      </div>
+
+                      <div className="flex flex-1 flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start gap-4">
+                            <h3 className="font-bold text-[#2B2B2B] leading-snug">{item.name}</h3>
+                            <button onClick={() => removeFromCart(item.sku)} className="text-[#A69A8C] hover:text-[#3F4B32] transition-colors p-1" aria-label="Remove">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            </button>
+                          </div>
+                          <p className="text-sm text-[#746A64] mt-1">{item.size}</p>
+                        </div>
+
+                        <div className="flex justify-between items-end mt-4">
+                          <div className="flex items-center rounded-full border border-[#E9DDCC] bg-[#FBF8F2] p-1">
+                            <button onClick={() => updateQuantity(item.sku, -1)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#2B2B2B] hover:bg-white hover:shadow-sm transition-all">−</button>
+                            <span className="w-8 text-center text-sm font-bold text-[#2B2B2B]">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.sku, 1)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#2B2B2B] hover:bg-white hover:shadow-sm transition-all">+</button>
+                          </div>
+                          <span className="font-bold text-[#3F4B32]">{filsToDisplay(item.price * item.quantity, isAr ? 'ar' : 'en')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              {rewardRules.length > 0 && (
-                <div className="mb-6 rounded-md border border-[var(--color-ivory-200)] bg-[var(--color-ivory-100)] p-4" aria-live="polite">
-                  <div className="mb-2 flex justify-between gap-3 text-sm font-semibold">
-                    <span>{unlockedReward ? `تهانينا! فُتحت ${unlockedReward.name}` : nextReward ? `أضف ${filsToDisplay(Math.max(0, nextReward.minimumAmount - subtotal), isAr ? 'ar' : 'en')} للوصول إلى ${nextReward.name}` : 'وصلت إلى جميع المكافآت'}</span>
-                    <span>{rewardProgress}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[var(--color-champagne-600)] transition-all" style={{ width: `${rewardProgress}%` }} /></div>
-                  {unlockedFreeDelivery && <p className="mt-2 text-xs text-emerald-800">تم فتح التوصيل المجاني. تُثبت المكافأة النهائية عند إتمام الطلب.</p>}
-                  {unlockedReward && unlockedReward.rewardType !== 'FREE_DELIVERY' && <p className="mt-2 text-xs text-emerald-800">مكافأتك: {unlockedReward.rewardType === 'PERCENT' ? `${unlockedReward.rewardValue}% خصم` : filsToDisplay(unlockedReward.rewardValue, isAr ? 'ar' : 'en')}، ويُتحقق منها عند إتمام الطلب.</p>}
-                </div>
-              )}
+            </div>
+
+            {/* Order Summary */}
+            <div className="rounded-2xl border border-[#E9DDCC] bg-white p-6 sm:p-8 shadow-[0_4px_16px_rgba(139,30,45,.03)] h-fit sticky top-28">
+              <h2 className="text-xl font-bold text-[#2B2B2B] mb-6">{isAr ? 'ملخص الطلب' : 'Order Summary'}</h2>
               
-              <Link 
-                href={`/${locale}/checkout`}
-                className="block text-center w-full bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white py-3 rounded font-bold transition-colors"
-              >
-                {isAr ? 'إتمام الشراء عبر الواتساب' : 'Proceed to Checkout'}
+              <div className="space-y-4 text-sm mb-6">
+                <div className="flex justify-between text-[#746A64]">
+                  <span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span>
+                  <span className="font-bold text-[#2B2B2B]">{filsToDisplay(subtotal, isAr ? 'ar' : 'en')}</span>
+                </div>
+                
+                <div className="border-t border-[#E9DDCC] pt-4 mt-4">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#A69A8C] mb-2">{isAr ? 'المحافظة' : 'Governorate'}</label>
+                  <select 
+                    value={selectedZoneId}
+                    onChange={(e) => setSelectedZoneId(e.target.value)}
+                    className="w-full appearance-none border-b-2 border-[#E9DDCC] bg-transparent py-2 pe-8 ps-1 text-sm font-semibold text-[#2B2B2B] transition-colors focus:border-[#B7935F] focus:outline-none cursor-pointer"
+                  >
+                    {zones.map((zone) => <option key={zone.id} value={zone.id}>{isAr ? zone.nameAr : zone.nameEn}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex justify-between text-[#746A64]">
+                  <span>{isAr ? 'التوصيل' : 'Shipping'}</span>
+                  <span className="font-bold text-[#2B2B2B]">
+                    {shippingFee === 0 ? <span className="text-[#3F4B32]">{isAr ? 'مجاني' : 'Free'}</span> : filsToDisplay(shippingFee, isAr ? 'ar' : 'en')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between font-bold text-lg border-t border-[#E9DDCC] pt-5 mt-5 text-[#2B2B2B]">
+                  <span>{isAr ? 'الإجمالي' : 'Total'}</span>
+                  <span className="text-[#3F4B32]">{filsToDisplay(grandTotal, isAr ? 'ar' : 'en')}</span>
+                </div>
+              </div>
+
+              <Link href={`/${locale}/checkout`} className="btn-rawaq-primary w-full justify-center text-center">
+                {isAr ? 'إتمام الطلب بأمان' : 'Secure Checkout'}
               </Link>
             </div>
+
           </div>
         )}
       </div>

@@ -3,9 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { filsToDisplay } from '@/lib/money';
-import { GlobalPricingModal } from '@/components/GlobalPricingModal';
 
-export function AdminProductsClient({ products, globalPrices, adminId, categories, lowStockThreshold = 5 }: { products: any[], globalPrices: any, adminId: string, categories: any[], lowStockThreshold?: number }) {
+
+export function AdminProductsClient({ products, adminId, categories, lowStockThreshold = 5 }: { products: any[], adminId: string, categories: any[], lowStockThreshold?: number }) {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -38,7 +38,7 @@ export function AdminProductsClient({ products, globalPrices, adminId, categorie
     <div className="w-full flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[var(--color-ivory-200)] pb-4">
         <div>
-          <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+          <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
             إدارة المنتجات والأسعار
           </h1>
           <p className="text-zinc-500 mt-1 text-sm">التحكم بكافة المكياج، الأحجام، والأسعار • {products.length} منتج</p>
@@ -51,16 +51,10 @@ export function AdminProductsClient({ products, globalPrices, adminId, categorie
             onChange={e => setSearch(e.target.value)}
             className="border border-zinc-300 rounded px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-champagne-600)] w-full sm:w-64"
           />
-          <GlobalPricingModal 
-            initialPrices={globalPrices} 
-            adminId={adminId} 
-            categories={categories}
-            selectedProductIds={selectedIds}
-            onClearSelection={() => setSelectedIds([])}
-          />
+
           <Link
             href="/admin/products/new"
-            className="bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white px-6 py-2.5 rounded font-bold transition-colors text-sm shadow-sm whitespace-nowrap text-center"
+            className="bg-[#3F4B32] hover:bg-[#2d3623] text-white px-6 py-2.5 rounded font-bold transition-colors text-sm shadow-sm whitespace-nowrap text-center"
           >
             + إضافة مكياج جديد
           </Link>
@@ -85,7 +79,6 @@ export function AdminProductsClient({ products, globalPrices, adminId, categorie
                 <th className="px-4 py-4">SKU</th>
                 <th className="px-4 py-4">التصنيف</th>
                 <th className="px-4 py-4">الأحجام والأسعار</th>
-                <th className="px-4 py-4">المخزون</th>
                 <th className="px-4 py-4">الحالة</th>
                 <th className="px-4 py-4 text-center">إجراءات</th>
               </tr>
@@ -124,32 +117,11 @@ export function AdminProductsClient({ products, globalPrices, adminId, categorie
                     <td className="px-4 py-3 text-sm">
                       <div className="flex flex-wrap gap-1">
                         {product.variants.map((v: any) => (
-                          <span key={v.id} className="bg-[var(--color-ivory-200)] px-2 py-0.5 rounded text-xs font-bold text-[var(--color-charcoal-800)]">
+                          <span key={v.id} className="bg-[var(--color-ivory-200)] px-2 py-0.5 rounded text-xs font-bold text-[#2d3623]">
                             {v.name}: {filsToDisplay(v.price, 'ar')}
                           </span>
                         ))}
                         {product.variants.length === 0 && <span className="text-xs text-zinc-400">لا توجد خيارات</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex flex-col gap-1">
-                        {product.variants.map((v: any) => (
-                          <div key={v.id} className="flex items-center gap-2 justify-between">
-                            <span className="text-xs text-zinc-500 shrink-0">{v.name}:</span>
-                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
-                              v.stock === 0
-                                ? 'bg-red-100 text-red-800'
-                                : v.stock <= lowStockThreshold
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {v.stock} قطع
-                            </span>
-                          </div>
-                        ))}
-                        {product.variants.length === 0 && (
-                          <span className="text-xs text-zinc-400">—</span>
-                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -171,7 +143,7 @@ export function AdminProductsClient({ products, globalPrices, adminId, categorie
 
               {filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-6 py-16 text-center">
                     <p className="text-zinc-500 mb-4">لا توجد منتجات تطابق البحث.</p>
                   </td>
                 </tr>

@@ -72,6 +72,6 @@ export function verifyTOTP(secret: string, code: string, window = 1): boolean {
 /**
  * Generate QR Code provisioning URL
  */
-export function getTOTPProvisioningUrl(email: string, secret: string, issuer = 'Makeup Demo'): string {
+export function getTOTPProvisioningUrl(email: string, secret: string, issuer = 'Velora Beauty'): string {
   return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }

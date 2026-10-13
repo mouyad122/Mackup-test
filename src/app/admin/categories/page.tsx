@@ -29,7 +29,7 @@ export default async function AdminCategoriesPage() {
       <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
               المجموعات (Collections)
             </h1>
             <p className="text-zinc-650 mt-1">إدارة المجموعات الأساسية لتقسيم المكياج</p>
@@ -42,7 +42,6 @@ export default async function AdminCategoriesPage() {
             <div className="overflow-x-auto w-full max-w-[90vw] md:max-w-full pb-4"><table className="w-full text-right border-collapse min-w-[600px]">
               <thead className="bg-zinc-50 border-b border-zinc-200">
                 <tr className="text-sm font-bold text-zinc-700">
-                  <th className="px-6 py-4">صورة المجموعة</th>
                   <th className="px-6 py-4">اسم المجموعة</th>
                   <th className="px-6 py-4">Slug</th>
                   <th className="px-6 py-4 text-center">عدد المنتجات</th>
@@ -52,16 +51,9 @@ export default async function AdminCategoriesPage() {
               <tbody className="divide-y divide-zinc-100">
                 {categories.map((cat) => (
                   <tr key={cat.id} className="hover:bg-zinc-50/50 transition-colors text-zinc-650">
-                    <td className="px-6 py-4">
-                      {cat.imagePath ? (
-                        <img src={cat.imagePath.startsWith('local://') ? cat.imagePath.replace('local://', '/') : cat.imagePath} alt={cat.name} className="w-12 h-12 rounded object-cover border" />
-                      ) : (
-                        <span className="text-xs text-red-500 font-bold bg-red-50 px-2 py-1 rounded">صورة مفقودة</span>
-                      )}
-                    </td>
                     <td className="px-6 py-4 font-bold text-zinc-900">{cat.name}</td>
                     <td className="px-6 py-4 font-mono text-sm">{cat.slug}</td>
-                    <td className="px-6 py-4 text-center font-bold text-[var(--color-charcoal-800)]">
+                    <td className="px-6 py-4 text-center font-bold text-[#2d3623]">
                       {cat._count.products}
                     </td>
                     <td className="px-6 py-4 text-left">
@@ -69,10 +61,9 @@ export default async function AdminCategoriesPage() {
                         category={{ 
                           id: cat.id, 
                           name: cat.name, 
-                          imagePath: cat.imagePath,
                           products: cat.products
                         }} 
-                        allCategories={categories.map(c => ({ id: c.id, name: c.name }))} 
+                        allCategories={categories.map(c => ({ id: c.id, name: c.name }))}
                         allProducts={allProducts}
                       />
                     </td>

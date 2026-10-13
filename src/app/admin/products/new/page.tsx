@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import { ProductNewForm } from '@/components/ProductNewForm';
+import { ProductCatalogForm } from '@/components/ProductCatalogForm';
+import { getSupplierProfitMargin } from '@/lib/supplier-margin';
 
 export default async function AdminProductsNewPage() {
   const session = await requirePermission('manage:products');
@@ -13,7 +14,8 @@ export default async function AdminProductsNewPage() {
   });
 
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
-  const brands = await prisma.brand.findMany({ orderBy: { nameEn: 'asc' } });
+  const supplierRows = await prisma.supplier.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } });
+  const suppliers = await Promise.all(supplierRows.map(async supplier => ({ ...supplier, profitMargin: await getSupplierProfitMargin(prisma, supplier.id) })));
 
   // Find the highest product SKU to auto-increment
   const lastProduct = await prisma.product.findFirst({
@@ -45,15 +47,15 @@ export default async function AdminProductsNewPage() {
             <span className="text-zinc-300">/</span>
             <span className="text-sm font-bold text-zinc-700">إضافة منتج جديد</span>
           </div>
-          <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+          <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
             إضافة منتج جديد
           </h1>
         </div>
 
-        <ProductNewForm 
-          categories={categories.map(c => ({ id: c.id, name: c.name }))} 
-          brands={brands.map(b => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }))}
+        <ProductCatalogForm
+          categories={categories.map(c => ({ id: c.id, name: c.name }))}
           nextSku={nextSku}
+          suppliers={suppliers}
         />
       </main>
     </div>

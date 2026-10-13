@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { getUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/actions/notifications';
 import { Bell } from 'lucide-react';
@@ -41,7 +42,7 @@ export function AdminNotificationsDropdown() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-zinc-300 hover:text-white hover:bg-[var(--color-charcoal-800)] rounded-full transition-colors"
+        className="relative p-2 text-zinc-300 hover:text-white hover:bg-[#2d3623] rounded-full transition-colors"
         title="الإشعارات"
       >
         <Bell className="w-5 h-5" />
@@ -52,28 +53,30 @@ export function AdminNotificationsDropdown() {
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute left-0 mt-2 w-80 bg-white dark:bg-[var(--color-charcoal-900)] border border-[var(--color-charcoal-800)] rounded-md shadow-lg overflow-hidden z-50" dir="rtl">
-          <div className="flex justify-between items-center px-4 py-3 border-b border-[var(--color-charcoal-800)] bg-[var(--color-charcoal-950)] text-white">
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <>
+        <button aria-label="إغلاق الإشعارات" className="fixed inset-0 z-[90] cursor-default bg-black/30" onClick={() => setIsOpen(false)} />
+        <section role="dialog" aria-modal="true" aria-label="الإشعارات" className="fixed left-1/2 top-1/2 z-[100] w-[min(92vw,36rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-[#2d3623] bg-white shadow-2xl" dir="rtl">
+          <div className="flex justify-between items-center px-4 py-3 border-b border-[#2d3623] bg-[var(--color-charcoal-950)] text-white">
             <h3 className="text-sm font-bold">الإشعارات</h3>
-            {unreadCount > 0 && (
+            <div className="flex items-center gap-3">{unreadCount > 0 && (
               <button 
                 onClick={handleMarkAllAsRead}
                 className="text-xs text-[var(--color-champagne-400)] hover:underline"
               >
                 تحديد الكل كمقروء
               </button>
-            )}
+            )}<button type="button" onClick={() => setIsOpen(false)} className="text-lg leading-none text-zinc-300 hover:text-white" aria-label="إغلاق">×</button></div>
           </div>
           
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[65vh] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 لا توجد إشعارات جديدة
               </div>
             ) : (
               notifications.map(notif => (
-                <div key={notif.id} className="p-4 border-b border-gray-100 dark:border-[var(--color-charcoal-800)] hover:bg-gray-50 dark:hover:bg-[var(--color-charcoal-800)] transition-colors">
+                <div key={notif.id} className="p-4 border-b border-gray-100 dark:border-[#2d3623] hover:bg-gray-50 dark:hover:bg-[#2d3623] transition-colors">
                   <div className="flex justify-between items-start mb-1">
                     <span className={`text-xs font-bold px-2 py-1 rounded ${notif.type === 'OUT_OF_STOCK' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
                       {notif.title}
@@ -96,13 +99,15 @@ export function AdminNotificationsDropdown() {
                     </Link>
                   )}
                   <div className="text-[10px] text-gray-400 mt-2">
-                    {new Date(notif.createdAt).toLocaleString('ar-JO')}
+                    {new Date(notif.createdAt).toLocaleString('en-GB')}
                   </div>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </section>
+        </>,
+        document.body
       )}
     </div>
   );

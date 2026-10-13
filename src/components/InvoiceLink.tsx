@@ -1,13 +1,20 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface InvoiceLinkProps {
   orderId: string;
 }
 
 export default function InvoiceLink({ orderId }: InvoiceLinkProps) {
-  const invoiceUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/ar/invoice/${orderId}`;
+  // Start with a deterministic relative URL so SSR and the first client render
+  // match. The browser origin is attached only after hydration.
+  const relativeUrl = `/ar/invoice/${orderId}`;
+  const [invoiceUrl, setInvoiceUrl] = useState(relativeUrl);
+
+  useEffect(() => {
+    setInvoiceUrl(`${window.location.origin}${relativeUrl}`);
+  }, [relativeUrl]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(invoiceUrl);
@@ -26,7 +33,7 @@ export default function InvoiceLink({ orderId }: InvoiceLinkProps) {
       <button
         type="button"
         onClick={copyToClipboard}
-        className="p-1 rounded bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white"
+        className="p-1 rounded bg-[#3F4B32] hover:bg-[#2d3623] text-white"
         title="Copy invoice link"
       >
         نسخ

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Dahab Perfumes Comprehensive Flows', () => {
+test.describe('Cosmetics Store Comprehensive Flows', () => {
   
   test('RTL Arabic Homepage renders correctly', async ({ page }) => {
     await page.goto('/ar');

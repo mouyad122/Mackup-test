@@ -8,7 +8,7 @@ import SuggestedProducts from '@/components/SuggestedProducts';
 import { BackButton } from '@/components/BackButton';
 import type { Metadata } from 'next';
 
-const BASE_URL = 'https://www.makeup-demo.com';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
 
 export const dynamic = 'force-dynamic'; // Ensure we get fresh DB data for demo
 
@@ -29,60 +29,51 @@ export async function generateMetadata({
     include: {
       images: { where: { isMain: true }, take: 1 },
       category: true,
-      brand: true,
     },
   });
 
   if (!product) return {};
 
   const name = isAr ? product.nameAr : product.nameEn;
-  const description =
-    product.shortDescription ||
-    (isAr
-      ? `اشتري ${product.nameAr} من ميكاب ديمو — أرقى منتجات التجميل`
-      : `Buy ${product.nameEn} from Makeup Demo — Premium Beauty Products`);
-  const imageUrl = product.images[0]?.url?.startsWith('local://') || product.images[0]?.url?.startsWith('/')
-    ? `${BASE_URL}${product.images[0]?.url.replace('local://', '/')}`
-    : product.images[0]?.url || `${BASE_URL}/og-image.jpg`;
+  const description = product.shortDescription || (isAr
+    ? `${product.nameAr} من رَواق.`
+    : `${product.nameEn} from Rawaq.`);
+  const rawImageUrl = product.images[0]?.url?.replace('local://', '/');
+  const imageUrl = rawImageUrl
+    ? (BASE_URL && rawImageUrl.startsWith('/') ? `${BASE_URL}${rawImageUrl}` : rawImageUrl)
+    : BASE_URL ? `${BASE_URL}/brand/logo_rawaq.png` : '/brand/logo_rawaq.png';
 
   return {
-    title: `${name} | ميكاب ديمو`,
+    title: `${name} | رَواق`,
     description,
     keywords: [
       name,
-      'ميكاب ديمو',
+      'رَواق',
       product.category?.name || '',
-      product.brand?.nameAr || '',
-      'منتجات تجميل',
-      'Makeup Demo',
+      'جمال وأزياء',
+      'Rawaq',
     ],
-    alternates: {
-      canonical: `${BASE_URL}/${locale}/products/${slug}`,
-      languages: {
-        ar: `${BASE_URL}/ar/products/${slug}`,
-        en: `${BASE_URL}/en/products/${slug}`,
-      },
-    },
+    ...(BASE_URL ? { alternates: { canonical: `${BASE_URL}/${locale}/products/${slug}`, languages: { ar: `${BASE_URL}/ar/products/${slug}`, en: `${BASE_URL}/en/products/${slug}` } } } : {}),
     openGraph: {
       type: 'article',
-      title: `${name} | ميكاب ديمو`,
+      title: `${name} | رَواق`,
       description,
-      url: `${BASE_URL}/${locale}/products/${slug}`,
+      ...(BASE_URL ? { url: `${BASE_URL}/${locale}/products/${slug}` } : {}),
       locale: isAr ? 'ar_JO' : 'en_US',
-      images: [
+      ...(BASE_URL || imageUrl.startsWith('http') ? { images: [
         {
           url: imageUrl,
           width: 800,
           height: 800,
           alt: name,
         },
-      ],
+      ] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${name} | ميكاب ديمو`,
+      title: `${name} | رَواق`,
       description,
-      images: [imageUrl],
+      ...(BASE_URL || imageUrl.startsWith('http') ? { images: [imageUrl] } : {}),
     },
   };
 }
@@ -93,22 +84,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
-      variants: { orderBy: { price: 'asc' } },
+      variants: {
+        where: { isActive: true },
+        include: {
+          supplierOffers: {
+            where: { isActive: true, supplier: { isActive: true } },
+            select: { stock: true },
+          },
+        },
+        orderBy: { price: 'asc' },
+      },
       images: { orderBy: { order: 'asc' } },
       category: true,
-      brand: true,
-      similarProducts: {
-        include: {
-          similar: {
-            include: {
-              images: { where: { isMain: true }, take: 1 },
-              variants: { orderBy: { price: 'asc' }, take: 1 },
-            }
-          }
-        },
-        orderBy: { order: 'asc' },
-        take: 3,
-      },
     }
   });
 
@@ -117,15 +104,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   }
 
   const mainImage = product.images.find(img => img.isMain) || product.images[0];
-  const lowestPrice = product.variants.length > 0 
-    ? Math.min(...product.variants.map(v => v.price))
-    : 0;
+  const variants = product.variants.map((variant) => ({
+    ...variant,
+    name: variant.size,
+    colorHex: null,
+    stock: variant.inventorySource === 'SUPPLIER'
+      ? variant.supplierOffers.reduce((total, offer) => total + offer.stock, 0)
+      : variant.stock,
+  }));
 
   const isAr = locale === 'ar';
   const productName = isAr ? product.nameAr : product.nameEn;
-  const mainImageUrl = mainImage?.url?.startsWith('local://')
-    ? `${BASE_URL}${mainImage.url.replace('local://', '/')}`
-    : mainImage?.url || `${BASE_URL}/og-image.jpg`;
+  const rawMainImageUrl = mainImage?.url?.replace('local://', '/');
+  const mainImageUrl = rawMainImageUrl
+    ? (BASE_URL && rawMainImageUrl.startsWith('/') ? `${BASE_URL}${rawMainImageUrl}` : rawMainImageUrl)
+    : BASE_URL ? `${BASE_URL}/brand/logo_rawaq.png` : '/brand/logo_rawaq.png';
 
   let suggestedProductsData: Array<{
     id: string;
@@ -136,38 +129,24 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     lowestPrice: number;
   }> = [];
 
-  if (product.similarProducts.length > 0) {
-    suggestedProductsData = product.similarProducts
-      .map(sp => sp.similar)
-      .filter(p => p.isVisible)
-      .map(p => ({
-        id: p.id,
-        slug: p.slug,
-        nameAr: p.nameAr,
-        nameEn: p.nameEn,
-        imageUrl: p.images[0]?.url || null,
-        lowestPrice: p.variants.length > 0 ? Math.min(...p.variants.map(v => v.price)) : 0,
-      }));
-  } else {
-    const fallbackProducts = await prisma.product.findMany({
-      where: { isVisible: true, id: { not: product.id } },
-      include: {
-        images: { where: { isMain: true }, take: 1 },
-        variants: { orderBy: { price: 'asc' }, take: 1 },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 3,
-    });
+  const fallbackProducts = await prisma.product.findMany({
+    where: { isVisible: true, id: { not: product.id } },
+    include: {
+      images: { where: { isMain: true }, take: 1 },
+      variants: { where: { isActive: true }, orderBy: { price: 'asc' }, take: 1 },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 4,
+  });
 
-    suggestedProductsData = fallbackProducts.map(p => ({
-      id: p.id,
-      slug: p.slug,
-      nameAr: p.nameAr,
-      nameEn: p.nameEn,
-      imageUrl: p.images[0]?.url || null,
-      lowestPrice: p.variants.length > 0 ? Math.min(...p.variants.map(v => v.price)) : 0,
-    }));
-  }
+  suggestedProductsData = fallbackProducts.map(p => ({
+    id: p.id,
+    slug: p.slug,
+    nameAr: p.nameAr,
+    nameEn: p.nameEn,
+    imageUrl: p.images[0]?.url || null,
+    lowestPrice: p.variants.length > 0 ? Math.min(...p.variants.map(v => v.price)) : 0,
+  }));
 
   const productSchema = {
     '@context': 'https://schema.org',
@@ -177,24 +156,24 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     image: mainImageUrl,
     brand: {
       '@type': 'Brand',
-      name: product.brand ? (isAr ? product.brand.nameAr : product.brand.nameEn) : 'Makeup Demo',
+      name: 'Rawaq',
     },
-    category: product.category?.name || 'Cosmetics',
-    url: `${BASE_URL}/${locale}/products/${product.slug}`,
-    offers: product.variants.map(v => ({
+    category: product.category?.name,
+    ...(BASE_URL ? { url: `${BASE_URL}/${locale}/products/${product.slug}` } : {}),
+    offers: variants.map(v => ({
       '@type': 'Offer',
-      price: (v.price / 100).toFixed(2),
+      price: (v.price / 1000).toFixed(3),
       priceCurrency: 'JOD',
-      availability: 'https://schema.org/InStock',
+      availability: v.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       name: v.name,
       seller: {
         '@type': 'Organization',
-        name: 'Makeup Demo',
+        name: 'Rawaq',
       },
     })),
   };
 
-  const breadcrumbSchema = {
+  const breadcrumbSchema = BASE_URL ? {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
@@ -202,103 +181,90 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       { '@type': 'ListItem', position: 2, name: isAr ? 'المتجر' : 'Shop', item: `${BASE_URL}/${locale}/shop` },
       { '@type': 'ListItem', position: 3, name: productName, item: `${BASE_URL}/${locale}/products/${product.slug}` },
     ],
-  };
+  } : null;
 
   return (
-    <div className="container mx-auto px-6 py-12">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+    <div className="bg-[#F7F3EA] pb-24">
+      {/* Background Decor */}
+      <div className="absolute top-0 start-0 w-full h-[500px] bg-gradient-to-b from-white to-transparent pointer-events-none" />
 
-      <BackButton text={isAr ? 'الرجوع للخلف' : 'Go Back'} />
+      <div className="container mx-auto px-5 sm:px-8 py-8 sm:py-12 relative z-10">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
+        {breadcrumbSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />}
 
-      <div className="flex text-sm text-[var(--color-rose-600)] font-bold mb-8 gap-2 flex-wrap">
-        <Link href={`/${locale}`}>{isAr ? 'الرئيسية' : 'Home'}</Link>
-        <span>/</span>
-        <Link href={`/${locale}/shop`}>{isAr ? 'المتجر' : 'Shop'}</Link>
-        <span>/</span>
-        {product.category && (
-          <>
-            <Link href={`/${locale}/shop?category=${product.category.id}`}>{product.category.name}</Link>
-            <span>/</span>
-          </>
-        )}
-        <span className="text-[var(--color-charcoal-900)]">{productName}</span>
-      </div>
+        <div className="mb-8 flex items-center justify-between">
+          <BackButton text={isAr ? 'الرجوع للخلف' : 'Go Back'} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Product Images (Interactive Gallery) */}
-        <ProductGallery images={product.images} productName={productName} isAr={isAr} categorySlug={product.category?.slug} />
+          <div className="hidden sm:flex text-xs font-bold tracking-wider text-[#A69A8C] uppercase items-center gap-2">
+            <Link href={`/${locale}`} className="hover:text-[#B7935F] transition-colors">{isAr ? 'الرئيسية' : 'Home'}</Link>
+            <span className="text-[#E9DDCC]">/</span>
+            <Link href={`/${locale}/shop`} className="hover:text-[#B7935F] transition-colors">{isAr ? 'المتجر' : 'Shop'}</Link>
+            {product.category && (
+              <>
+                <span className="text-[#E9DDCC]">/</span>
+                <Link href={`/${locale}/shop?category=${product.category.id}`} className="hover:text-[#B7935F] transition-colors">{product.category.name}</Link>
+              </>
+            )}
+            <span className="text-[#E9DDCC]">/</span>
+            <span className="text-[#2B2B2B]">{productName}</span>
+          </div>
+        </div>
 
-        {/* Product Info */}
-        <div className="flex flex-col">
-          {product.brand && (
-            <Link href={`/${locale}/shop?brand=${product.brand.id}`} className="text-sm font-bold tracking-widest uppercase text-[var(--color-charcoal-600)] mb-2 hover:text-[var(--color-rose-600)] transition-colors">
-              {isAr ? product.brand.nameAr : product.brand.nameEn}
-            </Link>
-          )}
-          <h1 className="text-3xl md:text-5xl font-bold font-heading text-[var(--color-charcoal-900)] mb-6">
-            {isAr ? product.nameAr : product.nameEn}
-          </h1>
-
-          <div className="flex flex-wrap gap-2 mb-6">
-            {product.productType && <span className="bg-white text-[var(--color-charcoal-700)] px-3 py-1 rounded-sm text-sm border border-[var(--color-ivory-200)]">{product.productType}</span>}
-            {product.finish && <span className="bg-white text-[var(--color-charcoal-700)] px-3 py-1 rounded-sm text-sm border border-[var(--color-ivory-200)]">{isAr ? 'اللمسة:' : 'Finish:'} {product.finish}</span>}
-            {product.coverage && <span className="bg-white text-[var(--color-charcoal-700)] px-3 py-1 rounded-sm text-sm border border-[var(--color-ivory-200)]">{isAr ? 'التغطية:' : 'Coverage:'} {product.coverage}</span>}
-            {product.skinType && <span className="bg-white text-[var(--color-charcoal-700)] px-3 py-1 rounded-sm text-sm border border-[var(--color-ivory-200)]">{isAr ? 'للبشرة:' : 'Skin:'} {product.skinType}</span>}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-16 items-start">
+          {/* Product Images (Interactive Gallery) */}
+          <div className="sticky top-28">
+            <ProductGallery images={product.images} productName={productName} isAr={isAr} categorySlug={product.category?.slug} />
           </div>
 
-          <p className="text-zinc-700 leading-relaxed mb-8 text-lg">
-            {product.shortDescription || (isAr ? 'عززي جمالك الطبيعي مع هذا المنتج الاستثنائي الذي يوفر لك مظهراً مثالياً وجذاباً طوال اليوم.' : 'Enhance your natural beauty with this exceptional product that provides a perfect and attractive look all day long.')}
-          </p>
+          {/* Product Info */}
+          <div className="flex flex-col pt-2 lg:pt-6">
+            <div className="flex flex-col items-start gap-4 mb-6">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-heading text-[#2B2B2B] leading-tight drop-shadow-sm">
+                {isAr ? product.nameAr : product.nameEn}
+              </h1>
+            </div>
 
-          <ProductVariantSelector variants={product.variants} locale={locale} product={product} mainImage={mainImage?.url} />
+            <p className="text-[#746A64] leading-relaxed mb-10 text-base sm:text-lg">
+              {product.shortDescription || (isAr ? 'عززي جمالك الطبيعي مع هذا المنتج الاستثنائي الذي يوفر لك مظهراً مثالياً وجذاباً طوال اليوم.' : 'Enhance your natural beauty with this exceptional product that provides a perfect and attractive look all day long.')}
+            </p>
 
-          {/* Beauty Accordions */}
-          <div className="mt-12 space-y-4 border-t border-[var(--color-ivory-200)] pt-8">
-            {product.benefits && (
-              <details className="group border-b border-[var(--color-ivory-200)] pb-4">
-                <summary className="flex justify-between items-center font-bold cursor-pointer list-none text-[var(--color-charcoal-900)]">
-                  <span>{isAr ? 'الفوائد والمميزات' : 'Benefits & Features'}</span>
-                  <span className="transition group-open:rotate-180">
-                    <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
-                  </span>
-                </summary>
-                <p className="text-zinc-600 mt-3 leading-relaxed">
-                  {product.benefits}
-                </p>
-              </details>
-            )}
-            
-            {(product.ingredients || product.howToUse) && (
-              <details className="group border-b border-[var(--color-ivory-200)] pb-4">
-                <summary className="flex justify-between items-center font-bold cursor-pointer list-none text-[var(--color-charcoal-900)]">
-                  <span>{isAr ? 'طريقة الاستخدام والمكونات' : 'How to Use & Ingredients'}</span>
-                  <span className="transition group-open:rotate-180">
-                    <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
-                  </span>
-                </summary>
-                <div className="text-zinc-600 mt-3 leading-relaxed space-y-4">
-                  {product.howToUse && (
-                    <div>
-                      <strong className="block text-[var(--color-charcoal-900)]">{isAr ? 'طريقة الاستخدام:' : 'How to Use:'}</strong>
-                      <p>{product.howToUse}</p>
-                    </div>
-                  )}
-                  {product.ingredients && (
-                    <div>
-                      <strong className="block text-[var(--color-charcoal-900)]">{isAr ? 'المكونات:' : 'Ingredients:'}</strong>
-                      <p>{product.ingredients}</p>
-                    </div>
-                  )}
-                </div>
-              </details>
+            <ProductVariantSelector
+              variants={variants}
+              locale={locale}
+              product={{ id: product.id, nameAr: product.nameAr, nameEn: product.nameEn }}
+              mainImage={mainImage?.url}
+            />
+
+            {product.longDescription && (
+              <div className="mt-12 space-y-2 border-t border-[#E9DDCC] pt-8">
+                <details className="group rounded-2xl border border-[#E9DDCC] bg-white overflow-hidden shadow-sm hover:shadow-[0_4px_16px_rgba(139,30,45,.03)] transition-all">
+                  <summary className="flex justify-between items-center font-bold cursor-pointer list-none text-[#2B2B2B] p-5">
+                    <span className="flex items-center gap-3">
+                      <span className="text-[#B7935F]">✦</span>
+                      {isAr ? 'تفاصيل المنتج' : 'Product Details'}
+                    </span>
+                    <span className="transition-transform duration-300 group-open:rotate-180 text-[#B7935F]">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                  </summary>
+                  <div className="px-5 pb-5 text-[#746A64] leading-relaxed border-t border-[#E9DDCC]/50 mt-1 pt-4">
+                    {product.longDescription}
+                  </div>
+                </details>
+              </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Suggested Products Section */}
-      <SuggestedProducts products={suggestedProductsData} locale={locale} />
+        {/* Suggested Products Section */}
+        <div className="mt-24 pt-16 border-t border-[#E9DDCC]">
+          <div className="text-center mb-12">
+            <p className="rawaq-eyebrow text-[#B7935F] mb-2">{isAr ? 'اختياراتنا لكِ' : 'CURATED FOR YOU'}</p>
+            <h2 className="text-3xl md:text-4xl font-bold font-heading text-[#2B2B2B]">{isAr ? 'قد يعجبك أيضاً' : 'You May Also Like'}</h2>
+          </div>
+          <SuggestedProducts products={suggestedProductsData} locale={locale} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -34,7 +34,7 @@ export default function Error({
           </svg>
         </div>
 
-        <h2 className="text-2xl font-bold font-heading text-[var(--color-charcoal-900)] mb-3">
+        <h2 className="text-2xl font-bold font-heading text-[#3F4B32] mb-3">
           حدث خطأ غير متوقع
         </h2>
         <p className="text-zinc-500 mb-8 leading-relaxed">
@@ -44,13 +44,13 @@ export default function Error({
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={reset}
-            className="px-6 py-3 bg-[var(--color-charcoal-900)] text-white font-bold rounded-lg hover:bg-[var(--color-charcoal-800)] transition-colors"
+            className="px-6 py-3 bg-[#3F4B32] text-white font-bold rounded-lg hover:bg-[#2d3623] transition-colors"
           >
             حاول مجدداً
           </button>
           <Link
             href="/ar"
-            className="px-6 py-3 border-2 border-[var(--color-charcoal-900)] text-[var(--color-charcoal-900)] font-bold rounded-lg hover:bg-[var(--color-charcoal-900)] hover:text-white transition-colors"
+            className="px-6 py-3 border-2 border-[#3F4B32] text-[#3F4B32] font-bold rounded-lg hover:bg-[#3F4B32] hover:text-white transition-colors"
           >
             الصفحة الرئيسية
           </Link>

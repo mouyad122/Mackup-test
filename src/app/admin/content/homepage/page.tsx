@@ -39,7 +39,7 @@ export default async function AdminCMSHomepagePage() {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold font-heading text-[var(--color-charcoal-900)]">إدارة الصفحة الرئيسية والمحتوى</h1>
+            <h1 className="text-2xl font-bold font-heading text-[#3F4B32]">إدارة الصفحة الرئيسية والمحتوى</h1>
             <p className="text-xs text-zinc-500 mt-1">التحكم في لافتات الإعلانات الترويجية وتحديد موقع المتجر الجغرافي المعروض.</p>
           </div>
         </div>

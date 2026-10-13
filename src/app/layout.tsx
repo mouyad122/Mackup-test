@@ -1,42 +1,41 @@
 import type { Metadata } from "next";
-import { Cairo, Tajawal } from "next/font/google";
+import { Noto_Naskh_Arabic, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
-const cairo = Cairo({
+const notoNaskhArabic = Noto_Naskh_Arabic({
   subsets: ["arabic"],
-  variable: "--font-cairo",
-  weight: ["400", "600", "700", "800"],
+  variable: "--font-noto-naskh",
+  weight: ["400", "500", "600", "700"],
   display: 'swap',
 });
 
-const tajawal = Tajawal({
-  subsets: ["arabic"],
-  variable: "--font-tajawal",
-  weight: ["400", "500", "700"],
+const cormorantGaramond = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-cormorant",
+  weight: ["400", "500", "600", "700"],
   display: 'swap',
 });
 
-const BASE_URL = 'https://www.makeup-demo.com';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
 
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
+  ...(BASE_URL ? { metadataBase: new URL(BASE_URL) } : {}),
   title: {
-    default: 'ميكاب ديمو | Makeup Demo',
-    template: '%s | ميكاب ديمو',
+    default: 'رَواق | أناقة من روح الأصالة',
+    template: '%s | رَواق',
   },
   description:
-    'ميكاب ديمو — المتجر التجريبي لمنتجات التجميل والعناية بالبشرة. اكتشفي أحدث الإطلالات ومنتجات الميكاب.',
+    'رَواق — كوزمتكس وعبايات وأثواب أردنية وفساتين بروح أردنية معاصرة.',
   icons: {
     icon: [
-      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+      { url: '/brand/logo_rawaq.png', type: 'image/png' },
     ],
     apple: [
-      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/brand/logo_rawaq.png', type: 'image/png' },
     ],
   },
   keywords: [
-    'ميكاب ديمو',
-    'Makeup Demo',
+    'رَواق', 'RAWAQ', 'عبايات', 'أثواب أردنية', 'فساتين',
     'مكياج',
     'مستحضرات تجميل',
     'عناية بالبشرة',
@@ -46,9 +45,8 @@ export const metadata: Metadata = {
     'Cosmetics',
     'Skincare'
   ],
-  authors: [{ name: 'ميكاب ديمو', url: BASE_URL }],
-  creator: 'Makeup Demo',
-  publisher: 'Makeup Demo',
+  authors: [{ name: 'رَواق', ...(BASE_URL ? { url: BASE_URL } : {}) }],
+  creator: 'RAWAQ', publisher: 'RAWAQ',
   robots: {
     index: true,
     follow: true,
@@ -64,33 +62,18 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ar_JO',
     alternateLocale: ['en_US'],
-    url: BASE_URL,
-    siteName: 'ميكاب ديمو | Makeup Demo',
-    title: 'ميكاب ديمو | Makeup Demo',
+    ...(BASE_URL ? { url: BASE_URL } : {}),
+    siteName: 'رَواق | RAWAQ', title: 'رَواق | أناقة من روح الأصالة',
     description:
-      'اكتشفي إطلالتك القادمة مع منتجات التجميل المميزة من ميكاب ديمو.',
-    images: [
-      {
-        url: `${BASE_URL}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: 'ميكاب ديمو — Makeup Demo',
-      },
-    ],
+      'اكتشفي رَواق: أناقة من روح الأصالة الأردنية.',
+    ...(BASE_URL ? { images: [{ url: `${BASE_URL}/brand/logo_rawaq.png`, alt: 'رَواق — RAWAQ' }] } : {}),
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ميكاب ديمو | Makeup Demo',
-    description: 'المتجر التجريبي لمنتجات التجميل والعناية بالبشرة',
-    images: [`${BASE_URL}/og-image.jpg`],
+    title: 'رَواق | RAWAQ', description: 'أناقة من روح الأصالة الأردنية',
+    ...(BASE_URL ? { images: [`${BASE_URL}/brand/logo_rawaq.png`] } : {}),
   },
-  alternates: {
-    canonical: BASE_URL,
-    languages: {
-      'ar': `${BASE_URL}/ar`,
-      'en': `${BASE_URL}/en`,
-    },
-  },
+  ...(BASE_URL ? { alternates: { canonical: BASE_URL, languages: { ar: `${BASE_URL}/ar`, en: `${BASE_URL}/en` } } } : {}),
 };
 
 export default function RootLayout({
@@ -99,7 +82,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${tajawal.variable}`} style={{ colorScheme: 'light' }}>
+    <html lang="ar" dir="rtl" className={`${notoNaskhArabic.variable} ${cormorantGaramond.variable}`} style={{ colorScheme: 'light' }}>
       <body className="antialiased min-h-screen flex flex-col">
         {children}
       </body>

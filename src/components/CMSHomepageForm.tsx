@@ -16,13 +16,13 @@ const isVideo = (path: string) => /\.(mp4|webm|ogg)$/i.test(path || '');
 const MediaPreview = ({ url, isMobile }: { url: string; isMobile: boolean }) => {
   if (!url || url === '/slide-placeholder.jpg' || url === '/slide-placeholder-mobile.jpg') {
     return (
-      <div className={`bg-zinc-50 border-2 border-dashed flex items-center justify-center text-zinc-400 text-xs rounded-lg ${isMobile ? 'w-32 h-48 mx-auto' : 'w-full h-40'}`}>
+      <div className={`bg-zinc-50 border-2 border-dashed flex items-center justify-center text-zinc-400 text-xs rounded-lg aspect-video mx-auto w-full max-w-xs`}>
         لم يتم رفع ملف بعد
       </div>
     );
   }
   return (
-    <div className={`relative bg-black rounded-lg overflow-hidden shadow-inner ${isMobile ? 'w-32 h-48 mx-auto' : 'w-full h-40'}`}>
+    <div className={`relative bg-black rounded-lg overflow-hidden shadow-inner aspect-video mx-auto w-full max-w-xs`}>
       {isVideo(url) ? (
         <video src={url} autoPlay loop muted className="w-full h-full object-cover" />
       ) : (
@@ -63,7 +63,7 @@ const SlideEditor = ({
           <div className="space-y-3 text-center w-full max-w-md">
             <label className="text-xs font-bold text-zinc-700 block">نسخة الكمبيوتر والجوال (Desktop & Mobile)</label>
             <MediaPreview url={slide.imageDesktopPath} isMobile={false} />
-            <label className="bg-[var(--color-champagne-600)] hover:bg-[var(--color-champagne-500)] text-white px-4 py-2 rounded text-xs cursor-pointer inline-block shadow-sm transition-colors font-bold mt-2">
+            <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-xs cursor-pointer inline-block shadow-sm transition-colors font-bold mt-2">
               تغيير الصورة/الفيديو
               <input type="file" className="hidden" accept="image/*,video/*" onChange={(e) => handleFileUpload(e, false, isEdit)} />
             </label>
@@ -220,11 +220,11 @@ const SlideEditor = ({
       </div>
 
       <div className="pt-4 flex gap-3">
-        <button type="submit" disabled={isPending} className="bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white font-bold px-8 py-3 rounded text-sm transition-colors shadow-md">
+        <button type="submit" disabled={isPending} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded text-sm transition-colors shadow-md">
           {isPending ? 'جاري الحفظ...' : (isEdit ? 'حفظ التعديلات' : 'إضافة الإعلان الجديد ونشره')}
         </button>
         {isEdit && (
-          <button type="button" onClick={onCancel} className="bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-bold px-8 py-3 rounded text-sm transition-colors">
+          <button type="button" onClick={onCancel} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-8 py-3 rounded text-sm transition-colors">
             إلغاء
           </button>
         )}
@@ -539,7 +539,7 @@ export function CMSHomepageForm({
             type="button"
             onClick={handleSaveCarousel}
             disabled={isPending}
-            className="bg-[var(--color-charcoal-800)] hover:bg-[var(--color-charcoal-900)] text-white font-bold px-6 py-2.5 rounded text-xs transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded text-xs transition-colors"
           >
             {isPending ? 'جاري الحفظ...' : 'حفظ إعدادات شريط العرض'}
           </button>
@@ -558,7 +558,7 @@ export function CMSHomepageForm({
           {slides.map((slide, index) => (
             <div key={slide.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded bg-zinc-50/50 gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-12 bg-zinc-200 rounded overflow-hidden relative">
+                <div className="w-24 h-16 bg-zinc-200 rounded overflow-hidden relative aspect-video shadow-sm">
                   <img src={slide.imageDesktopPath} alt={slide.titleAr} className="object-cover w-full h-full" />
                 </div>
                 <div>
@@ -572,7 +572,7 @@ export function CMSHomepageForm({
                   type="button"
                   disabled={index === 0}
                   onClick={() => handleMoveSlide(index, 'up')}
-                  className="bg-white hover:bg-zinc-100 border p-1 rounded text-xs disabled:opacity-50"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 border p-1 rounded text-xs disabled:opacity-50 transition-colors"
                   title="نقل لأعلى"
                 >
                   ▲
@@ -581,7 +581,7 @@ export function CMSHomepageForm({
                   type="button"
                   disabled={index === slides.length - 1}
                   onClick={() => handleMoveSlide(index, 'down')}
-                  className="bg-white hover:bg-zinc-100 border p-1 rounded text-xs disabled:opacity-50"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 border p-1 rounded text-xs disabled:opacity-50 transition-colors"
                   title="نقل لأسفل"
                 >
                   ▼
@@ -589,14 +589,14 @@ export function CMSHomepageForm({
                 <button
                   type="button"
                   onClick={() => setEditingSlide(slide)}
-                  className="bg-zinc-800 hover:bg-zinc-950 text-white px-3 py-1 rounded text-xs"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition-colors"
                 >
                   تعديل
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteSlide(slide.id)}
-                  className="bg-red-600 hover:bg-red-750 text-white px-3 py-1 rounded text-xs"
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition-colors"
                 >
                   حذف
                 </button>
@@ -633,166 +633,7 @@ export function CMSHomepageForm({
         )}
 </div>
 
-      {/* 3. STORE LOCATION CONFIGURATION */}
-      <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
-        <div className="border-b pb-3">
-          <h2 className="text-base font-bold text-[var(--color-charcoal-800)]">خيارات الخريطة وموقع المتجر (Store Location Settings)</h2>
-          <p className="text-[10px] text-zinc-400 mt-1">تحديث إحداثيات الخريطة وتوجيهات الاتصال الجغرافي.</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <input 
-            type="checkbox" 
-            id="locationSectionEnabled" 
-            checked={location.locationSectionEnabled} 
-            onChange={(e) => handleLocationChange('locationSectionEnabled', e.target.checked)} 
-            className="w-5 h-5 accent-[var(--color-charcoal-800)]"
-          />
-          <label htmlFor="locationSectionEnabled" className="text-xs font-bold text-zinc-700 cursor-pointer">تفعيل قسم موقع المعرض في الصفحة الرئيسية</label>
-        </div>
-
-        {location.locationSectionEnabled && (
-          <div className="space-y-4 bg-zinc-50 p-4 rounded border">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">اسم المعرض (Store Name)</label>
-                <input 
-                  type="text" 
-                  value={location.storeName} 
-                  onChange={(e) => handleLocationChange('storeName', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">أوقات العمل اليومية</label>
-                <input 
-                  type="text" 
-                  value={location.openingHours} 
-                  onChange={(e) => handleLocationChange('openingHours', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">العنوان بالأرقام العربية</label>
-                <input 
-                  type="text" 
-                  value={location.addressAr} 
-                  onChange={(e) => handleLocationChange('addressAr', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">العنوان بالإنجليزية (English Address)</label>
-                <input 
-                  type="text" 
-                  value={location.addressEn} 
-                  onChange={(e) => handleLocationChange('addressEn', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">رقم الهاتف للاتصال</label>
-                <input 
-                  type="text" 
-                  value={location.phone} 
-                  onChange={(e) => handleLocationChange('phone', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">رقم الواتساب (بالرمز الدولي بدون +)</label>
-                <input 
-                  type="text" 
-                  value={location.whatsapp} 
-                  onChange={(e) => handleLocationChange('whatsapp', e.target.value)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">خط العرض (Latitude)</label>
-                <input 
-                  type="number" 
-                  step="0.000001"
-                  value={location.latitude} 
-                  onChange={(e) => handleLocationChange('latitude', parseFloat(e.target.value) || 0)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">خط الطول (Longitude)</label>
-                <input 
-                  type="number" 
-                  step="0.000001"
-                  value={location.longitude} 
-                  onChange={(e) => handleLocationChange('longitude', parseFloat(e.target.value) || 0)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500 font-bold">مستوى التقريب الخريطة (Zoom)</label>
-                <input 
-                  type="number" 
-                  min={1}
-                  max={21}
-                  value={location.mapZoom} 
-                  onChange={(e) => handleLocationChange('mapZoom', parseInt(e.target.value) || 15)}
-                  className="w-full border rounded p-2 text-xs bg-white text-left"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] text-zinc-500 font-bold">رابط التوجيه المباشر في خرائط جوجل (Google Maps Place URL)</label>
-              <input 
-                type="text" 
-                value={location.mapPlaceUrl} 
-                onChange={(e) => handleLocationChange('mapPlaceUrl', e.target.value)}
-                className="w-full border rounded p-2 text-xs bg-white text-left"
-                dir="ltr"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] text-zinc-500 font-bold">رابط التضمين التفاعلي (Google Maps Embed URL / Src)</label>
-              <input 
-                type="text" 
-                value={location.mapEmbedUrl} 
-                onChange={(e) => handleLocationChange('mapEmbedUrl', e.target.value)}
-                className="w-full border rounded p-2 text-xs bg-white text-left"
-                dir="ltr"
-              />
-            </div>
           </div>
-        )}
-
-        <div className="flex gap-4 pt-4 border-t border-zinc-100">
-          <button 
-            type="button"
-            onClick={handleSaveLocation}
-            disabled={isPending}
-            className="bg-[var(--color-charcoal-800)] hover:bg-[var(--color-charcoal-900)] text-white font-bold px-6 py-2.5 rounded text-xs transition-colors"
-          >
-            {isPending ? 'جاري الحفظ...' : 'حفظ إعدادات الموقع والخريطة'}
-          </button>
-        </div>
-      </div>
-
-    </div>
   );
 }
 export default CMSHomepageForm;

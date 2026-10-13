@@ -103,7 +103,7 @@ export async function updateTaxSettings(data: { taxEnabled: boolean; taxRate: nu
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل حفظ إعدادات الضريبة' };
+    return { success: false, error: 'فشل حفظ إعدادات الضريبة' };
   }
 }
 
@@ -168,7 +168,7 @@ export async function updateShippingZone(data: { id?: string; nameAr: string; na
     }
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل حفظ منطقة الشحن' };
+    return { success: false, error: 'فشل حفظ منطقة الشحن' };
   }
 }
 
@@ -191,7 +191,7 @@ export async function deleteShippingZone(id: string) {
     });
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل حذف منطقة الشحن' };
+    return { success: false, error: 'فشل حذف منطقة الشحن' };
   }
 }
 
@@ -286,6 +286,7 @@ const securitySettingsSchema = z.object({
   maxLoginAttempts: z.number().catch(5)
 });
 export async function getSecuritySettings(): Promise<SecuritySettings> {
+  await requireSuperAdmin();
   return await getSiteSettings<SecuritySettings>('security_settings', {
     passwordMinLength: 15,
     requireMFA: true,
@@ -302,6 +303,7 @@ export interface BackupSettings {
   frequency: string;
 }
 export async function getBackupSettings(): Promise<BackupSettings> {
+  await requireSuperAdmin();
   return await getSiteSettings<BackupSettings>('backup_settings', { autoBackup: true, frequency: 'daily' });
 }
 export async function updateBackupSettings(data: BackupSettings, adminId: string) {
@@ -360,6 +362,7 @@ const notificationsSettingsSchema = z.object({
   emailAlerts: z.boolean().catch(false)
 });
 export async function getNotificationsSettings(): Promise<NotificationsSettings> {
+  await requireSuperAdmin();
   return await getSiteSettings<NotificationsSettings>('notifications_settings', {
     whatsappNotifications: false,
     whatsappNumber: '',
@@ -380,6 +383,7 @@ const integrationsSettingsSchema = z.object({
   whatsappGatewayApiKey: z.string().catch('')
 });
 export async function getIntegrationsSettings(): Promise<IntegrationsSettings> {
+  await requireSuperAdmin();
   return await getSiteSettings<IntegrationsSettings>('integrations_settings', {
     supabaseStorageUrl: '',
     whatsappGatewayApiKey: ''
@@ -397,17 +401,17 @@ export interface SEOSettings {
   metaDescriptionEn: string;
 }
 const seoSettingsSchema = z.object({
-  metaTitleAr: z.string().catch('ميكاب ديمو'),
-  metaTitleEn: z.string().catch('Makeup Demo'),
-  metaDescriptionAr: z.string().catch('متجر مكياج ميكاب ديمو الفاخرة مكياج فرنسية بجودة عالية وأسعار منافسة'),
-  metaDescriptionEn: z.string().catch('Luxury Makeup Demo online store')
+  metaTitleAr: z.string().catch('فيلورا بيوتي'),
+  metaTitleEn: z.string().catch('Velora Beauty'),
+  metaDescriptionAr: z.string().catch('متجر مكياج فيلورا بيوتي الفاخرة مكياج فرنسية بجودة عالية وأسعار منافسة'),
+  metaDescriptionEn: z.string().catch('Luxury Velora Beauty online store')
 });
 export async function getSEOSettings(): Promise<SEOSettings> {
   return await getSiteSettings<SEOSettings>('seo_settings', {
-    metaTitleAr: 'ميكاب ديمو',
-    metaTitleEn: 'Makeup Demo',
-    metaDescriptionAr: 'متجر مكياج ميكاب ديمو الفاخرة مكياج فرنسية بجودة عالية وأسعار منافسة',
-    metaDescriptionEn: 'Luxury Makeup Demo online store'
+    metaTitleAr: 'فيلورا بيوتي',
+    metaTitleEn: 'Velora Beauty',
+    metaDescriptionAr: 'متجر مكياج فيلورا بيوتي الفاخرة مكياج فرنسية بجودة عالية وأسعار منافسة',
+    metaDescriptionEn: 'Luxury Velora Beauty online store'
   }, seoSettingsSchema);
 }
 export async function updateSEOSettings(data: SEOSettings, adminId: string) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -60,304 +60,301 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
-  // 1. Detect user preference for reduced motion
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mediaQuery.matches);
-
-    const listener = (e: MediaQueryListEvent) => {
-      setPrefersReducedMotion(e.matches);
-    };
+    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     mediaQuery.addEventListener('change', listener);
     return () => mediaQuery.removeEventListener('change', listener);
   }, []);
 
-  // Filter slides strictly based on active rules: enabled, not expired/future
-  const activeSlides = slides.filter(slide => {
+  const activeSlides = useMemo(() => slides.filter(slide => {
     if (!slide.isEnabled) return false;
     const now = new Date();
     if (slide.startsAt && new Date(slide.startsAt) > now) return false;
     if (slide.endsAt && new Date(slide.endsAt) < now) return false;
     return true;
-  });
+  }), [slides]);
 
-  // 2. Localized navigation URL resolver
   const resolveSlideUrl = (slide: HeroSlide) => {
     const prefix = `/${locale}`;
     switch (slide.destinationType) {
-      case 'COLLECTION':
-        return slide.collection ? `${prefix}/collections/${slide.collection.slug}` : '#';
-      case 'CATEGORY':
-        return slide.category ? `${prefix}/shop?category=${slide.category.slug}` : '#';
-      case 'PRODUCT':
-        return slide.product ? `${prefix}/products/${slide.product.slug}` : '#';
-      case 'INTERNAL_ROUTE':
-        return slide.internalPath ? `${prefix}${slide.internalPath.startsWith('/') ? '' : '/'}${slide.internalPath}` : '#';
-      case 'EXTERNAL_URL':
-        return slide.externalUrl || '#';
-      default:
-        return '#';
+      case 'COLLECTION': return slide.collection ? `${prefix}/collections/${slide.collection.slug}` : '#';
+      case 'CATEGORY': return slide.category ? `${prefix}/shop?category=${slide.category.slug}` : '#';
+      case 'PRODUCT': return slide.product ? `${prefix}/products/${slide.product.slug}` : '#';
+      case 'INTERNAL_ROUTE': return slide.internalPath ? `${prefix}${slide.internalPath.startsWith('/') ? '' : '/'}${slide.internalPath}` : '#';
+      case 'EXTERNAL_URL': return slide.externalUrl || '#';
+      default: return '#';
     }
   };
 
   const isVideo = (path: string) => /\.(mp4|webm|ogg)$/i.test(path || '');
 
-  // 3. Autoplay rotation logic
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-    if (!settings.autoplayEnabled || isPaused || prefersReducedMotion || activeSlides.length <= 1) {
-      return;
-    }
-
-    const currentSlide = activeSlides[currentIndex];
-    const isVideoMedia = isVideo(currentSlide?.imageDesktopPath);
-
-    // If it is an image or gif, we use the specific autoplay interval (seconds added by the user).
-    // If it is a video, we will rely on the `onEnded` event on the video tag.
-    if (!isVideoMedia) {
-      timeoutRef.current = setTimeout(() => {
-        setCurrentIndex(prev => (prev + 1) % activeSlides.length);
-      }, settings.autoplayIntervalMs);
-    }
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [currentIndex, isPaused, prefersReducedMotion, activeSlides, settings.autoplayEnabled, settings.autoplayIntervalMs]);
-
-  // Pause autoplay when the browser tab is hidden
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsPaused(true);
-      } else {
-        setIsPaused(false);
-      }
-    };
+    const handleVisibilityChange = () => setIsPaused(document.hidden);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  if (activeSlides.length === 0) {
-    return null; // Fallback handles this inside the page
-  }
+  // If no slides are available, we will render a fallback slide
+  const slidesToRender = useMemo(() => activeSlides.length > 0 ? activeSlides : [{
+    id: 'fallback',
+    titleAr: 'أناقةٌ من أرضنا،\n**وجمالٌ يشبهكِ.**',
+    titleEn: 'Rooted in Jordan,\n**made to feel like you.**',
+    descriptionAr: 'من تراثنا نستلهم الجمال، لنروي حكايتك بأسلوب عصري يجمع الكوزمتكس والعبايات والأثواب الأردنية.',
+    descriptionEn: 'From our heritage we draw beauty, to tell your story in a contemporary way — cosmetics, abayas and Jordanian thobes.',
+    eyebrowAr: 'رَواق',
+    eyebrowEn: 'RAWAQ',
+    ctaAr: 'تسوّقي المجموعة',
+    ctaEn: 'Shop the collection',
+    imageDesktopPath: '',
+    imageMobilePath: '',
+    altAr: '',
+    altEn: '',
+    destinationType: 'INTERNAL_ROUTE',
+    internalPath: '/shop',
+    productId: null,
+    collectionId: null,
+    categoryId: null,
+    externalUrl: null,
+    displayOrder: 0,
+    isEnabled: true,
+    startsAt: null,
+    endsAt: null,
+    openInNewTab: false,
+    overlayStrength: 0,
+    textPosition: 'center'
+  }], [activeSlides]);
 
-  // 4. Manual controls
+  useEffect(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (!settings.autoplayEnabled || isPaused || prefersReducedMotion || slidesToRender.length <= 1) return;
+    const currentSlide = slidesToRender[currentIndex];
+    const isVideoMedia = currentSlide ? isVideo(currentSlide.imageDesktopPath) : false;
+    if (!isVideoMedia) {
+      timeoutRef.current = setTimeout(() => {
+        setCurrentIndex(prev => (prev + 1) % slidesToRender.length);
+      }, settings.autoplayIntervalMs);
+    }
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+  }, [currentIndex, isPaused, prefersReducedMotion, slidesToRender, settings.autoplayEnabled, settings.autoplayIntervalMs]);
+
   const handlePrev = () => {
     setIsPaused(true);
-    setCurrentIndex(prev => (prev - 1 + activeSlides.length) % activeSlides.length);
+    setCurrentIndex(prev => (prev - 1 + slidesToRender.length) % slidesToRender.length);
   };
-
   const handleNext = () => {
     setIsPaused(true);
-    setCurrentIndex(prev => (prev + 1) % activeSlides.length);
+    setCurrentIndex(prev => (prev + 1) % slidesToRender.length);
   };
-
-  // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
-      // In RTL, left arrow goes to next slide; in LTR, left arrow goes to previous slide
-      if (isAr) handleNext();
-      else handlePrev();
+      if (isAr) handleNext(); else handlePrev();
     } else if (e.key === 'ArrowRight') {
-      if (isAr) handlePrev();
-      else handleNext();
+      if (isAr) handlePrev(); else handleNext();
     }
   };
-
-  // Touch swipe support (RTL aware!)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartXRef.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return;
     const touchEndX = e.changedTouches[0].clientX;
     const diff = touchStartXRef.current - touchEndX;
-    
-    // Swipe threshold 50px
     if (Math.abs(diff) > 50) {
       setIsPaused(true);
       if (diff > 0) {
-        // Swipe left: next slide in LTR, previous slide in RTL
-        if (isAr) handlePrev();
-        else handleNext();
+        if (isAr) handlePrev(); else handleNext();
       } else {
-        // Swipe right: previous slide in LTR, next slide in RTL
-        if (isAr) handleNext();
-        else handlePrev();
+        if (isAr) handleNext(); else handlePrev();
       }
     }
     touchStartXRef.current = null;
   };
 
+  const renderTitle = (title: string) => {
+    const parts = title.split(/(\*\*.*?\*\*)/g);
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <span key={index} className="text-[#76584c]">{part.slice(2, -2)}</span>;
+          }
+          return part.split('\n').map((line, i) => (
+            <React.Fragment key={`${index}-${i}`}>{line}{i < part.split('\n').length - 1 && <br />}</React.Fragment>
+          ));
+        })}
+      </>
+    );
+  };
+
   return (
-    <div 
-      className="relative w-full h-full min-h-[60vh] lg:min-h-[80vh] overflow-hidden select-none group/carousel focus:outline-none focus:ring-1 focus:ring-[var(--color-champagne-500)]"
+    <section
+      className="relative isolate overflow-hidden select-none group/carousel focus:outline-none bg-[#1a1a1a]"
       onMouseEnter={() => settings.pauseOnHover && setIsPaused(true)}
       onMouseLeave={() => settings.pauseOnHover && setIsPaused(false)}
       onKeyDown={handleKeyDown}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       tabIndex={0}
-      aria-label="Carousel"
+      aria-label="Hero Carousel"
     >
-      {/* Slides Viewport */}
-      <div className="relative w-full h-full min-h-[60vh] lg:min-h-[80vh]">
-        {activeSlides.map((slide, index) => {
+      <div className="relative w-full h-[85vh] min-h-[600px] max-h-[900px]">
+        {slidesToRender.map((slide, index) => {
           const isActive = index === currentIndex;
-          const slideUrl = resolveSlideUrl(slide);
+          const slideUrl = resolveSlideUrl(slide as any);
           const hasAction = slide.destinationType !== 'NONE';
           const isVideoMedia = isVideo(slide.imageDesktopPath);
+          const eyebrow = isAr ? slide.eyebrowAr : slide.eyebrowEn;
+          const title = isAr ? slide.titleAr : slide.titleEn;
+          const description = isAr ? slide.descriptionAr : slide.descriptionEn;
+          const cta = isAr ? slide.ctaAr : slide.ctaEn;
+          
+          // Determine layout style. In a real app, this could come from slide.textPosition
+          // For now, Video is always full-bleed, others alternate or stay full-bleed for max impact.
+          const layoutVariant = slide.textPosition === 'SPLIT' ? 'SPLIT' : 'FULL_BLEED';
 
-          // GPU-friendly transitions: absolute positioning, fading opacity, scaling background
           return (
-            <div
+            <div 
               key={slide.id}
-              className={`absolute inset-0 w-full h-full transition-all duration-[600ms] ease-out-expo flex flex-col justify-end ${
-                isActive 
-                  ? 'opacity-100 scale-100 pointer-events-auto z-10' 
-                  : 'opacity-0 scale-[0.98] pointer-events-none z-0'
+              className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out ${
+                isActive ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
               }`}
-              style={{ transitionProperty: prefersReducedMotion ? 'opacity' : 'opacity, transform' }}
             >
-              {/* Media Delivery (Video or Image) */}
-              {slide.imageDesktopPath ? (
-                isVideoMedia ? (
-                  <video 
-                    src={slide.imageDesktopPath}
-                    autoPlay
-                    loop={activeSlides.length <= 1 || !settings.autoplayEnabled}
-                    muted
-                    playsInline
-                    onEnded={(e) => {
-                      if (settings.autoplayEnabled && activeSlides.length > 1) {
-                        setCurrentIndex(prev => (prev + 1) % activeSlides.length);
-                        // Reset for when slide comes back
-                        const video = e.currentTarget;
-                        video.currentTime = 0;
-                        video.play().catch(() => {});
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8000ms] ease-out scale-102 group-hover/carousel:scale-105"
-                    style={{
-                      transitionProperty: prefersReducedMotion ? 'none' : 'transform',
-                      contentVisibility: isActive ? 'auto' : 'hidden'
-                    }}
-                  />
-                ) : (
-                  <Image
-                    src={slide.imageDesktopPath}
-                    alt={isAr ? slide.altAr : slide.altEn}
-                    fill
-                    priority={index === 0} // Load LCP image eagerly
-                    sizes="100vw"
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8000ms] ease-out scale-102 group-hover/carousel:scale-105"
-                    style={{
-                      transitionProperty: prefersReducedMotion ? 'none' : 'transform',
-                      contentVisibility: isActive ? 'auto' : 'hidden'
-                    }}
-                  />
-                )
-              ) : (
-                <div className="absolute inset-0 w-full h-full bg-zinc-800 transition-transform duration-[8000ms] ease-out scale-102 group-hover/carousel:scale-105" />
-              )}
-
-              {/* Dynamic Gradient Overlay */}
-              <div 
-                className="absolute inset-0 bg-gradient-to-t from-neutral-950/85 via-neutral-900/40 to-transparent" 
-                style={{ opacity: slide.overlayStrength }}
-              />
-
-              {/* Text Layer */}
-              <div className={`relative z-20 p-6 md:p-10 w-full text-white space-y-2 text-right ${
-                slide.textPosition === 'LEFT' ? 'text-left lg:text-left rtl:text-right' : 
-                slide.textPosition === 'RIGHT' ? 'text-right lg:text-right rtl:text-left' : 'text-center'
-              }`}>
-                {/* Eyebrow Accent */}
-                {(isAr ? slide.eyebrowAr : slide.eyebrowEn) && (
-                  <span className="inline-block text-[10px] uppercase font-bold tracking-widest text-[var(--color-champagne-400)] bg-white/5 border border-white/10 px-2 py-0.5 rounded-sm">
-                    {isAr ? slide.eyebrowAr : slide.eyebrowEn}
-                  </span>
-                )}
-
-                {/* Localized Title */}
-                <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow-sm font-heading">
-                  {isAr ? slide.titleAr : slide.titleEn}
-                </h3>
-
-                {/* Localized Short description */}
-                <p className="text-xs md:text-sm text-zinc-200 line-clamp-2 max-w-lg mx-auto lg:mx-0 drop-shadow-sm">
-                  {isAr ? slide.descriptionAr : slide.descriptionEn}
-                </p>
-
-                {/* Action CTA */}
-                {hasAction && (
-                  <div className="pt-2">
-                    <Link
-                      href={slideUrl}
-                      target={slide.openInNewTab ? '_blank' : undefined}
-                      rel={slide.openInNewTab ? 'noopener noreferrer' : undefined}
-                      className="inline-block bg-[var(--color-champagne-600)] hover:bg-[var(--color-champagne-500)] text-white text-xs font-bold px-4 py-2 rounded-sm transition-all transform active:scale-98 shadow-sm hover:shadow"
-                    >
-                      {isAr ? (slide.ctaAr || 'عرض التفاصيل') : (slide.ctaEn || 'Explore Now')}
-                    </Link>
+              {layoutVariant === 'FULL_BLEED' ? (
+                /* -------------------------------------------------------------
+                   VARIANT: FULL BLEED (IMAGE OR VIDEO)
+                   ------------------------------------------------------------- */
+                <>
+                  <div className="absolute inset-0 bg-[#2b2b2b]">
+                    {slide.imageDesktopPath ? (
+                      isVideoMedia ? (
+                        <video 
+                          src={slide.imageDesktopPath} autoPlay loop muted playsInline
+                          className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100"
+                        />
+                      ) : (
+                        <Image
+                          src={slide.imageDesktopPath} alt={isAr ? slide.altAr : slide.altEn} fill priority={index === 0}
+                          className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100"
+                        />
+                      )
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#3F4B32]"><span className="text-white/20 text-6xl">✦</span></div>
+                    )}
                   </div>
-                )}
-              </div>
+                  
+                  {/* Dynamic Dark Overlays for Text Legibility */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-black/20" />
+
+                  <div className="relative z-20 h-full flex flex-col justify-end pb-24 md:pb-32 px-6 sm:px-12 lg:px-20 max-w-7xl mx-auto w-full">
+                    <div className={`transform transition-all duration-[1000ms] delay-300 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
+                      <p className="text-[#D9C6A8] text-[11px] md:text-sm font-bold tracking-[0.25em] uppercase mb-4 md:mb-5">
+                        {eyebrow || 'RAWAQ'}
+                      </p>
+                      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] leading-[1.15] text-white font-heading font-bold max-w-3xl drop-shadow-lg">
+                        {renderTitle(title)}
+                      </h1>
+                      {description && (
+                        <p className="mt-6 max-w-xl text-base md:text-lg text-white/90 leading-relaxed drop-shadow-md">
+                          {description}
+                        </p>
+                      )}
+                      
+                      <div className="mt-8 md:mt-10 flex flex-wrap gap-4 items-center">
+                        {hasAction && (
+                          <Link href={slideUrl} className="bg-white text-[#2B2B2B] hover:bg-[#F7F3EA] px-8 py-3.5 rounded-full text-sm md:text-base font-bold shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                            {cta || (isAr ? 'تسوّقي الآن' : 'Shop Now')}
+                          </Link>
+                        )}
+                        <Link href={`/${locale}/about`} className="bg-transparent border border-white/50 text-white hover:bg-white/10 px-8 py-3.5 rounded-full text-sm md:text-base font-bold transition-all">
+                          {isAr ? 'حكاية رَواق' : 'Our Story'}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* -------------------------------------------------------------
+                   VARIANT: SPLIT (IMAGE LEFT/RIGHT + TEXT)
+                   ------------------------------------------------------------- */
+                <div className="relative w-full h-full bg-[#F7F3EA] flex flex-col md:flex-row">
+                  <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden">
+                     {slide.imageDesktopPath ? (
+                        <Image
+                          src={slide.imageDesktopPath} alt={isAr ? slide.altAr : slide.altEn} fill priority={index === 0}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center bg-[#E9DDCC]"><span className="text-white/50 text-6xl">✦</span></div>
+                      )}
+                  </div>
+                  <div className="w-full md:w-1/2 h-1/2 md:h-full flex flex-col justify-center px-8 md:px-16 lg:px-24">
+                    <div className={`transform transition-all duration-[1000ms] delay-300 ${isActive ? 'translate-x-0 opacity-100' : (isAr ? '-translate-x-12 opacity-0' : 'translate-x-12 opacity-0')}`}>
+                      <p className="text-[#A69A8C] text-[11px] md:text-sm font-bold tracking-[0.25em] uppercase mb-4">
+                        {eyebrow || 'RAWAQ'}
+                      </p>
+                      <h1 className="text-4xl md:text-5xl lg:text-6xl leading-[1.15] text-[#242424] font-heading font-bold">
+                        {renderTitle(title)}
+                      </h1>
+                      {description && (
+                        <p className="mt-5 text-base md:text-lg text-[#626262] leading-relaxed">
+                          {description}
+                        </p>
+                      )}
+                      <div className="mt-8 flex flex-wrap gap-4 items-center">
+                        {hasAction && (
+                          <Link href={slideUrl} className="bg-[#3F4B32] text-white hover:bg-[#2A3321] px-8 py-3.5 rounded-full text-sm md:text-base font-bold shadow-lg transition-all">
+                            {cta || (isAr ? 'اكتشفي المزيد' : 'Discover More')}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
-      </div>
 
-      {/* Prev / Next controls */}
-      {settings.showNavigation && activeSlides.length > 1 && (
-        <>
-          <button
-            onClick={handlePrev}
-            className="absolute top-1/2 -translate-y-1/2 right-4 z-20 w-8 h-8 rounded-full bg-neutral-900/60 hover:bg-neutral-900/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-opacity focus:opacity-100"
-            aria-label={isAr ? 'السابق' : 'Previous slide'}
-          >
-            {isAr ? '→' : '←'}
-          </button>
-          <button
-            onClick={handleNext}
-            className="absolute top-1/2 -translate-y-1/2 left-4 z-20 w-8 h-8 rounded-full bg-neutral-900/60 hover:bg-neutral-900/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-opacity focus:opacity-100"
-            aria-label={isAr ? 'التالي' : 'Next slide'}
-          >
-            {isAr ? '←' : '→'}
-          </button>
-        </>
-      )}
+        {/* Global Carousel Indicators & Controls */}
+        <div className="absolute bottom-6 md:bottom-10 left-0 right-0 z-30 flex items-center justify-center gap-6 px-6 pointer-events-none">
+          {settings.showNavigation && activeSlides.length > 1 && (
+            <button onClick={handlePrev} className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 transition-colors border border-white/30">
+              {isAr ? '→' : '←'}
+            </button>
+          )}
 
-      {/* Indicators */}
-      {settings.showIndicators && activeSlides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-          {activeSlides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setIsPaused(true);
-                setCurrentIndex(index);
-              }}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentIndex 
-                  ? 'bg-[var(--color-champagne-500)] w-4' 
-                  : 'bg-white/40 hover:bg-white/60'
-              }`}
-              aria-label={`Slide ${index + 1}`}
-              aria-current={index === currentIndex ? 'true' : 'false'}
-            />
-          ))}
+          {settings.showIndicators && activeSlides.length > 1 && (
+            <div className="flex gap-2.5 items-center pointer-events-auto" role="tablist">
+              {slidesToRender.map((_, dotIndex) => (
+                <button
+                  key={dotIndex}
+                  role="tab"
+                  aria-selected={dotIndex === currentIndex}
+                  aria-label={`Slide ${dotIndex + 1}`}
+                  onClick={() => { setIsPaused(true); setCurrentIndex(dotIndex); }}
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    dotIndex === currentIndex ? 'w-10 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {settings.showNavigation && activeSlides.length > 1 && (
+            <button onClick={handleNext} className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 transition-colors border border-white/30">
+              {isAr ? '←' : '→'}
+            </button>
+          )}
         </div>
-      )}
-    </div>
+
+      </div>
+    </section>
   );
 }
+
 export default HeroCarousel;

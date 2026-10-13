@@ -5,6 +5,8 @@ import { requirePermission } from '@/lib/dal';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { STORE_PHONE_DISPLAY } from '@/lib/contact';
+import { randomUUID } from 'crypto';
 
 // Helper to validate origin/host for security
 async function validateOriginAndHost() {
@@ -93,27 +95,56 @@ const locationSettingsSchema = z.object({
   sectionOrder: z.number().int().default(10)
 });
 
+const defaultHeroCarouselSettings = {
+  id: 'default',
+  enabled: true,
+  autoplayEnabled: true,
+  autoplayIntervalMs: 5000,
+  pauseOnHover: true,
+  showIndicators: true,
+  showNavigation: true,
+  transitionType: 'FADE'
+};
+
+const CMS_KEYS = {
+  carousel: 'homepage_hero_carousel_settings',
+  slides: 'homepage_hero_slides',
+  location: 'store_location_settings',
+} as const;
+
+async function readJsonSetting<T>(key: string, fallback: T): Promise<T> {
+  const setting = await prisma.siteSettings.findUnique({ where: { key } });
+  if (!setting) return fallback;
+  try {
+    return JSON.parse(setting.value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJsonSetting(key: string, value: unknown) {
+  const serialized = JSON.stringify(value);
+  await prisma.siteSettings.upsert({
+    where: { key },
+    create: { key, value: serialized },
+    update: { value: serialized },
+  });
+}
+
+type HomepageHeroSlideRecord = z.infer<typeof slideInputSchema> & {
+  id: string;
+  isEnabled: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  [key: string]: unknown;
+};
+
 // ----------------------------------------------------------------------
 // CAROUSEL SETTINGS
 // ----------------------------------------------------------------------
 
 export async function getHeroCarouselSettings() {
-  const settings = await prisma.homepageHeroCarouselSettings.findUnique({
-    where: { id: 'default' }
-  });
-  if (!settings) {
-    return {
-      id: 'default',
-      enabled: true,
-      autoplayEnabled: true,
-      autoplayIntervalMs: 5000,
-      pauseOnHover: true,
-      showIndicators: true,
-      showNavigation: true,
-      transitionType: 'FADE'
-    };
-  }
-  return settings;
+  return readJsonSetting(CMS_KEYS.carousel, defaultHeroCarouselSettings);
 }
 
 export async function updateHeroCarouselSettings(data: z.infer<typeof carouselSettingsSchema>) {
@@ -122,11 +153,8 @@ export async function updateHeroCarouselSettings(data: z.infer<typeof carouselSe
   
   const parsed = carouselSettingsSchema.parse(data);
 
-  const updated = await prisma.homepageHeroCarouselSettings.upsert({
-    where: { id: 'default' },
-    update: { ...parsed, updatedByEmployeeId: session.employeeId },
-    create: { ...parsed, id: 'default', updatedByEmployeeId: session.employeeId }
-  });
+  const updated = { ...parsed, id: 'default' };
+  await writeJsonSetting(CMS_KEYS.carousel, updated);
 
   await prisma.auditLog.create({
     data: {
@@ -147,13 +175,22 @@ export async function updateHeroCarouselSettings(data: z.infer<typeof carouselSe
 // ----------------------------------------------------------------------
 
 export async function getHeroSlides() {
-  return await prisma.homepageHeroSlide.findMany({
-    orderBy: { displayOrder: 'asc' },
-    include: {
-      product: true,
-      category: true
-    }
-  });
+  const slides = await readJsonSetting<HomepageHeroSlideRecord[]>(CMS_KEYS.slides, []);
+  const productIds = slides.map(slide => slide.productId).filter((id): id is string => Boolean(id));
+  const categoryIds = slides.map(slide => slide.categoryId).filter((id): id is string => Boolean(id));
+  const [products, categories] = await Promise.all([
+    prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, slug: true } }),
+    prisma.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, slug: true, name: true } }),
+  ]);
+  const productMap = new Map(products.map(product => [product.id, product]));
+  const categoryMap = new Map(categories.map(category => [category.id, category]));
+  return slides
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map(slide => ({
+      ...slide,
+      product: slide.productId ? productMap.get(slide.productId) ?? null : null,
+      category: slide.categoryId ? categoryMap.get(slide.categoryId) ?? null : null,
+    }));
 }
 
 export async function createHeroSlide(data: z.infer<typeof slideInputSchema>) {
@@ -171,15 +208,15 @@ export async function createHeroSlide(data: z.infer<typeof slideInputSchema>) {
   const startsAt = parsed.startsAt ? new Date(parsed.startsAt) : null;
   const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;
 
-  const slide = await prisma.homepageHeroSlide.create({
-    data: {
-      ...parsed,
-      startsAt,
-      endsAt,
-      createdByEmployeeId: session.employeeId,
-      updatedByEmployeeId: session.employeeId
-    }
-  });
+  const slides = await readJsonSetting<HomepageHeroSlideRecord[]>(CMS_KEYS.slides, []);
+  const slide: HomepageHeroSlideRecord = {
+    ...parsed,
+    id: randomUUID(),
+    startsAt: startsAt?.toISOString() ?? null,
+    endsAt: endsAt?.toISOString() ?? null,
+  };
+  slides.push(slide);
+  await writeJsonSetting(CMS_KEYS.slides, slides);
 
   await prisma.auditLog.create({
     data: {
@@ -209,15 +246,17 @@ export async function updateHeroSlide(id: string, data: z.infer<typeof slideInpu
   const startsAt = parsed.startsAt ? new Date(parsed.startsAt) : null;
   const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;
 
-  const slide = await prisma.homepageHeroSlide.update({
-    where: { id },
-    data: {
-      ...parsed,
-      startsAt,
-      endsAt,
-      updatedByEmployeeId: session.employeeId
-    }
-  });
+  const slides = await readJsonSetting<HomepageHeroSlideRecord[]>(CMS_KEYS.slides, []);
+  const index = slides.findIndex(slide => slide.id === id);
+  if (index === -1) throw new Error('شريحة الهيرو غير موجودة.');
+  const slide: HomepageHeroSlideRecord = {
+    ...parsed,
+    id,
+    startsAt: startsAt?.toISOString() ?? null,
+    endsAt: endsAt?.toISOString() ?? null,
+  };
+  slides[index] = slide;
+  await writeJsonSetting(CMS_KEYS.slides, slides);
 
   await prisma.auditLog.create({
     data: {
@@ -237,9 +276,8 @@ export async function deleteHeroSlide(id: string) {
   const session = await requirePermission('manage:settings');
   await validateOriginAndHost();
 
-  await prisma.homepageHeroSlide.delete({
-    where: { id }
-  });
+  const slides = await readJsonSetting<HomepageHeroSlideRecord[]>(CMS_KEYS.slides, []);
+  await writeJsonSetting(CMS_KEYS.slides, slides.filter(slide => slide.id !== id));
 
   await prisma.auditLog.create({
     data: {
@@ -258,14 +296,13 @@ export async function reorderHeroSlides(ids: string[]) {
   const session = await requirePermission('manage:settings');
   await validateOriginAndHost();
 
-  await prisma.$transaction(
-    ids.map((id, index) =>
-      prisma.homepageHeroSlide.update({
-        where: { id },
-        data: { displayOrder: index }
-      })
-    )
-  );
+  const slides = await readJsonSetting<HomepageHeroSlideRecord[]>(CMS_KEYS.slides, []);
+  const order = new Map(ids.map((id, index) => [id, index]));
+  const reordered = slides.map(slide => ({
+    ...slide,
+    displayOrder: order.get(slide.id) ?? slide.displayOrder,
+  }));
+  await writeJsonSetting(CMS_KEYS.slides, reordered);
 
   await prisma.auditLog.create({
     data: {
@@ -286,21 +323,17 @@ export async function reorderHeroSlides(ids: string[]) {
 // ----------------------------------------------------------------------
 
 export async function getStoreLocationSettings() {
-  const settings = await prisma.storeLocationSettings.findUnique({
-    where: { id: 'default' }
-  });
-  if (!settings) {
-    return {
+  return readJsonSetting(CMS_KEYS.location, {
       id: 'default',
-      storeName: 'Makeup Demo',
+      storeName: 'Velora Beauty',
       addressAr: 'عمان، الأردن',
       addressEn: 'Amman, Jordan',
       latitude: 31.9522,
       longitude: 35.9334,
       mapPlaceUrl: '',
       mapEmbedUrl: '',
-      phone: '',
-      whatsapp: '',
+      phone: STORE_PHONE_DISPLAY,
+      whatsapp: STORE_PHONE_DISPLAY,
       openingHours: '10:00 AM - 11:00 PM',
       locationSectionEnabled: true,
       directionsButtonEnabled: true,
@@ -308,9 +341,7 @@ export async function getStoreLocationSettings() {
       mapLabelAr: 'موقعنا',
       mapLabelEn: 'Our Location',
       sectionOrder: 10
-    };
-  }
-  return settings;
+  });
 }
 
 export async function updateStoreLocationSettings(data: z.infer<typeof locationSettingsSchema>) {
@@ -322,24 +353,15 @@ export async function updateStoreLocationSettings(data: z.infer<typeof locationS
   if (parsed.mapPlaceUrl) validateSafeUrl(parsed.mapPlaceUrl);
   if (parsed.mapEmbedUrl) validateSafeUrl(parsed.mapEmbedUrl);
 
-  const updated = await prisma.storeLocationSettings.upsert({
-    where: { id: 'default' },
-    update: { 
-      ...parsed,
-      mapPlaceUrl: parsed.mapPlaceUrl || '',
-      mapEmbedUrl: parsed.mapEmbedUrl || '',
-      phone: parsed.phone || '',
-      whatsapp: parsed.whatsapp || ''
-    },
-    create: { 
-      ...parsed, 
-      id: 'default',
-      mapPlaceUrl: parsed.mapPlaceUrl || '',
-      mapEmbedUrl: parsed.mapEmbedUrl || '',
-      phone: parsed.phone || '',
-      whatsapp: parsed.whatsapp || ''
-    }
-  });
+  const updated = {
+    ...parsed,
+    id: 'default',
+    mapPlaceUrl: parsed.mapPlaceUrl || '',
+    mapEmbedUrl: parsed.mapEmbedUrl || '',
+    phone: parsed.phone || '',
+    whatsapp: parsed.whatsapp || '',
+  };
+  await writeJsonSetting(CMS_KEYS.location, updated);
 
   await prisma.auditLog.create({
     data: {

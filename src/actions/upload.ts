@@ -74,7 +74,7 @@ export async function generateUploadUrl(filename: string): Promise<{ success: bo
     };
   } catch (error: any) {
     console.error('Upload Error:', error);
-    return { success: false, error: error.message || 'حدث خطأ' };
+    return { success: false, error: 'حدث خطأ' };
   }
 }
 
@@ -137,6 +137,6 @@ export async function uploadMedia(formData: FormData): Promise<{ success: boolea
     return { success: true, url: publicData.publicUrl };
   } catch (error: any) {
     console.error('Upload Error:', error);
-    return { success: false, error: error.message || 'حدث خطأ أثناء الرفع' };
+    return { success: false, error: 'حدث خطأ أثناء الرفع' };
   }
 }

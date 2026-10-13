@@ -1,0 +1,7 @@
+<svg width="240" height="80" viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Arch/Doorway inspired background shape -->
+  <path d="M 40,80 L 40,30 C 40,10 100,10 100,30 L 100,80 Z" fill="#D9C6A8" opacity="0.4" />
+  
+  <text x="120" y="45" font-family="'Noto Naskh Arabic', serif" font-size="28" font-weight="700" fill="#3F4B32" text-anchor="middle">رَـــــــواق</text>
+  <text x="120" y="65" font-family="'Cormorant Garamond', serif" font-size="14" font-weight="500" letter-spacing="4" fill="#B7935F" text-anchor="middle">RAWAQ</text>
+</svg>

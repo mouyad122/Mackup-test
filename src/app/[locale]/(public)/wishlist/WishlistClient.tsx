@@ -56,7 +56,7 @@ export default function WishlistClient({ locale }: { locale: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>
         <p className="text-xl text-zinc-500 mb-4">قائمة المفضلة فارغة.</p>
-        <Link href={`/${locale}/shop`} className="inline-block bg-[var(--color-charcoal-900)] text-white px-6 py-2 rounded font-bold hover:bg-[var(--color-charcoal-800)] transition-colors">
+        <Link href={`/${locale}/shop`} className="inline-block bg-[#3F4B32] text-white px-6 py-2 rounded font-bold hover:bg-[#2d3623] transition-colors">
           تصفح المتجر
         </Link>
       </div>
@@ -89,7 +89,7 @@ export default function WishlistClient({ locale }: { locale: string }) {
                 </div>
               </div>
               <div className="text-center flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-[var(--color-charcoal-900)] mb-1 group-hover:text-[var(--color-champagne-600)] transition-colors">{product.nameAr}</h3>
+                <h3 className="text-lg font-bold text-[#3F4B32] mb-1 group-hover:text-[var(--color-champagne-600)] transition-colors">{product.nameAr}</h3>
                 <p className="text-xs text-zinc-500 mb-2">{product.category.name}</p>
                 <div className="mt-auto text-[var(--color-champagne-600)] font-bold text-lg">
                   {lowestPrice > 0 ? filsToDisplay(lowestPrice, locale === 'ar' ? 'ar' : 'en') : 'نفذت الكمية'}

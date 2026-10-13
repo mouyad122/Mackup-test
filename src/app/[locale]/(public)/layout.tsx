@@ -1,6 +1,7 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { FloatingCart } from '@/components/FloatingCart';
+import { prisma } from '@/lib/db';
 import React from 'react';
 
 export default async function PublicLayout({
@@ -14,14 +15,19 @@ export default async function PublicLayout({
   const locale = resolvedParams.locale;
   const dir = locale === 'en' ? 'ltr' : 'rtl';
 
+  const activeReward = await prisma.rewardRule.findFirst({
+    where: { isActive: true, minimumAmount: { gt: 0 } },
+    orderBy: { minimumAmount: 'asc' }
+  });
+
   return (
-    <div className="flex flex-col min-h-screen" dir={dir} lang={locale}>
+    <div data-brand="rawaq" className="rawaq-storefront flex flex-col min-h-screen" dir={dir} lang={locale}>
       <Header />
-      <main className="flex-grow flex-1 bg-[var(--color-ivory-100)]">
+      <div className="flex-grow flex-1 bg-[var(--surface-primary)]">
         {children}
-      </main>
+      </div>
       <Footer locale={locale} />
-      <FloatingCart locale={locale} />
+      <FloatingCart locale={locale} rewardRule={activeReward} />
     </div>
   );
 }

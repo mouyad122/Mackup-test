@@ -10,7 +10,7 @@ const AdminIndexPage = async () => {
   // If the employee is a cashier, they shouldn't see the dashboard.
   // Redirect them directly to the POS cashier screen.
   if (session.employee.role.name === 'Cashier' || session.employee.role.name === 'كاشير') {
-    redirect('/pos/cashier');
+    redirect('/admin/dashboard');
   }
 
   // Otherwise, default to the admin dashboard

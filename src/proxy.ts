@@ -13,7 +13,14 @@ export default async function proxy(request: NextRequest) {
   const roleCookie = request.cookies.get('makeup_role')?.value;
 
   const isAdminRoute = pathname.startsWith('/admin') && !pathname.startsWith('/admin/login');
-  const isPosRoute = pathname.startsWith('/pos') && !pathname.startsWith('/pos/login');
+  if (/^\/(?:ar\/|en\/)?pos(?:\/|$)/.test(pathname)) return new NextResponse('Not Found', { status: 404 });
+  // These modules do not exist in the currently deployed Prisma schema. Keep
+  // their unfinished routes private instead of allowing them to crash at
+  // runtime. Financial, sales, expense, and settlement routes are supported
+  // by the current schema and must remain reachable.
+  if (pathname.startsWith('/admin/customers') || pathname.startsWith('/admin/reviews')) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
 
   let finalResponse = supabaseResponse;
 
@@ -29,7 +36,7 @@ export default async function proxy(request: NextRequest) {
   // 2. Absolute POS Cashier Isolation (P2-002)
   if (isAdminRoute && roleCookie === 'Cashier') {
     // Cashiers are completely isolated to /pos
-    return redirectWithCookies(new URL('/pos/cashier', request.url));
+    return redirectWithCookies(new URL('/admin/dashboard', request.url));
   }
 
   // Early routing check: if accessing protected routes without a cookie, redirect immediately.
@@ -37,12 +44,8 @@ export default async function proxy(request: NextRequest) {
     return redirectWithCookies(new URL('/admin/login', request.url));
   }
 
-  if (isPosRoute && !sessionToken) {
-    return redirectWithCookies(new URL('/pos/login', request.url));
-  }
-
   // Locale handling logic
-  const isPublicRoute = !pathname.startsWith('/admin') && !pathname.startsWith('/pos');
+  const isPublicRoute = !pathname.startsWith('/admin') && !pathname.startsWith('/delivery/');
   if (isPublicRoute) {
     if (pathname === '/') {
       return redirectWithCookies(new URL('/ar', request.url));

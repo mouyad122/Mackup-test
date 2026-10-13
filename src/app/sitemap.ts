@@ -1,9 +1,11 @@
 import { prisma } from '@/lib/db';
+import type { MetadataRoute } from 'next';
 
 // أنواع الصفحات المُدرجة في الـ sitemap
-const BASE_URL = 'https://www.makeup-makeup.com';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
 
-export default async function sitemap() {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (!BASE_URL) return [];
   const now = new Date();
 
   // الصفحات الثابتة — ar

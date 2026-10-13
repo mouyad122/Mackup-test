@@ -2,7 +2,7 @@ import 'server-only';
 import { prisma } from '@/lib/db';
 
 /** Shared cancellation transaction used by storefront, admin, and POS entry points. */
-export async function cancelOrderAndReverseFinancials(orderId: string, employeeId: string) {
+export async function cancelOrderAndReverseFinancials(orderId: string, employeeId: string, storeBearsDeliveryCost?: boolean) {
   return prisma.$transaction(async tx => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -28,29 +28,7 @@ export async function cancelOrderAndReverseFinancials(orderId: string, employeeI
     });
     if (claim.count !== 1) throw new Error('تم إلغاء الطلب أو تغييره بالتزامن؛ أعد تحميل الطلب.');
 
-    if (!wasDispatched && ['CONFIRMED', 'PREPARING', 'PREPARED', 'ASSIGNED'].includes(order.status)) {
-      for (const item of order.items) {
-        const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } });
-        if (!variant) continue;
-        const changed = await tx.productVariant.updateMany({ where: { id: variant.id }, data: { stock: { increment: item.quantity } } });
-        if (changed.count !== 1) throw new Error(`تعذر استعادة مخزون ${item.sku}`);
-        if (item.supplierOfferIdSnapshot) {
-          const offer = await tx.supplierOffer.update({ where: { id: item.supplierOfferIdSnapshot }, data: { stock: { increment: item.quantity } } });
-          await tx.supplierInventoryMovement.create({ data: {
-            supplierOfferId: item.supplierOfferIdSnapshot, quantityDelta: item.quantity,
-            quantityBefore: offer.stock - item.quantity, quantityAfter: offer.stock,
-            reason: 'ORDER_CANCELLED', reference: order.reference, actorEmployeeId: employeeId,
-          } });
-        }
-        const after = await tx.productVariant.findUnique({ where: { id: variant.id }, select: { stock: true } });
-        await tx.inventoryMovement.create({ data: {
-          sku: variant.sku, type: 'CANCELLED_ORDER', quantity: item.quantity,
-          quantityBefore: (after?.stock ?? variant.stock + item.quantity) - item.quantity,
-          quantityAfter: after?.stock ?? variant.stock + item.quantity, employeeId,
-          reference: `ORDER_CANCELLATION_${order.reference}`,
-        } });
-      }
-    }
+    // Product availability is manual, so cancellation does not alter quantities.
 
     const reverseTypes: Record<string, string> = {
       SALE: 'SALE_REVERSAL', PRODUCT_COST: 'PRODUCT_COST_REVERSAL', SUPPLIER_OBLIGATION: 'SUPPLIER_OBLIGATION_REVERSAL',
@@ -87,6 +65,15 @@ export async function cancelOrderAndReverseFinancials(orderId: string, employeeI
     if (order.deliveryAssignment) {
       const released = await tx.deliveryAssignment.updateMany({ where: { id: order.deliveryAssignment.id, status: { notIn: ['DELIVERED', 'CANCELLED'] } }, data: { status: 'CANCELLED' } });
       if (released.count) await tx.captain.updateMany({ where: { id: order.deliveryAssignment.captainId }, data: { status: 'AVAILABLE' } });
+      
+      // If store bears the cost, log it as an expense (DELIVERY_COST)
+      if (storeBearsDeliveryCost && order.actualDeliveryCost && order.actualDeliveryCost > 0) {
+        await tx.financialTransaction.create({ data: {
+          type: 'DELIVERY_COST', direction: 'OUT', amount: order.actualDeliveryCost, orderId: order.id,
+          description: `Store bears delivery cost for cancelled order ${order.reference}`,
+          createdByEmployeeId: employeeId,
+        } });
+      }
     }
     await tx.orderStatusHistory.create({ data: {
       orderId: order.id, status: 'CANCELLED',

@@ -2,54 +2,411 @@
 @plugin "tailwindcss-animate";
 
 @theme {
-  --color-charcoal-900: #282321;
-  --color-charcoal-800: #3D3533;
-  --color-charcoal-700: #554A48;
-  --color-charcoal-600: #746663;
+  /* ─── RAWAQ Color Palette ─── */
+  --color-olive: #3F4B32;
+  --color-warm-sand: #D9C6A8;
+  --color-ivory: #F7F3EA;
+  --color-blush-nude: #D6ACA1;
+  --color-antique-gold: #B7935F;
 
-  --color-rose-600: #C48E88;
-  --color-rose-500: #D8A6A1;
-  --color-rose-400: #E4BFBC;
-
-  --color-ivory-100: #FAF7F4;
-  --color-ivory-200: #F3EBE3;
-  
-  --color-gold-500: #D4AF37;
-  --color-gold-600: #AA8B2C;
-  
-  --font-heading: var(--font-cairo);
-  --font-body: var(--font-tajawal);
+  /* ─── Typography ─── */
+  --font-heading: var(--font-noto-naskh);
+  --font-body: var(--font-noto-naskh);
+  --font-english: var(--font-cormorant);
 }
 
+/* The storefront uses a deliberately restrained visual language: one dark
+   anchor, calm neutrals, square edges and thin separators. */
+[data-brand="rawaq"] footer {
+  background: #3F4B32 !important;
+}
+
+[data-brand="rawaq"] .rawaq-nav-link::after {
+  height: 1px;
+  background: #3F4B32;
+}
+
+[data-brand="rawaq"] .rawaq-section-heading .divider {
+  background: #3F4B32;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STOREFRONT SEMANTIC PALETTE
+   Scoped to [data-brand="rawaq"] — never bleeds into admin
+   ═══════════════════════════════════════════════════════════ */
+[data-brand="rawaq"] {
+  /* Primary brand surfaces */
+  --brand-primary:       var(--color-olive);
+  --brand-primary-hover: #2d3623;
+  --brand-secondary:     var(--color-warm-sand);
+  --brand-accent:        var(--color-antique-gold);
+  --brand-accent-muted:  #a68250;
+
+  /* Page surfaces */
+  --surface-primary:   var(--color-ivory);
+  --surface-secondary: #f0e8d5;
+  --surface-warm:      var(--color-warm-sand);
+  --surface-elevated:  #FFFFFF;
+
+  /* Text */
+  --text-primary:   #2B2B2B;
+  --text-secondary: var(--color-olive);
+  --text-quiet:     #96918b;
+
+  /* Borders */
+  --border-soft:    var(--color-warm-sand);
+  --border-medium:  var(--color-antique-gold);
+  --border-gold:    rgba(183, 147, 95, .42);
+
+  /* Semantic */
+  --status-success: #3F4B32;
+  --status-error:   #A61E22;
+
+  color: var(--text-primary);
+}
+
+[data-brand="rawaq"] a,
+[data-brand="rawaq"] button,
+[data-brand="rawaq"] input,
+[data-brand="rawaq"] select,
+[data-brand="rawaq"] textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+[data-brand="rawaq"] :focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE LAYER
+   ═══════════════════════════════════════════════════════════ */
 @layer base {
   body {
-    @apply bg-[var(--color-ivory-100)] text-[var(--color-charcoal-900)] font-body;
+    @apply bg-[var(--color-ivory)] text-[var(--color-olive)] font-body;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-heading font-bold text-[var(--color-charcoal-900)];
+    @apply font-heading font-bold text-[var(--color-olive)];
+  }
+
+  ::selection {
+    background: var(--color-antique-gold);
+    color: white;
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   COMPONENT LAYER — Rawaq Design System
+   ═══════════════════════════════════════════════════════════ */
+@layer components {
+
+  /* ── Geometric Pattern Background ── */
+  .rawaq-pattern {
+    background-image: linear-gradient(to bottom, transparent, rgba(36,36,36,.025));
+  }
+
+  /* ── Main Ornament Frame ── */
+  .rawaq-frame {
+    border: 1px solid var(--border-soft);
+    box-shadow: none;
+  }
+
+  /* ── Eyebrow / Label Text ── */
+  .rawaq-eyebrow {
+    color: var(--text-secondary);
+    letter-spacing: .16em;
+    font-weight: 700;
+    font-size: .75rem;
+    text-transform: uppercase;
+  }
+
+  /* ── Section Heading Block ── */
+  .rawaq-section-heading {
+    text-align: center;
+  }
+  .rawaq-section-heading .eyebrow {
+    color: var(--color-antique-gold);
+    letter-spacing: .14em;
+    font-weight: 700;
+    font-size: .7rem;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: .75rem;
+  }
+  .rawaq-section-heading h2 {
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    line-height: 1.35;
+    color: var(--color-olive);
+  }
+  .rawaq-section-heading .divider {
+    width: 3rem;
+    height: 1px;
+    background: var(--color-antique-gold);
+    margin: 1.25rem auto 0;
+  }
+
+  /* ── Tatreez Divider (uses SVG) ── */
+  .rawaq-tatreez-divider {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    height: 20px;
+    background-image: url('/brand/patterns/rawaq-tatreez-divider.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    margin: 0 auto;
+    opacity: 0.85;
+  }
+  .rawaq-tatreez-divider--full {
+    max-width: 100%;
+    background-size: auto 100%;
+    background-repeat: repeat-x;
+  }
+
+  /* ── Primary Button ── */
+  .btn-rawaq-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background-color: var(--brand-primary, var(--color-olive));
+    color: #fff;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    padding: .75rem 1.75rem;
+    border-radius: .25rem;
+    border: 2px solid transparent;
+    transition: background-color 150ms ease, transform 120ms ease, box-shadow 150ms ease;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .btn-rawaq-primary:hover {
+    background-color: var(--brand-primary-hover, #2d3623);
+    box-shadow: none;
+  }
+  .btn-rawaq-primary:active { transform: scale(.97); }
+
+  /* ── Ghost Button ── */
+  .btn-rawaq-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background-color: transparent;
+    color: white;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    padding: .75rem 1.75rem;
+    border-radius: .25rem;
+    border: 2px solid rgba(255,255,255,.5);
+    transition: border-color 150ms ease, background-color 150ms ease;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .btn-rawaq-ghost:hover {
+    border-color: white;
+    background-color: rgba(255,255,255,.08);
+  }
+
+  /* ── Gold Outline Button ── */
+  .btn-rawaq-gold {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background-color: transparent;
+    color: var(--color-olive);
+    font-weight: 700;
+    font-family: var(--font-heading);
+    padding: .75rem 1.75rem;
+    border-radius: .25rem;
+    border: 1px solid var(--color-olive);
+    transition: background-color 150ms ease, color 150ms ease;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .btn-rawaq-gold:hover {
+    background-color: var(--color-olive);
+    color: white;
+  }
+
+  /* ════════════════════════════════════════════
+     STOREFRONT PRODUCT FRAME SYSTEM
+     ════════════════════════════════════════════ */
+  .rawaq-storefront .rawaq-product-frame {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-ivory);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    border-top-left-radius: 40px;
+    border-top-right-radius: 40px;
+    padding: 6px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .rawaq-storefront .rawaq-product-frame--gallery {
+    border-radius: 4px;
+    padding: 0;
+    border: 1px solid var(--border-soft);
+  }
+  .rawaq-storefront .rawaq-product-frame__inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    border-top-left-radius: 34px;
+    border-top-right-radius: 34px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid transparent;
+  }
+  .rawaq-storefront .rawaq-product-frame--card .rawaq-product-frame__inner {
+    border: 1px solid rgba(183, 147, 95, 0.15);
+  }
+  .rawaq-storefront .rawaq-product-frame__accent {
+    height: 3px;
+    width: 40px;
+    background: var(--color-antique-gold);
+    margin: 12px auto 6px;
+    border-radius: 2px;
+  }
+  .rawaq-storefront .rawaq-product-frame__media {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--surface-secondary);
+    height: 100%;
+  }
+  .rawaq-storefront .group:hover .rawaq-product-frame {
+    border-color: var(--border-medium);
+    box-shadow: 0 10px 30px -10px rgba(63, 75, 50, 0.1);
+  }
+
+  /* ── Hero Frame ── */
+  .rawaq-storefront .rawaq-hero-frame {
+    display: block;
+    border-top-left-radius: 60px;
+    border-top-right-radius: 60px;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: var(--surface-secondary);
+    box-shadow: none;
+  }
+
+  @media (max-width: 640px) {
+    .rawaq-storefront .rawaq-product-frame {
+    }
+    .rawaq-storefront .rawaq-product-frame--gallery {
+    }
+    .rawaq-storefront .rawaq-hero-frame {
+      border-radius: 0;
+    }
+  }
+
+  /* ════════════════════════════════════════════
+     NAV LINK — underline treatment
+     ════════════════════════════════════════════ */
+  .rawaq-nav-link {
+    position: relative;
+    transition: color 150ms ease;
+    padding-bottom: 3px;
+  }
+  .rawaq-nav-link::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    bottom: 0;
+    width: 0;
+    height: 2px;
+    background: var(--color-antique-gold);
+    border-radius: 1px;
+    transition: width 200ms ease;
+  }
+  .rawaq-nav-link:hover::after,
+  .rawaq-nav-link.active::after {
+    width: 100%;
+  }
+
+  /* ════════════════════════════════════════════
+     PRINT / RECONCILIATION (unchanged)
+     ════════════════════════════════════════════ */
+  .reconciliation-print-report { display: none; }
+  .report-brand-band { display: flex; align-items: center; gap: 18px; padding: 18px 22px; border-radius: 16px; background: var(--color-olive); color: white; }
+  .report-logo-wrap { flex: 0 0 auto; padding: 4px; border-radius: 10px; background: #F7F3EA; }
+  .report-logo-wrap img { display: block; width: 74px; height: auto; }
+  .report-brand-copy { flex: 1; }
+  .report-brand-copy p { margin: 0; font-size: 20px; font-weight: 800; }
+  .report-brand-copy span, .report-number span { display: block; margin-top: 4px; color: #F2DEB0; font-size: 11px; }
+  .report-number { text-align: left; }
+  .report-number strong { display: block; margin-top: 4px; font-size: 15px; }
+  .report-meta-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 18px 0 22px; }
+  .report-meta-grid > div, .report-summary-card { padding: 12px 14px; border: 1px solid #E9DDCC; border-radius: 10px; background: #FBF8F2; }
+  .report-meta-grid span, .report-summary-card span { display: block; color: #746A64; font-size: 11px; }
+  .report-meta-grid strong { display: block; margin-top: 5px; font-size: 13px; }
+  .report-section-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid #B7935F; }
+  .report-section-heading h2 { margin: 0; color: #2d3623; font-size: 16px; }
+  .report-section-heading > span { color: #A77B2B; }
+  .report-row-count { color: #746A64 !important; font-size: 11px; }
+  .report-summary-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .report-summary-card strong { display: block; margin-top: 5px; color: var(--color-olive); font-size: 18px; }
+  .report-details-section { margin-top: 24px; }
+  .report-data-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10px; }
+  .report-data-table th { padding: 9px 7px; background: #F7F3EA; color: #2d3623; text-align: right; font-weight: 700; }
+  .report-data-table td { padding: 8px 7px; border-bottom: 1px solid #E9DDCC; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
+  .report-data-table tbody tr:nth-child(even) { background: #FBF8F2; }
+  .report-empty-state { padding: 28px 14px; border: 1px dashed #D9C6A8; border-radius: 10px; color: #746A64; text-align: center; }
+  .report-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 26px; padding-top: 10px; border-top: 1px solid #E9DDCC; color: #746A64; font-size: 10px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  [data-brand="rawaq"] *,
+  [data-brand="rawaq"] *::before,
+  [data-brand="rawaq"] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT
+   ═══════════════════════════════════════════════════════════ */
 @media print {
-  /* Hide Admin Sidebar */
-  nav, header, footer, aside, .sidebar {
-    display: none !important;
+  nav, header, footer, aside, .sidebar { display: none !important; }
+  button, select, input, a, .bg-white.p-4.rounded-lg.shadow-sm.mb-6 { display: none !important; }
+  main { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+  body { background-color: white !important; }
+}
+
+@page { size: A4; margin: 12mm; }
+
+@media print {
+  .reconciliation-screen { display: none !important; }
+  .reconciliation-print-report {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    color: #2B2B2B !important;
+    direction: rtl !important;
+    font-family: Arial, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  
-  /* Hide Filters and Buttons */
-  button, select, input, a, .bg-white.p-4.rounded-lg.shadow-sm.mb-6 {
-    display: none !important;
-  }
-  
-  /* Ensure table takes full width */
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-  }
-  
-  body {
-    background-color: white !important;
-  }
+  .reconciliation-print-report *, .reconciliation-print-report::before, .reconciliation-print-report::after { visibility: visible !important; }
+  .report-data-table thead { display: table-header-group; }
+  .report-data-table tr, .report-summary-card, .report-meta-grid > div { break-inside: avoid; }
+  .report-details-section { break-before: auto; }
 }

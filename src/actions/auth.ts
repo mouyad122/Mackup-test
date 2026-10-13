@@ -176,7 +176,7 @@ export async function login(prevState: any, formData: FormData) {
   await setSessionCookie(token, expiresAt, role);
   
   if (employee.role.name.toLowerCase() === 'cashier') {
-    redirect('/pos/cashier');
+    redirect('/admin/dashboard');
   } else {
     redirect('/admin');
   }
@@ -298,7 +298,7 @@ export async function verifyMfaLogin(prevState: any, formData: FormData) {
   await setSessionCookie(sessionToken, expiresAt, role);
 
   if (employee.role.name.toLowerCase() === 'cashier') {
-    redirect('/pos/cashier');
+    redirect('/admin/dashboard');
   } else {
     redirect('/admin');
   }
@@ -372,7 +372,7 @@ export async function confirmMfaSetup(prevState: any, formData: FormData) {
   await setSessionCookie(sessionToken, expiresAt, role);
 
   if (employee.role.name.toLowerCase() === 'cashier') {
-    redirect('/pos/cashier');
+    redirect('/admin/dashboard');
   } else {
     redirect('/admin');
   }

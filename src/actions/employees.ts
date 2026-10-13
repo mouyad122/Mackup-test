@@ -72,7 +72,7 @@ export async function createEmployee(data: {
     revalidatePath('/admin/employees');
     return { success: true, employeeId: employee.id, generatedPassword: password };
   } catch (error: any) {
-    return { success: false, error: error.message || 'حدث خطأ أثناء حفظ البيانات' };
+    return { success: false, error: 'حدث خطأ أثناء حفظ البيانات' };
   }
 }
 
@@ -165,7 +165,7 @@ export async function updateEmployee(data: {
     revalidatePath('/admin/employees');
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'حدث خطأ أثناء تحديث البيانات' };
+    return { success: false, error: 'حدث خطأ أثناء تحديث البيانات' };
   }
 }
 
@@ -228,7 +228,7 @@ export async function addEmployeePermissionOverride(data: {
 
     return { success: true, override };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إضافة صلاحية الاستثناء' };
+    return { success: false, error: 'فشل إضافة صلاحية الاستثناء' };
   }
 }
 
@@ -285,7 +285,7 @@ export async function toggleEmployeeStatus(employeeId: string, adminId: string) 
     revalidatePath('/admin/employees');
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل تعديل حالة الموظف' };
+    return { success: false, error: 'فشل تعديل حالة الموظف' };
   }
 }
 
@@ -318,7 +318,7 @@ export async function forcePasswordChange(employeeId: string, adminId: string) {
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إلزام تغيير كلمة المرور' };
+    return { success: false, error: 'فشل إلزام تغيير كلمة المرور' };
   }
 }
 
@@ -360,7 +360,7 @@ export async function revokeEmployeeSession(sessionId: string, adminId: string) 
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إلغاء الجلسة' };
+    return { success: false, error: 'فشل إلغاء الجلسة' };
   }
 }
 
@@ -387,7 +387,7 @@ export async function revokeAllEmployeeSessions(employeeId: string, adminId: str
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || 'فشل إلغاء كافة الجلسات' };
+    return { success: false, error: 'فشل إلغاء كافة الجلسات' };
   }
 }
 
@@ -444,7 +444,7 @@ export async function deleteEmployee(employeeId: string, adminId: string) {
     if (error.code === 'P2003') {
       return { success: false, error: 'لا يمكن حذف هذا الموظف لوجود مبيعات أو حركات مرتبطة به في النظام. يرجى استخدام زر التعطيل بدلاً من ذلك.' };
     }
-    return { success: false, error: error.message || 'فشل حذف الموظف' };
+    return { success: false, error: 'فشل حذف الموظف' };
   }
 }
 

@@ -4,6 +4,7 @@ import { getCMSContent, updateCMSContent } from '@/lib/cms';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
+import { STORE_INSTAGRAM_URL, STORE_WHATSAPP_URL } from '@/lib/contact';
 
 export default async function AdminContentPage() {
   const session = await requireAuth();
@@ -14,15 +15,15 @@ export default async function AdminContentPage() {
   });
 
   const hero = await getCMSContent('homepage_content', {
-    heroTitleAr: 'حين تُترجم الفخامة إلى عطر',
-    heroTitleEn: 'When Luxury Translates to Fragrance',
-    heroDescAr: 'ميكاب ديمو.. نفحات مختارة بعناية من الشرق، لترافق هويتك وتُشعرك بالأصالة والتميز.',
-    heroDescEn: 'Makeup Demo... carefully selected notes from the East, to accompany your identity and make you feel authentic.'
+    heroTitleAr: 'حين تُترجم الفخامة إلى جمال',
+    heroTitleEn: 'When Luxury Translates to Makeup',
+    heroDescAr: 'فيلورا بيوتي.. ألوان مختارة بعناية من الشرق، لترافق هويتك وتُشعرك بالأصالة والتميز.',
+    heroDescEn: 'Velora Beauty... carefully selected shades from the East, to accompany your identity and make you feel authentic.'
   });
 
   const socialLinks = await getCMSContent('social_links', {
-    instagram: '',
-    whatsapp: '',
+    instagram: STORE_INSTAGRAM_URL,
+    whatsapp: STORE_WHATSAPP_URL,
     facebook: ''
   });
 
@@ -55,7 +56,7 @@ export default async function AdminContentPage() {
       <main className="flex-1 overflow-y-auto p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
               إدارة المحتوى والموقع (CMS)
             </h1>
             <p className="text-zinc-650 mt-1">تحديث النصوص الرئيسية، شريط الإعلانات، وعناوين الصفحة الرئيسية</p>
@@ -63,14 +64,14 @@ export default async function AdminContentPage() {
           <div>
             <Link 
               href="/admin/content/homepage" 
-              className="bg-[var(--color-charcoal-800)] hover:bg-[var(--color-charcoal-700)] text-white px-6 py-2 rounded font-bold transition-colors inline-flex items-center gap-2 ml-3"
+              className="bg-[#2d3623] hover:bg-[var(--color-charcoal-700)] text-white px-6 py-2 rounded font-bold transition-colors inline-flex items-center gap-2 ml-3"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
               إدارة شريط الإعلانات (Hero Slider)
             </Link>
             <Link 
               href="/admin/content/pages" 
-              className="bg-[var(--color-champagne-600)] hover:bg-[var(--color-champagne-500)] text-white px-6 py-2 rounded font-bold transition-colors inline-flex items-center gap-2"
+              className="bg-[#B7935F] hover:bg-[#9E7E52] text-white px-6 py-2 rounded font-bold transition-colors inline-flex items-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               تعديل صفحات الفوتر (Pages)
@@ -81,7 +82,7 @@ export default async function AdminContentPage() {
         <form action={handleSaveCMS} className="max-w-3xl bg-white p-8 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-8">
           {/* Announcement Bar */}
           <div>
-            <h2 className="text-lg font-bold text-[var(--color-charcoal-900)] border-b pb-2 mb-4">شريط الإعلانات العلوي</h2>
+            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">شريط الإعلانات العلوي</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">الإعلان باللغة العربية</label>
@@ -106,7 +107,7 @@ export default async function AdminContentPage() {
 
           {/* Hero Section */}
           <div>
-            <h2 className="text-lg font-bold text-[var(--color-charcoal-900)] border-b pb-2 mb-4">قسم الواجهة الرئيسي (Hero)</h2>
+            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">قسم الواجهة الرئيسي (Hero)</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -153,8 +154,8 @@ export default async function AdminContentPage() {
             
           {/* Social Links Section */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-[var(--color-ivory-200)]">
-            <h2 className="text-lg font-bold text-[var(--color-charcoal-900)] border-b pb-2 mb-4">روابط التواصل الاجتماعي (تظهر في الفوتر)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">روابط التواصل (تظهر في الفوتر وصفحة التواصل)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-bold text-zinc-700 mb-2">انستقرام (Instagram)</label>
                 <input
@@ -194,7 +195,7 @@ export default async function AdminContentPage() {
           <div className="flex justify-end pt-4 border-t">
             <button
               type="submit"
-              className="bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white px-6 py-2.5 rounded font-bold text-sm transition-colors"
+              className="bg-[#3F4B32] hover:bg-[#2d3623] text-white px-6 py-2.5 rounded font-bold text-sm transition-colors"
             >
               حفظ التعديلات
             </button>

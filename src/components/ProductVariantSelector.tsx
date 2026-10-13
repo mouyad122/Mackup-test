@@ -67,11 +67,11 @@ export function ProductVariantSelector({
 
   return (
     <>
-      <div className="text-2xl font-bold text-[var(--color-rose-600)] mb-2 h-10 flex items-center">
+      <div className="text-2xl font-bold text-[#3F4B32] mb-4 h-10 flex items-center">
         {selectedVariant ? (
           filsToDisplay(selectedVariant.price, locale === 'ar' ? 'ar' : 'en')
         ) : (
-          <span className="text-lg text-zinc-500 font-normal">
+          <span className="text-lg font-normal text-[#746A64]">
             {isAr ? 'الرجاء تحديد الدرجة لعرض السعر' : 'Please select a shade to view price'}
           </span>
         )}
@@ -79,12 +79,12 @@ export function ProductVariantSelector({
 
       {/* Shade/Variant Selector */}
       <div className="mb-8 mt-6">
-        <div className="flex justify-between items-end mb-3">
-          <h3 className="text-sm font-bold text-[var(--color-charcoal-900)]">
+        <div className="mb-4 flex items-end justify-start gap-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[#A69A8C]">
             {isAr ? 'الدرجة' : 'Shade / Variant'}
           </h3>
           {selectedVariant && (
-            <span className="text-sm text-zinc-500 font-medium">{selectedVariant.name}</span>
+            <span className="text-sm font-bold text-[#2B2B2B]">{selectedVariant.name}</span>
           )}
         </div>
         <div className="flex flex-wrap gap-3">
@@ -92,32 +92,27 @@ export function ProductVariantSelector({
             <button
               key={variant.id}
               onClick={() => setSelectedVariant(variant)}
-              title={variant.name + (variant.stock <= 0 ? (isAr ? ' (نفذت الكمية)' : ' (Out of stock)') : '')}
-              className={`relative flex items-center justify-center p-1 border-2 rounded-full transition-all ${
+              title={variant.name}
+              className={`relative flex items-center justify-center p-1 rounded-full transition-all duration-300 cursor-pointer ${
                 selectedVariant?.id === variant.id
-                  ? 'border-[var(--color-charcoal-900)] scale-110'
-                  : 'border-transparent hover:border-[var(--color-ivory-200)]'
-              } ${variant.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  ? 'border-2 border-[#B7935F] shadow-[0_4px_12px_rgba(201,162,77,.2)] scale-110'
+                  : 'border-2 border-transparent hover:border-[#B7935F]/50 hover:scale-105'
+              }`}
             >
-              {variant.stock <= 0 && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                  <div className="w-full h-[2px] bg-red-500 rotate-45 transform origin-center absolute rounded-full shadow-sm"></div>
-                </div>
-              )}
               {variant.colorHex ? (
                 <div 
-                  className="w-8 h-8 rounded-full border border-zinc-200 shadow-inner" 
+                  className="w-8 h-8 rounded-full border border-[#E9DDCC] shadow-inner" 
                   style={{ backgroundColor: variant.colorHex }}
                 />
               ) : (
-                <div className={`px-4 py-2 rounded-full text-sm font-bold border ${selectedVariant?.id === variant.id ? 'bg-[var(--color-charcoal-900)] text-white' : 'bg-[var(--color-ivory-100)] text-[var(--color-charcoal-900)]'}`}>
+                <div className={`rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${selectedVariant?.id === variant.id ? 'bg-[#3F4B32] text-white' : 'border border-[#E9DDCC] bg-[#F7F3EA] text-[#2B2B2B]'}`}>
                   {variant.name}
                 </div>
               )}
             </button>
           ))}
           {variants.length === 0 && (
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm text-[#746A64]">
               {isAr ? 'لا توجد خيارات متاحة' : 'No options available'}
             </span>
           )}
@@ -125,30 +120,31 @@ export function ProductVariantSelector({
       </div>
 
       {/* Quantity & Add to Cart */}
-      <div className="flex items-center gap-4 mb-12">
-        <div className="flex items-center border border-[var(--color-charcoal-900)] rounded-md">
+      <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center rounded-full border border-[#E9DDCC] bg-white p-1">
           <button 
             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            className="px-4 py-3 hover:bg-[var(--color-ivory-200)] text-[var(--color-charcoal-900)] transition-colors"
+            className="w-12 h-10 rounded-full flex items-center justify-center text-[#2B2B2B] hover:bg-[#F7F3EA] transition-colors font-bold text-lg"
+            aria-label="Decrease quantity"
           >
-            -
+            −
           </button>
-          <span className="w-12 text-center font-bold text-[var(--color-charcoal-900)]">{quantity}</span>
+          <span className="w-10 text-center font-bold text-[#2B2B2B]">{quantity}</span>
           <button 
             onClick={() => setQuantity(quantity + 1)}
-            className="px-4 py-3 hover:bg-[var(--color-ivory-200)] text-[var(--color-charcoal-900)] transition-colors"
+            className="w-12 h-10 rounded-full flex items-center justify-center text-[#2B2B2B] hover:bg-[#F7F3EA] transition-colors font-bold text-lg"
+            aria-label="Increase quantity"
           >
             +
           </button>
         </div>
-          <button
-            type="button"
-            disabled={!selectedVariant || selectedVariant.stock <= 0}
-            onClick={handleAddToCart}
-            className="flex-1 bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-md transition-colors shadow-md">
-
+        <button
+          type="button"
+          disabled={!selectedVariant}
+          onClick={handleAddToCart}
+          className="btn-rawaq-primary flex-1 py-3.5 text-sm sm:text-base justify-center"
+        >
           {added ? (isAr ? 'تمت الإضافة بنجاح!' : 'Added Successfully!') : 
-           (selectedVariant && selectedVariant.stock <= 0) ? (isAr ? 'نفذت الكمية من هذه الدرجة' : 'Out of Stock') : 
            (isAr ? 'أضف إلى السلة' : 'Add to Cart')}
         </button>
       </div>

@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import { ProductEditForm } from '@/components/ProductEditForm';
+import { ProductCatalogForm } from '@/components/ProductCatalogForm';
+import { getSupplierProfitMargin } from '@/lib/supplier-margin';
 import { notFound } from 'next/navigation';
 
 export default async function AdminProductEditPage({
@@ -23,24 +24,16 @@ export default async function AdminProductEditPage({
     where: { id },
     include: {
       category: true,
-      brand: true,
       images: true,
       variants: { orderBy: { createdAt: 'asc' }, include: { supplierOffers: { include: { supplier: true }, orderBy: { unitCost: 'asc' } } } },
-      similarProducts: { include: { similar: { include: { images: { where: { isMain: true }, take: 1 } } } }, orderBy: { order: 'asc' } },
     }
   });
 
   if (!product) notFound();
 
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
-  const brands = await prisma.brand.findMany({ orderBy: { nameEn: 'asc' } });
-
-  // All products except this one (for similar products selection)
-  const allProducts = await prisma.product.findMany({
-    where: { id: { not: id }, isVisible: true },
-    include: { images: { where: { isMain: true }, take: 1 } },
-    orderBy: { nameAr: 'asc' },
-  });
+  const supplierRows = await prisma.supplier.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } });
+  const suppliers = await Promise.all(supplierRows.map(async supplier => ({ ...supplier, profitMargin: await getSupplierProfitMargin(prisma, supplier.id) })));
 
   const initialData = {
     nameAr: product.nameAr,
@@ -51,30 +44,25 @@ export default async function AdminProductEditPage({
     isVisible: product.isVisible,
     isFeatured: product.isFeatured,
     categoryId: product.categoryId,
-    brandId: product.brandId,
-    productType: product.productType,
-    finish: product.finish,
-    coverage: product.coverage,
-    skinType: product.skinType,
-    benefits: product.benefits,
-    ingredients: product.ingredients,
-    howToUse: product.howToUse,
-    variants: product.variants.map(v => ({
-      id: v.id,
-      name: v.name,
-      sku: v.sku,
-      price: v.price,
-      colorHex: v.colorHex,
-      stock: v.stock,
-      isActive: v.isActive,
-      inventorySource: v.inventorySource as 'INTERNAL' | 'SUPPLIER',
-    })),
+    variants: product.variants.map(v => {
+      const activeOffer = v.supplierOffers.find(o => o.isActive && o.supplier.isActive);
+      return {
+        id: v.id,
+        size: v.size,
+        sku: v.sku,
+        price: v.price,
+        isActive: v.isActive,
+        inventorySource: v.inventorySource as 'INTERNAL' | 'SUPPLIER',
+        supplierId: activeOffer?.supplierId || '',
+        supplierUnitCost: activeOffer ? (activeOffer.unitCost / 1000).toFixed(3) : '',
+        supplierOfferUpdatedAt: activeOffer?.updatedAt.toISOString() || null,
+      };
+    }),
     images: product.images.map(img => ({
       id: img.id,
       url: img.url,
       isMain: img.isMain
     })),
-    similarProductIds: product.similarProducts.map(sp => sp.similarId),
   };
 
   return (
@@ -88,27 +76,20 @@ export default async function AdminProductEditPage({
             <span className="text-zinc-300">/</span>
             <span className="text-sm font-bold text-zinc-700">تعديل المنتج</span>
           </div>
-          <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)]">
+          <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
             تعديل: {product.nameAr}
           </h1>
         </div>
 
-        <ProductEditForm
+        <ProductCatalogForm
           productId={product.id}
           initialData={initialData}
           categories={categories.map(c => ({ id: c.id, name: c.name }))}
-          brands={brands.map(b => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }))}
-          allProducts={allProducts.map(p => ({
-            id: p.id,
-            nameAr: p.nameAr,
-            nameEn: p.nameEn,
-            sku: p.sku,
-            imageUrl: p.images[0]?.url || null,
-          }))}
+          suppliers={suppliers}
         />
         <section className="mt-8 overflow-hidden rounded-lg border bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4"><div><h2 className="font-bold">عروض الموردين حسب الدرجة</h2><p className="text-xs text-zinc-500">عند إنشاء الطلب يختار النظام أقل تكلفة عرض نشط ومتوفر؛ التكاليف ونسب المشاركة تُحفظ في لقطة الطلب.</p></div><Link className="text-sm underline" href="/admin/suppliers">إدارة العروض والمخزون</Link></div>
-          <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-right text-sm"><thead className="bg-zinc-50"><tr><th className="p-3">الدرجة</th><th className="p-3">المورد</th><th className="p-3">تكلفة الوحدة</th><th className="p-3">حصة المورد</th><th className="p-3">حصة المنصة</th><th className="p-3">المخزون</th><th className="p-3">الحالة</th></tr></thead><tbody className="divide-y">{product.variants.flatMap(v=>v.supplierOffers.map(offer=><tr key={offer.id}><td className="p-3">{v.name}</td><td className="p-3">{offer.supplier.name}</td><td className="p-3">{(offer.unitCost/1000).toFixed(3)} د.أ</td><td className="p-3">{(offer.supplierProfitShareBps/100).toFixed(2)}%</td><td className="p-3">{((10000-offer.supplierProfitShareBps)/100).toFixed(2)}%</td><td className="p-3">{offer.stock}</td><td className="p-3">{offer.isActive&&offer.supplier.isActive?'فعال':'متوقف'}</td></tr>))}</tbody></table></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4"><div><h2 className="font-bold">اتفاقات الموردين حسب الدرجة</h2><p className="text-xs text-zinc-500">المورد والكلفة ونسبة المشاركة تُحفظ مع كل طلب. حالة التوفر تُدار يدوياً من كل درجة أعلاه.</p></div><Link className="text-sm underline" href="/admin/suppliers">إدارة الموردين</Link></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-right text-sm"><thead className="bg-zinc-50"><tr><th className="p-3">المقاس</th><th className="p-3">المورد</th><th className="p-3">تكلفة الوحدة</th><th className="p-3">حصة المورد</th><th className="p-3">حصة المنصة</th><th className="p-3">الحالة</th></tr></thead><tbody className="divide-y">{product.variants.flatMap(v=>v.supplierOffers.map(offer=><tr key={offer.id}><td className="p-3">{v.size}</td><td className="p-3">{offer.supplier.name}</td><td className="p-3">{(offer.unitCost/1000).toFixed(3)} د.أ</td><td className="p-3">{(offer.supplierProfitShareBps/100).toFixed(2)}%</td><td className="p-3">{((10000-offer.supplierProfitShareBps)/100).toFixed(2)}%</td><td className="p-3">{offer.isActive&&offer.supplier.isActive?'فعال':'متوقف'}</td></tr>))}</tbody></table></div>
         </section>
       </main>
     </div>

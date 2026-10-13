@@ -41,7 +41,7 @@ export async function updateGlobalSizePrice(size: string, priceInFils: number, a
       });
 
       const { count } = await tx.productVariant.updateMany({
-        where: { name: size, usesGlobalPricing: true },
+        where: { name: size },
         data: { price: priceInFils }
       });
 
@@ -61,7 +61,7 @@ export async function updateGlobalSizePrice(size: string, priceInFils: number, a
 
     return result;
   } catch (error: any) {
-    return { success: false, error: error.message || 'حدث خطأ أثناء تعديل السعر' };
+    return { success: false, error: 'حدث خطأ أثناء تعديل السعر' };
   }
 }
 
@@ -119,8 +119,7 @@ export async function applyPricesToSelection({
             name: size
           },
           data: {
-            price: price,
-            usesGlobalPricing: true // Link them to global pricing
+            price: price
           }
         });
         updatedCount += count;
@@ -142,7 +141,7 @@ export async function applyPricesToSelection({
 
     return result;
   } catch (error: any) {
-    return { success: false, error: error.message || 'حدث خطأ أثناء تعديل الأسعار' };
+    return { success: false, error: 'حدث خطأ أثناء تعديل الأسعار' };
   }
 }
 

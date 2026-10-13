@@ -3,19 +3,15 @@
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { calculateSupplierSplit, capPromotionDiscounts, selectSupplierOffer } from '@/lib/business-finance';
+import { calculateSupplierSplit, capPromotionDiscounts } from '@/lib/business-finance';
+import { STORE_WHATSAPP_NUMBER } from '@/lib/contact';
 
-const checkoutSchema = z.object({
-  customerName: z.string().min(2),
-  customerPhone: z.string().min(8),
-  addressStreet: z.string().min(2),
-  addressBuilding: z.string().min(1),
-  addressApartment: z.string().optional(),
-  shippingZoneId: z.string().optional(),
-  couponCode: z.string().trim().max(80).optional(),
-  idempotencyKey: z.string().max(100).optional(),
-  items: z.string() // JSON string of [{ productId, variantId, quantity }]
-});
+import { checkoutSchema, cartItemsSchema } from '@/lib/schemas';
+
+// Used only when the CMS setting has not been configured yet. The persisted
+// setting remains the primary source so the number can still be managed from
+// the admin area without a deployment.
+const FALLBACK_WHATSAPP_NUMBER = STORE_WHATSAPP_NUMBER;
 
 export async function processCheckout(prevState: any, formData: FormData) {
   const parsed = checkoutSchema.safeParse(Object.fromEntries(formData));
@@ -28,7 +24,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
   
   let parsedItems: { productId: string; variantId: string; quantity: number }[];
   try {
-    const parsedCart = z.array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid(), quantity: z.number().int().positive().max(100) })).min(1).safeParse(JSON.parse(itemsJson));
+    const parsedCart = cartItemsSchema.safeParse(JSON.parse(itemsJson));
     if (!parsedCart.success) throw new Error();
     const merged = new Map<string, { productId: string; variantId: string; quantity: number }>();
     for (const item of parsedCart.data) {
@@ -58,16 +54,10 @@ export async function processCheckout(prevState: any, formData: FormData) {
           number = config.number || '';
         } catch (e) {}
       }
-      if (!number) {
-        if (process.env.NODE_ENV === 'production') {
-          return { error: 'قناة الدفع والاتصال (واتساب) غير متوفرة حالياً، يرجى المحاولة لاحقاً' };
-        } else {
-          number = '962785050655';
-        }
-      }
+      if (!number) number = FALLBACK_WHATSAPP_NUMBER;
       
       // Rebuild the exact original message from the persisted snapshots
-      let msg = `مرحباً ميكاب ديمو،\nأود تأكيد طلبي الجديد رقم: ${existing.reference}\n\n`;
+      let msg = `مرحباً رَواق،\nأود تأكيد طلبي الجديد رقم: ${existing.reference}\n\n`;
       msg += `الاسم: ${existing.customerName}\n`;
       msg += `رقم الهاتف: ${existing.customerPhone}\n`;
       if (existing.notes && existing.notes.includes('العنوان:')) {
@@ -101,7 +91,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
   const variants = await prisma.productVariant.findMany({
     where: { id: { in: variantIds }, isActive: true },
     include: {
-      product: { select: { nameAr: true, nameEn: true, id: true, categoryId: true, brandId: true } },
+      product: { select: { nameAr: true, nameEn: true, id: true, categoryId: true } },
       supplierOffers: {
         include: { supplier: { select: { id: true, name: true, isActive: true } } },
         orderBy: [{ unitCost: 'asc' }, { createdAt: 'asc' }],
@@ -142,15 +132,18 @@ export async function processCheckout(prevState: any, formData: FormData) {
     if (!variant || variant.productId !== productId) {
       return { error: 'أحد المنتجات غير متوفر' };
     }
-    if (variant.stock < quantity) return { error: `الكمية المتاحة من ${variant.product.nameAr} غير كافية` };
+    if (!variant.isActive) return { error: `${variant.product.nameAr} غير متوفر حالياً` };
 
     const unitPrice = variant.price;
     const total = unitPrice * quantity;
     totalAmount += total;
-    const offer = variant.inventorySource === 'SUPPLIER' ? selectSupplierOffer(variant.supplierOffers, quantity) : null;
-    if (variant.inventorySource === 'SUPPLIER' && !offer) return { error: 'Product is currently unavailable from all suppliers.' };
+    const offer = variant.inventorySource === 'SUPPLIER'
+      ? variant.supplierOffers.find(candidate => candidate.isActive && candidate.supplier.isActive) ?? null
+      : null;
+    if (variant.inventorySource === 'SUPPLIER' && !offer) return { error: 'المورد المحدد لهذا المنتج غير متاح حالياً.' };
     const unitCost = offer?.unitCost ?? null;
-    const supplierSplit = unitCost === null ? null : calculateSupplierSplit(total, unitCost * quantity, offer?.supplierProfitShareBps ?? 0);
+    const profitMarginBps = offer?.supplierProfitShareBps ?? 0;
+    const supplierSplit = unitCost === null ? null : calculateSupplierSplit(total, unitCost * quantity, profitMarginBps);
     const productMargin = supplierSplit?.profitBeforeShare ?? null;
     const supplierAmount = offer && supplierSplit ? supplierSplit.supplierProfitShare : null;
 
@@ -159,7 +152,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
       variantId: variant.id,
       sku: variant.sku,
       name: variant.product.nameAr,
-      size: variant.name,
+      size: variant.size,
       quantity,
       unitPrice,
       total,
@@ -168,7 +161,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
       supplierIdSnapshot: offer?.supplierId ?? null,
       supplierNameSnapshot: offer?.supplier.name ?? null,
       unitCostSnapshot: unitCost,
-      supplierProfitShareBpsSnapshot: offer?.supplierProfitShareBps ?? null,
+      supplierProfitShareBpsSnapshot: profitMarginBps,
       supplierAmountSnapshot: supplierAmount,
       platformProductProfitSnapshot: productMargin !== null && supplierAmount !== null
         ? productMargin - supplierAmount
@@ -228,7 +221,10 @@ export async function processCheckout(prevState: any, formData: FormData) {
     const eligible = orderItemsData.filter(item => allowedTargets.length === 0 || allowedTargets.some(target =>
       (target.targetType === 'PRODUCT' && target.targetId === item.productId) ||
       (target.targetType === 'CATEGORY' && target.targetId === variantMap.get(item.variantId)?.product.categoryId) ||
-      (target.targetType === 'BRAND' && target.targetId === variantMap.get(item.variantId)?.product.brandId)
+      // Brand targeting is unavailable until the Brand relation is added to
+      // the deployed schema. Existing brand-only coupons therefore do not
+      // silently apply to unrelated products.
+      (target.targetType === 'BRAND' && false)
     ));
     const eligibleTotal = eligible.reduce((sum, item) => sum + item.total, 0);
     if (eligibleTotal <= 0) return { error: 'هذا الرمز لا ينطبق على منتجات السلة' };
@@ -261,7 +257,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
     });
     if (zone && zone.isEnabled) {
       shippingCost = zone.fee;
-      actualDeliveryCost = zone.actualDeliveryCost;
+      actualDeliveryCost = zone.actualDeliveryCost ?? zone.fee;
       zoneName = zone.nameAr;
       zoneFreeThreshold = zone.freeShippingThreshold;
     } else {
@@ -282,7 +278,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
     !coupon || coupon.targets.length === 0 || coupon.targets.some(target =>
       (target.targetType === 'PRODUCT' && target.targetId === item.productId) ||
       (target.targetType === 'CATEGORY' && target.targetId === variantMap.get(item.variantId)?.product.categoryId) ||
-      (target.targetType === 'BRAND' && target.targetId === variantMap.get(item.variantId)?.product.brandId)
+      (target.targetType === 'BRAND' && false)
     )
   ).map(({ index }) => index);
   const lastCouponEligibleIndex = eligibleCouponIndices.at(-1);
@@ -294,7 +290,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
     const eligible = !coupon || coupon.targets.length === 0 || coupon.targets.some(target =>
       (target.targetType === 'PRODUCT' && target.targetId === item.productId) ||
       (target.targetType === 'CATEGORY' && target.targetId === variantMap.get(item.variantId)?.product.categoryId) ||
-      (target.targetType === 'BRAND' && target.targetId === variantMap.get(item.variantId)?.product.brandId)
+      (target.targetType === 'BRAND' && false)
     );
     const rewardLine = Math.floor(rewardDiscount * item.total / totalAmount);
     return sum + (eligible ? item.total - rewardLine : 0);
@@ -306,7 +302,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
     const eligible = !coupon || coupon.targets.length === 0 || coupon.targets.some(target =>
       (target.targetType === 'PRODUCT' && target.targetId === item.productId) ||
       (target.targetType === 'CATEGORY' && target.targetId === variantMap.get(item.variantId)?.product.categoryId) ||
-      (target.targetType === 'BRAND' && target.targetId === variantMap.get(item.variantId)?.product.brandId)
+      (target.targetType === 'BRAND' && false)
     );
     const couponBase = eligible ? beforeDiscount - itemRewardDiscount : 0;
     const couponLineDiscount = !coupon || coupon.discountType === 'FREE_DELIVERY' || !eligible ? 0
@@ -400,7 +396,8 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return newOrder;
   }, { isolationLevel: 'Serializable' });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'تعذر حفظ الطلب، يرجى المحاولة مجدداً' };
+    console.error('Checkout error:', error);
+    return { error: 'تعذر حفظ الطلب، يرجى المحاولة مجدداً' };
   }
 
   // Get WhatsApp official number from database setting
@@ -413,16 +410,10 @@ export async function processCheckout(prevState: any, formData: FormData) {
     } catch (e) {}
   }
 
-  if (!whatsappNumber) {
-    if (process.env.NODE_ENV === 'production') {
-      return { error: 'قناة الدفع والاتصال (واتساب) غير متوفرة حالياً، يرجى المحاولة لاحقاً' };
-    } else {
-      whatsappNumber = '962785050655'; // Development seed value
-    }
-  }
+  if (!whatsappNumber) whatsappNumber = FALLBACK_WHATSAPP_NUMBER;
 
   // 3. Generate secure WhatsApp message
-  let message = `مرحباً ميكاب ديمو،\nأود تأكيد طلبي الجديد رقم: ${reference}\n\n`;
+  let message = `مرحباً رَواق،\nأود تأكيد طلبي الجديد رقم: ${reference}\n\n`;
   message += `الاسم: ${customerName}\n`;
   message += `رقم الهاتف: ${customerPhone}\n`;
   message += `منطقة التوصيل: ${zoneName}\n`;

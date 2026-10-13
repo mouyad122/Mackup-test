@@ -2,24 +2,109 @@ import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { filsToDisplay } from '@/lib/money';
 import { AdminSidebar } from '@/components/AdminSidebar';
+import { createCaptain, updateCaptain } from '@/actions/captains';
 import Link from 'next/link';
-import { assignCaptain, createCaptain, setCaptainActive, updateDeliveryStatus, updateCaptain } from '@/actions/operations';
 
 export default async function CaptainsPage() {
-  const session = await requirePermission('manage:settings');
-  const [captains, orders, assignments, transactions] = await Promise.all([
-    prisma.captain.findMany({ orderBy: { name: 'asc' }, include: { assignments: true, settlements: true } }),
-    prisma.order.findMany({ where: { status: 'PREPARED', deliveryAssignment: null }, orderBy: { createdAt: 'asc' }, select: { id: true, reference: true, customerName: true } }),
-    prisma.deliveryAssignment.findMany({ where: { status: { notIn: ['DELIVERED', 'CANCELLED'] } }, include: { order: true, captain: true }, orderBy: { createdAt: 'desc' } }),
-    prisma.financialTransaction.findMany({ where: { captainId: { not: null }, type: { in: ['CAPTAIN_EARNING','CAPTAIN_PAYMENT'] } }, select: { captainId: true, type: true, amount: true } }),
-  ]);
-  return <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl"><AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} /><main className="w-full flex-1 space-y-6 p-4 md:p-8">
-    <header><h1 className="text-3xl font-bold">المندوبون والتوصيل</h1><p className="mt-1 text-sm text-zinc-600">أرباح المندوب ثابتة من إعداد المنطقة وتُحفظ عند التعيين.</p></header>
-    <div className="grid gap-4 lg:grid-cols-2">
-      <form action={createCaptain} className="grid gap-3 rounded-lg border bg-white p-5"><h2 className="font-bold">إضافة مندوب</h2><input name="name" required minLength={2} placeholder="الاسم" className="rounded border px-3 py-2" /><input name="phone" required minLength={7} placeholder="الهاتف" className="rounded border px-3 py-2" /><input name="notes" placeholder="ملاحظات" className="rounded border px-3 py-2" /><button className="justify-self-start rounded bg-zinc-900 px-5 py-2 text-white">حفظ</button></form>
-      <form action={assignCaptain} className="grid gap-3 rounded-lg border bg-white p-5"><h2 className="font-bold">تعيين طلب</h2><select name="orderId" required className="rounded border px-3 py-2"><option value="">اختر الطلب</option>{orders.map(order => <option key={order.id} value={order.id}>{order.reference} · {order.customerName}</option>)}</select><select name="captainId" required className="rounded border px-3 py-2"><option value="">اختر المندوب</option>{captains.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}</select><button className="justify-self-start rounded bg-zinc-900 px-5 py-2 text-white">تعيين</button></form>
+  const session = await requirePermission('manage:orders');
+  const captains = await prisma.captain.findMany({
+    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    include: {
+      assignments: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: { order: { select: { id: true, reference: true, customerName: true } } },
+      },
+      settlements: { select: { amount: true } },
+    },
+  });
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
+      <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
+      <main className="w-full flex-1 space-y-6 p-4 md:p-8">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold">الكباتن ومندوبو التوصيل</h1>
+            <p className="mt-1 text-sm text-zinc-600">إدارة المندوبين ومراجعة آخر التوصيلات المسندة لكل مندوب.</p>
+          </div>
+          <Link href="/admin/deliveries" className="rounded border bg-white px-4 py-2 text-sm font-bold hover:bg-zinc-50">
+            فتح إدارة التوصيلات
+          </Link>
+        </header>
+
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-lg font-bold">إضافة مندوب</h2>
+          <form action={createCaptain} className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <input name="name" required minLength={2} placeholder="اسم المندوب" className="rounded border px-3 py-2" />
+            <input name="phone" required placeholder="رقم الهاتف" className="rounded border px-3 py-2" dir="ltr" />
+            <select name="status" defaultValue="AVAILABLE" className="rounded border px-3 py-2">
+              <option value="AVAILABLE">متاح</option>
+              <option value="BUSY">مشغول</option>
+              <option value="OFFLINE">غير متاح</option>
+            </select>
+            <input name="notes" placeholder="ملاحظات" className="rounded border px-3 py-2" />
+            <input type="hidden" name="isActive" value="true" />
+            <button className="rounded bg-[#3F4B32] px-5 py-2 font-bold text-white">حفظ المندوب</button>
+          </form>
+        </section>
+
+        <section className="space-y-4">
+          {captains.map((captain) => {
+            const earned = captain.assignments.reduce((sum, assignment) => sum + assignment.captainEarning, 0);
+            const paid = captain.settlements.reduce((sum, settlement) => sum + settlement.amount, 0);
+            return (
+              <article key={captain.id} className="overflow-hidden rounded-lg border bg-white shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
+                  <div>
+                    <h2 className="font-bold">{captain.name}</h2>
+                    <p className="mt-1 text-sm text-zinc-500" dir="ltr">{captain.phone}</p>
+                  </div>
+                  <div className="text-sm text-zinc-600">
+                    <p>{captain.isActive ? 'فعال' : 'معطل'} · {captain.status}</p>
+                    <p>المستحق: {filsToDisplay(earned)} · المدفوع: {filsToDisplay(paid)}</p>
+                  </div>
+                </div>
+
+                <details className="border-b p-4">
+                  <summary className="cursor-pointer font-bold">تعديل بيانات المندوب</summary>
+                  <form action={updateCaptain.bind(null, captain.id)} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <input name="name" required minLength={2} defaultValue={captain.name} className="rounded border px-3 py-2" />
+                    <input name="phone" required defaultValue={captain.phone} className="rounded border px-3 py-2" dir="ltr" />
+                    <select name="status" defaultValue={captain.status} className="rounded border px-3 py-2">
+                      <option value="AVAILABLE">متاح</option>
+                      <option value="BUSY">مشغول</option>
+                      <option value="OFFLINE">غير متاح</option>
+                    </select>
+                    <select name="isActive" defaultValue={String(captain.isActive)} className="rounded border px-3 py-2">
+                      <option value="true">فعال</option>
+                      <option value="false">معطل</option>
+                    </select>
+                    <input name="notes" defaultValue={captain.notes || ''} placeholder="ملاحظات" className="rounded border px-3 py-2" />
+                    <button className="justify-self-start rounded bg-zinc-900 px-4 py-2 text-white">حفظ التعديل</button>
+                  </form>
+                </details>
+
+                <div className="p-4">
+                  <h3 className="mb-3 text-sm font-bold">آخر التوصيلات</h3>
+                  <div className="space-y-2">
+                    {captain.assignments.map((assignment) => (
+                      <div key={assignment.id} className="flex flex-wrap justify-between gap-2 rounded bg-zinc-50 p-3 text-sm">
+                        <Link href={`/admin/orders/${assignment.order.id}`} className="font-bold underline">
+                          {assignment.order.reference} · {assignment.order.customerName}
+                        </Link>
+                        <span>{assignment.status} · {filsToDisplay(assignment.captainEarning)}</span>
+                      </div>
+                    ))}
+                    {captain.assignments.length === 0 && <p className="text-sm text-zinc-500">لا توجد توصيلات مسندة.</p>}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+          {captains.length === 0 && <p className="rounded-lg border bg-white p-8 text-center text-zinc-500">لا يوجد مندوبون بعد.</p>}
+        </section>
+      </main>
     </div>
-    <section className="space-y-4"><h2 className="text-xl font-bold">التعيينات النشطة</h2>{assignments.map(a => { const next = a.status === 'ASSIGNED' ? ['PICKED_UP','FAILED'] : a.status === 'PICKED_UP' ? ['OUT_FOR_DELIVERY','FAILED'] : a.status === 'OUT_FOR_DELIVERY' ? ['DELIVERED','FAILED'] : ['PICKED_UP']; return <article key={a.id} className="grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-[1fr_auto] md:items-center"><div><p className="font-bold">{a.order.reference} · {a.order.customerName}</p><p className="text-sm text-zinc-600">{a.captain.name} · رسوم العميل {filsToDisplay(a.customerDeliveryFee)} · أجر المندوب {filsToDisplay(a.captainEarning)} · الناقل {a.actualCarrierCost === null ? 'غير مسجل' : filsToDisplay(a.actualCarrierCost)}</p><p className="text-xs text-zinc-500">الحالة: {a.status}</p></div><div className="flex flex-wrap gap-2">{next.map(status => <form key={status} action={async () => { 'use server'; await updateDeliveryStatus(a.id, status); }}><button className="rounded border px-3 py-2 text-xs font-semibold">{status}</button></form>)}</div></article>; })}{assignments.length===0 && <p className="rounded bg-white p-5 text-sm text-zinc-500">لا توجد توصيلات نشطة.</p>}</section>
-    <section className="grid gap-4 md:grid-cols-2">{captains.map(c => {const earned=transactions.filter(t=>t.captainId===c.id&&t.type==='CAPTAIN_EARNING').reduce((n,t)=>n+t.amount,0);const paid=transactions.filter(t=>t.captainId===c.id&&t.type==='CAPTAIN_PAYMENT').reduce((n,t)=>n+t.amount,0);const active=c.assignments.filter(a=>!['DELIVERED','CANCELLED'].includes(a.status)).length;return <article key={c.id} className="space-y-3 rounded-lg border bg-white p-5"><div className="flex justify-between gap-2"><div><h2 className="font-bold">{c.name}</h2><p className="text-sm text-zinc-500">{c.phone} · {c.status}</p></div><form action={setCaptainActive.bind(null,c.id,!c.isActive)}><button className="text-sm underline">{c.isActive?'إيقاف':'تفعيل'}</button></form></div><div className="grid grid-cols-2 gap-2 text-sm"><span>توصيلات نشطة: {active}</span><span>مكتملة: {c.assignments.filter(a=>a.status==='DELIVERED').length}</span><span>إجمالي المكتسب: {filsToDisplay(earned)}</span><span>إجمالي المدفوع: {filsToDisplay(paid)}</span><b className="col-span-2">الرصيد المتبقي: {filsToDisplay(earned-paid)}</b></div><form action={updateCaptain.bind(null,c.id)} className="grid gap-2 sm:grid-cols-3"><input name="name" required defaultValue={c.name} className="rounded border px-2 py-1"/><input name="phone" required defaultValue={c.phone} className="rounded border px-2 py-1"/><input name="notes" defaultValue={c.notes||''} placeholder="ملاحظات" className="rounded border px-2 py-1"/><button className="text-right text-sm underline">حفظ بيانات المندوب</button></form><details><summary className="cursor-pointer text-sm font-semibold underline">سجل التوصيلات والتسويات ({c.assignments.length} / {c.settlements.length})</summary><div className="mt-2 space-y-2 border-t pt-2">{c.assignments.map(a=><p key={a.id} className="text-xs">{a.orderId.slice(0,8)} · {a.status} · {new Date(a.createdAt).toLocaleDateString('ar-JO')} · {filsToDisplay(a.captainEarning)}</p>)}{c.settlements.map(s=><p key={s.id} className="text-xs">تسوية {filsToDisplay(s.amount)} · {s.paymentMethod} · {new Date(s.createdAt).toLocaleDateString('ar-JO')}</p>)}</div></details><Link className="text-sm underline" href="/admin/captain-settlements">إدارة التسويات</Link></article>})}</section>
-  </main></div>;
+  );
 }

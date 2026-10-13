@@ -22,10 +22,12 @@ const poolConfig = {
   idleTimeoutMillis: 30000,
   // الحد الأقصى للانتظار على اتصال جديد (5 ثواني)
   connectionTimeoutMillis: 5000,
-  // الحد الأدنى للاتصالات الجاهزة
   min: 2,
   ...(!isLocal && { ssl: { rejectUnauthorized: false } }),
 };
+
+console.log('[DB Pool] isLocal:', isLocal);
+console.log('[DB Pool] poolConfig ssl:', poolConfig.ssl);
 
 let pool: Pool;
 let prismaClient: PrismaClient;
@@ -59,5 +61,4 @@ if (process.env.NODE_ENV === 'production') {
 
 export const prisma = prismaClient;
 export { pool };
-
 

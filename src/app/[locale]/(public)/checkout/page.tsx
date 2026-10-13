@@ -127,7 +127,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
 
   return (
     <div className="container mx-auto px-6 py-12 bg-[var(--color-ivory-100)] min-h-screen">
-      <h1 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)] mb-8">
+      <h1 className="text-3xl font-bold font-heading text-[#3F4B32] mb-8">
         {isAr ? 'إتمام الشراء' : 'Checkout'}
       </h1>
       
@@ -239,11 +239,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                 </select>
               </div>
 
-              <div>
-                <label htmlFor="couponCode" className="block text-sm font-medium text-zinc-700 mb-1">{isAr ? 'رمز الخصم (اختياري)' : 'Coupon code (optional)'}</label>
-                <input id="couponCode" name="couponCode" autoCapitalize="characters" maxLength={80} className="w-full rounded border border-zinc-300 px-4 py-2 uppercase" placeholder={isAr ? 'أدخل الرمز' : 'Enter code'} />
-                <p className="mt-1 text-xs text-zinc-500">{isAr ? 'سيتم التحقق من الرمز وتطبيقه بأمان عند إرسال الطلب.' : 'The coupon will be validated securely when placing your order.'}</p>
-              </div>
+
 
               {/* Hidden payload inputs */}
               <input type="hidden" name="items" value={JSON.stringify(cartItems)} />
@@ -267,7 +263,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               <button
                 type="submit"
                 disabled={isPending || isSubmittingLocal || cartItems.length === 0}
-                className="w-full bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white font-bold py-4 rounded transition-colors disabled:opacity-50"
+                className="w-full btn-rawaq-primary py-4 rounded disabled:opacity-50"
               >
                 {(isPending || isSubmittingLocal) ? (isAr ? 'جاري المعالجة...' : 'Processing...') : (isAr ? 'تأكيد الطلب عبر واتساب' : 'Confirm Order via WhatsApp')}
               </button>
@@ -341,7 +337,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                         : (isAr ? 'شحن مجاني' : 'Free Shipping')}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xl font-bold text-[var(--color-charcoal-900)] pt-2 border-t">
+                  <div className="flex justify-between text-xl font-bold text-[#3F4B32] pt-2 border-t">
                     <span>{isAr ? 'الإجمالي التقديري قبل القسيمة' : 'Estimated total before coupon'}</span>
                     <span>{filsToDisplay(getGrandTotal(), isAr ? 'ar' : 'en')}</span>
                   </div>

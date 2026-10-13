@@ -145,6 +145,7 @@ export async function settleSupplier(supplierId: string, formData: FormData) {
   }, { isolationLevel: 'Serializable' });
   revalidatePath('/admin/supplier-settlements');
   revalidatePath('/admin/suppliers');
+  revalidatePath('/admin/reconciliation');
 }
 
 export async function settleCaptain(captainId: string, formData: FormData) {
@@ -161,9 +162,49 @@ export async function settleCaptain(captainId: string, formData: FormData) {
     const outstanding = (earnings._sum.amount ?? 0) - (payments._sum.amount ?? 0);
     if (amount > outstanding) throw new Error('قيمة التسوية تتجاوز رصيد المندوب المستحق');
     const settlement = await tx.captainSettlement.create({ data: { captainId, amount, paymentMethod: data.paymentMethod, reference: data.reference || null, notes: data.notes || null, createdByEmployeeId: session.employeeId } });
+    const captain = await tx.captain.findUnique({ where: { id: captainId } });
     await tx.financialTransaction.create({ data: { businessEventKey: `captain-settlement:${data.idempotencyKey}`, type: 'CAPTAIN_PAYMENT', direction: 'OUT', amount, captainId, description: data.notes || 'Captain settlement', createdByEmployeeId: session.employeeId } });
+    
+    // Auto-create an expense for this payment to the delivery company
+    const expenseDesc = `أجور توصيل (دفعة لـ ${captain?.name || 'شركة التوصيل'})`;
+    const expenseTx = await tx.financialTransaction.create({ data: { businessEventKey: `captain-settlement-expense:${data.idempotencyKey}`, type: 'EXPENSE', direction: 'OUT', amount, description: expenseDesc, createdByEmployeeId: session.employeeId } });
+    await tx.expense.create({ data: { category: 'OPERATIONS', amount, description: expenseDesc, reference: data.reference || null, expenseDate: new Date(), createdByEmployeeId: session.employeeId, financialTransactionId: expenseTx.id } });
+
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_CREATED', entityType: 'CaptainSettlement', entityId: settlement.id, details: JSON.stringify({ amount, paymentMethod: data.paymentMethod }) } });
   }, { isolationLevel: 'Serializable' });
+  revalidatePath('/admin/captain-settlements');
+  revalidatePath('/admin/captains');
+  revalidatePath('/admin/reconciliation');
+}
+
+export async function deleteCaptainSettlement(settlementId: string) {
+  const session = await requirePermission('manage:settings');
+  await prisma.$transaction(async tx => {
+    const settlement = await tx.captainSettlement.findUnique({ where: { id: settlementId } });
+    if (!settlement) return;
+
+    // Find the associated CAPTAIN_PAYMENT financial transaction using businessEventKey
+    const txMatch = await tx.financialTransaction.findFirst({
+      where: { captainId: settlement.captainId, type: 'CAPTAIN_PAYMENT', amount: settlement.amount, createdAt: { gte: settlement.createdAt, lte: new Date(settlement.createdAt.getTime() + 5000) } }
+    });
+
+    if (txMatch) {
+      await tx.financialTransaction.delete({ where: { id: txMatch.id } });
+      
+      // Attempt to find and delete the associated expense
+      const expenseKey = txMatch.businessEventKey?.replace('captain-settlement:', 'captain-settlement-expense:');
+      if (expenseKey) {
+        const expenseTx = await tx.financialTransaction.findUnique({ where: { businessEventKey: expenseKey }, include: { expense: true } });
+        if (expenseTx) {
+          if (expenseTx.expense) await tx.expense.delete({ where: { id: expenseTx.expense.id } });
+          await tx.financialTransaction.delete({ where: { id: expenseTx.id } });
+        }
+      }
+    }
+
+    await tx.captainSettlement.delete({ where: { id: settlementId } });
+    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_DELETED', entityType: 'CaptainSettlement', entityId: settlementId, details: JSON.stringify({ amount: settlement.amount }) } });
+  });
   revalidatePath('/admin/captain-settlements');
   revalidatePath('/admin/captains');
 }
@@ -180,4 +221,5 @@ export async function createExpense(formData: FormData) {
   });
   revalidatePath('/admin/expenses');
   revalidatePath('/admin/financials');
+  revalidatePath('/admin/reconciliation');
 }

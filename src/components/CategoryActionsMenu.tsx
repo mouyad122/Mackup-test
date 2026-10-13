@@ -9,7 +9,7 @@ export function CategoryActionsMenu({
   allCategories,
   allProducts = []
 }: { 
-  category: { id: string, name: string, imagePath: string | null, products?: {id: string, nameAr: string, nameEn: string}[] };
+  category: { id: string, name: string, products?: {id: string, nameAr: string, nameEn: string}[] };
   allCategories: { id: string, name: string }[];
   allProducts?: { id: string, nameAr: string, nameEn: string, categoryId: string, category: { name: string } }[];
 }) {
@@ -19,7 +19,6 @@ export function CategoryActionsMenu({
 
   // Edit State
   const [editName, setEditName] = useState(category.name);
-  const [editImage, setEditImage] = useState<File | null>(null);
   
   // Products Selection State
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -50,9 +49,6 @@ export function CategoryActionsMenu({
 
     const formData = new FormData();
     formData.append('name', editName);
-    if (editImage) {
-      formData.append('image', editImage);
-    }
     selectedProductIds.forEach(id => {
       formData.append('productIds', id);
     });
@@ -133,16 +129,6 @@ export function CategoryActionsMenu({
                   className="w-full border border-zinc-300 rounded-md p-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">صورة جديدة (اختياري)</label>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={e => setEditImage(e.target.files?.[0] || null)}
-                  className="w-full border border-zinc-300 rounded-md p-2 text-sm"
-                />
-              </div>
 
               {/* Product Selection */}
               <div className="pt-2 border-t border-zinc-200">
@@ -199,7 +185,7 @@ export function CategoryActionsMenu({
               <button 
                 onClick={handleUpdate}
                 disabled={isPending}
-                className="px-4 py-2 bg-[var(--color-charcoal-900)] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-[#3F4B32] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 {isPending ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </button>
@@ -224,7 +210,7 @@ export function CategoryActionsMenu({
                   name="deleteOption" 
                   checked={!deleteWithProducts}
                   onChange={() => setDeleteWithProducts(false)}
-                  className="mt-1 accent-[var(--color-charcoal-900)]"
+                  className="mt-1 accent-[#3F4B32]"
                 />
                 <div>
                   <span className="block font-bold text-sm">الاحتفاظ بالمنتجات (موصى به)</span>

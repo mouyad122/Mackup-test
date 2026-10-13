@@ -22,14 +22,15 @@ export async function getPOSOrders() {
   return { success: true, orders };
 }
 
-export async function updatePOSOrderStatus(orderId: string, newStatus: string) {
+export async function updatePOSOrderStatus(orderId: string, newStatus: string, storeBearsDeliveryCost?: boolean) {
   const session = await requirePermission('pos:access');
   
   // We should also check for pos.orders.manage or manage:orders ideally.
   
   try {
     if (newStatus === 'CANCELLED') {
-      const order = await cancelOrderAndReverseFinancials(orderId, session.employeeId);
+      if (typeof storeBearsDeliveryCost !== 'boolean') return { success: false, error: 'حدد الجهة التي تتحمل رسوم التوصيل قبل الإلغاء.' };
+      const order = await cancelOrderAndReverseFinancials(orderId, session.employeeId, storeBearsDeliveryCost);
       return { success: true, order };
     }
     if (!['CONFIRMED', 'PREPARING', 'PREPARED'].includes(newStatus)) return { success: false, error: 'حالة الطلب غير صالحة' };

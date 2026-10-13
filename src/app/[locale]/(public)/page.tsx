@@ -1,450 +1,332 @@
-import Image from 'next/image';
 import Link from 'next/link';
+import Image from 'next/image';
 import { prisma } from '@/lib/db';
-import { getHeroSlides, getHeroCarouselSettings, getStoreLocationSettings } from '@/actions/homepage-cms';
+import { filsToDisplay } from '@/lib/money';
+import { RawaqProductFrame } from '@/components/RawaqProductFrame';
+import { OliveBranchDecoration } from '@/components/RawaqMotifs';
+import { getHeroSlides, getHeroCarouselSettings } from '@/actions/homepage-cms';
 import { HeroCarousel } from '@/components/HeroCarousel';
-import { StoreLocationSection } from '@/components/StoreLocationSection';
-import { WishlistHeart } from '@/components/WishlistHeart';
 import type { Metadata } from 'next';
 
-import { Sparkles } from 'lucide-react';
-import { unstable_cache } from 'next/cache';
-
-interface Params {
-  locale?: string;
-}
-
 export const revalidate = 3600;
+export const metadata: Metadata = {
+  title: 'رَواق | أناقة أردنية معاصرة',
+  description: 'اكتشفي رَواق، حيث تلتقي أناقة اليوم بلمسات مستوحاة من روح الأردن — كوزمتكس، عبايات، وأثواب أردنية.',
+};
 
-export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
-  const { locale = 'ar' } = await params;
-  const isAr = locale === 'ar';
-  const BASE_URL = 'https://www.makeup-demo.com';
+export default async function StoreFrontPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const isAr = locale !== 'en';
 
-  return {
-    title: isAr
-      ? 'ميكاب ديمو — أفضل منتجات التجميل | الصفحة الرئيسية'
-      : 'Makeup Demo — Best Beauty Products | Home',
-    description: isAr
-      ? 'ميكاب ديمو وجهتك الأولى لمنتجات التجميل والعناية بالبشرة. اكتشفي تشكيلاتنا من المكياج، الأرواج، والعناية المتكاملة.'
-      : 'Makeup Demo is your premier destination for beauty and skincare products. Discover our collections of makeup, lipsticks, and complete care.',
-    alternates: {
-      canonical: `${BASE_URL}/${locale}`,
-      languages: {
-        'ar': `${BASE_URL}/ar`,
-        'en': `${BASE_URL}/en`,
-      },
-    },
-    openGraph: {
-      title: isAr ? 'ميكاب ديمو — منتجات التجميل' : 'Makeup Demo — Beauty Products',
-      description: isAr
-        ? 'منتجات تجميل راقية من ميكاب ديمو.'
-        : 'Premium beauty products from Makeup Demo.',
-      url: `${BASE_URL}/${locale}`,
-      locale: isAr ? 'ar_JO' : 'en_US',
-    },
-  };
-}
-
-export default async function StoreFrontPage({ params }: { params: Promise<Params> }) {
-  const { locale = 'ar' } = await params;
-  const isAr = locale === 'ar';
-
-  const getCachedFeaturedProducts = unstable_cache(
-    async () => {
-      return prisma.product.findMany({
-        where: { isVisible: true, isFeatured: true },
-        orderBy: { featuredOrder: 'asc' },
-        take: 4,
-        select: {
-          id: true,
-          slug: true,
-          nameAr: true,
-          nameEn: true,
-          stockStatus: true,
-          variants: {
-            select: {
-              price: true,
-            }
-          },
-          images: {
-            where: { isMain: true },
-            take: 1,
-            select: {
-              url: true,
-              isMain: true,
-            }
-          },
-          category: {
-            select: {
-              name: true,
-            }
-          }
-        }
-      });
-    },
-    ['home-featured-products'],
-    { revalidate: 3600, tags: ['products'] }
-  );
-
-  const getCachedCollections = unstable_cache(
-    async () => {
-      return prisma.category.findMany({
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          imagePath: true,
-        }
-      });
-    },
-    ['home-collections'],
-    { revalidate: 3600, tags: ['categories'] }
-  );
-
-  const [
-    featuredProducts,
-    carouselSettings,
-    allSlides,
-    locationSettings,
-    collections,
-  ] = await Promise.all([
-    getCachedFeaturedProducts(),
-    getHeroCarouselSettings(),
+  const [featured, latest, categories, slides, carouselSettings] = await Promise.all([
+    prisma.product.findMany({
+      where: { isVisible: true, isFeatured: true }, take: 4, orderBy: { featuredOrder: 'asc' },
+      include: { images: { where: { isMain: true }, take: 1 }, variants: { where: { isActive: true }, orderBy: { price: 'asc' }, take: 1 } },
+    }),
+    prisma.product.findMany({
+      where: { isVisible: true }, take: 4, orderBy: { createdAt: 'desc' },
+      include: { images: { where: { isMain: true }, take: 1 }, variants: { where: { isActive: true }, orderBy: { price: 'asc' }, take: 1 } },
+    }),
+    prisma.category.findMany({
+      where: { products: { some: { isVisible: true } } }, take: 4, orderBy: { name: 'asc' },
+      include: { _count: { select: { products: { where: { isVisible: true } } } } },
+    }),
     getHeroSlides(),
-    getStoreLocationSettings(),
-    getCachedCollections(),
+    getHeroCarouselSettings(),
   ]);
 
-  const now = new Date();
-  const activeSlides = allSlides.filter(slide => {
-    if (!slide.isEnabled) return false;
-    if (slide.startsAt && new Date(slide.startsAt) > now) return false;
-    if (slide.endsAt && new Date(slide.endsAt) < now) return false;
+  const hasActiveSlides = carouselSettings.enabled && slides.some(s => {
+    if (!s.isEnabled) return false;
+    const now = new Date();
+    if (s.startsAt && new Date(s.startsAt) > now) return false;
+    if (s.endsAt && new Date(s.endsAt) < now) return false;
     return true;
   });
 
-
-  const defaultSlides: any[] = [
-    {
-      id: 'default-1',
-      titleAr: 'إشراقة الصيف',
-      titleEn: 'Summer Glow',
-      descriptionAr: 'اكتشفي الألوان الحيوية لبشرة متألقة هذا الصيف',
-      descriptionEn: 'Discover vibrant colors for radiant skin this summer',
-      eyebrowAr: 'جديد',
-      eyebrowEn: 'New Arrival',
-      ctaAr: 'تسوق الآن',
-      ctaEn: 'Shop Now',
-      imageDesktopPath: '',
-      imageMobilePath: '',
-      altAr: 'مجموعة الصيف',
-      altEn: 'Summer Collection',
-      destinationType: 'URL',
-      internalPath: '/collections/summer',
-      displayOrder: 1,
-      isEnabled: true,
-      openInNewTab: false,
-      overlayStrength: 40,
-      textPosition: 'CENTER'
-    },
-    {
-      id: 'default-2',
-      titleAr: 'شفاه مخملية',
-      titleEn: 'Velvet Lips',
-      descriptionAr: 'أرواج غنية باللون ومريحة تدوم طوال اليوم',
-      descriptionEn: 'Rich, comfortable lipsticks that last all day',
-      eyebrowAr: 'الأكثر مبيعاً',
-      eyebrowEn: 'Best Seller',
-      ctaAr: 'اكتشف المجموعة',
-      ctaEn: 'Discover',
-      imageDesktopPath: '',
-      imageMobilePath: '',
-      altAr: 'شفاه مخملية',
-      altEn: 'Velvet Lips',
-      destinationType: 'URL',
-      internalPath: '/collections/lips',
-      displayOrder: 2,
-      isEnabled: true,
-      openInNewTab: false,
-      overlayStrength: 50,
-      textPosition: 'CENTER'
-    }
-  ];
-
-  const carouselSlidesToDisplay = activeSlides.length > 0 ? activeSlides : defaultSlides;
-
   return (
-    <main className="flex-1" dir={isAr ? 'rtl' : 'ltr'}>
-      {locationSettings.locationSectionEnabled && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'HealthAndBeautyBusiness',
-              'name': 'Makeup Demo',
-              'url': 'https://www.makeup-demo.com',
-              'telephone': locationSettings.phone,
-              'address': {
-                '@type': 'PostalAddress',
-                'streetAddress': isAr ? locationSettings.addressAr : locationSettings.addressEn,
-                'addressLocality': 'Amman',
-                'addressCountry': 'JO'
-              },
-              'geo': {
-                '@type': 'GeoCoordinates',
-                'latitude': locationSettings.latitude,
-                'longitude': locationSettings.longitude
-              },
-              'openingHours': locationSettings.openingHours,
-              'hasMap': locationSettings.mapPlaceUrl
-            })
-          }}
-        />
+    <main className="overflow-x-hidden">
+
+      {/* ═══════════════════════════════════════════════
+          A — HERO
+          ═══════════════════════════════════════════════ */}
+      <HeroCarousel slides={slides as any} settings={carouselSettings} />
+
+      {/* ═══════════════════════════════════════════════
+          B — CATEGORY DISCOVERY
+          ═══════════════════════════════════════════════ */}
+      {categories.length > 0 && (
+        <section className="bg-[#fbfaf8] py-14 sm:py-20 relative overflow-hidden">
+          <OliveBranchDecoration className="absolute -start-32 top-0 w-96 text-[#3F4B32] opacity-5 pointer-events-none" />
+          <div className="mx-auto max-w-7xl px-5 sm:px-8 relative z-10">
+            {/* Section heading */}
+            <div className="mb-12 text-center">
+              <span className="rawaq-eyebrow">{isAr ? 'اكتشفي تشكيلاتنا' : 'DISCOVER OUR EDITS'}</span>
+              <h2 className="mt-3 text-3xl sm:text-4xl">{isAr ? 'اختاري ما يشبهكِ' : 'Find your expression'}</h2>
+              <div className="mx-auto mt-4 h-px w-10 bg-[#3F4B32]" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-4 px-2">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/${locale}/shop?category=${encodeURIComponent(cat.id)}`}
+                  className="group relative flex flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] sm:rounded-tr-[3.5rem] sm:rounded-bl-[3.5rem] bg-[#F7F3EA] shadow-md hover:shadow-xl transition-all duration-[600ms] hover:-translate-y-2 border-4 sm:border-[6px] border-white"
+                >
+                  <div className="relative w-full aspect-[4/5] overflow-hidden bg-[#e8e5df]">
+                    {/* Category image */}
+                    {cat.imagePath ? (
+                      <Image
+                        src={cat.imagePath}
+                        alt={cat.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw"
+                        className="object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#D9C6A8]/30">
+                        <span className="text-4xl text-white/50" aria-hidden="true">✦</span>
+                      </div>
+                    )}
+
+                    {/* Gradient Overlay for Text Visibility */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#2A3321]/90 via-[#2A3321]/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    {/* Content */}
+                    <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 text-center z-10">
+                      <span className="block text-[9px] sm:text-[10px] font-bold tracking-[0.25em] text-[#D9C6A8] uppercase mb-2 sm:mb-3 transform translate-y-2 opacity-80 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                        {isAr ? 'اكتشفي التشكيلة' : 'DISCOVER THE EDIT'}
+                      </span>
+                      <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 font-heading drop-shadow-md transform transition-transform duration-500 group-hover:scale-105">{cat.name}</h3>
+                      <p className="mt-1 text-xs sm:text-sm font-medium text-white/70">
+                        {cat._count.products} {isAr ? 'منتج' : 'products'}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
       )}
 
-      {/* Hero Section */}
-      <section className="relative w-full overflow-hidden min-h-[60vh] md:min-h-[80vh] flex items-center">
-        <div className="absolute inset-0 w-full h-full z-10">
-          {carouselSettings.enabled && carouselSlidesToDisplay.length > 0 ? (
-            <HeroCarousel slides={carouselSlidesToDisplay} settings={carouselSettings} />
-          ) : (
-            <div className="relative w-full h-full bg-[var(--color-charcoal-900)] flex flex-col items-center justify-center p-6 text-center z-20">
-              <Sparkles className="w-12 h-12 text-[var(--color-rose-400)] mb-6 opacity-80" />
-              <h1 className="text-3xl md:text-5xl font-bold leading-tight text-white font-heading mb-4">
-                {isAr ? (
-                  <>اكتشفي إطلالتك القادمة</>
-                ) : (
-                  <>Discover Your Next Look</>
-                )}
-              </h1>
-              <p className="text-sm md:text-base text-zinc-300 max-w-xl mx-auto leading-relaxed mb-8">
-                {isAr 
-                  ? 'ميكاب ديمو.. منتجات مختارة بعناية لتبرز جمالك الطبيعي وتزيد من ثقتك بنفسك.'
-                  : 'Makeup Demo.. carefully selected products to enhance your natural beauty and boost your confidence.'}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link 
-                  href="/shop" 
-                  className="px-8 py-3 bg-[var(--color-rose-600)] hover:bg-[var(--color-rose-500)] text-white font-bold rounded-sm transition-all text-sm shadow-md"
-                >
-                  {isAr ? 'تسوقي الآن' : 'Shop Now'}
+      {/* ═══════════════════════════════════════════════
+          C — FEATURED PRODUCTS (مختارات رَواق)
+          ═══════════════════════════════════════════════ */}
+      <ProductSection
+        title={isAr ? 'مختارات رَواق' : 'Rawaq favourites'}
+        eyebrow={isAr ? 'مختارة لكِ' : 'CURATED FOR YOU'}
+        products={featured}
+        locale={locale}
+        bg="bg-[#f5f3f0]"
+      />
+
+      {/* ═══════════════════════════════════════════════
+          D — HERITAGE EDITORIAL
+          ═══════════════════════════════════════════════ */}
+      <section className="bg-white py-14 sm:py-20">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="overflow-hidden border border-[#e8e5df] bg-[#3F4B32] text-white">
+            <div className="relative grid md:grid-cols-[1fr_.7fr]">
+              {/* Text content */}
+              <div className="relative self-center px-8 py-14 sm:px-12 sm:py-16">
+                <p className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'من تراثنا' : 'OUR HERITAGE'}</p>
+                <h2 className="mt-5 text-3xl leading-[1.45] !text-white sm:text-4xl">
+                  {isAr ? 'من تراثنا… إلى إطلالتكِ' : 'From our heritage… to your look'}
+                </h2>
+                <p className="mt-5 max-w-lg leading-8 text-white/70">
+                  {isAr
+                    ? 'تفاصيل صغيرة تحمل دفء الأردن — من ألوان الرمان والطرز الأردني إلى ملمس النسيج الأنيق — تترك لكِ المساحة لتختاري أسلوبك الخاص.'
+                    : 'Small details that carry the warmth of Jordan — pomegranate colors, Jordanian embroidery, the texture of elegant fabric — leaving room for you to make it your own.'}
+                </p>
+                {/* Tatreez divider */}
+                <div
+                  className="my-6 h-5 max-w-xs opacity-75"
+                  style={{ backgroundImage: "url('/brand/patterns/rawaq-tatreez-divider.svg')", backgroundRepeat: 'no-repeat', backgroundSize: 'contain' }}
+                  aria-hidden="true"
+                />
+                <Link href={`/${locale}/about`} className="btn-rawaq-ghost text-sm">
+                  {isAr ? 'اكتشفي حكايتنا' : 'Discover our story'}
                 </Link>
               </div>
+
+              {/* Logo/media placeholder */}
+              <div className="relative flex min-h-56 items-center justify-center border-t border-white/10 bg-[#f5f3f0] p-8 md:border-t-0 md:border-s md:border-s-white/10">
+                <Image
+                  src="/brand/logo_rawaq.png"
+                  alt={isAr ? 'شعار رَواق' : 'Rawaq'}
+                  width={400}
+                  height={400}
+                  className="relative h-auto w-full max-w-[260px] object-contain"
+                />
+              </div>
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* Categories Section */}
-      <section id="shop-by-category" className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold font-heading text-[var(--color-charcoal-900)] mb-4">
-              {isAr ? 'تسوقي حسب الفئة' : 'Shop by Category'}
-            </h2>
-            <div className="w-16 h-1 bg-[var(--color-rose-600)] mx-auto rounded-full" />
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {collections.length > 0 ? collections.map(collection => (
-              <Link href={`/${locale}/shop?category=${collection.id}`} key={collection.id} className="group flex flex-col rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-white border border-[var(--color-ivory-200)] hover:border-[var(--color-rose-600)]">
-                <div className="relative aspect-square overflow-hidden bg-[var(--color-ivory-100)]">
-                  {collection.imagePath ? (
-                    <Image
-                      src={collection.imagePath.startsWith('local://') ? collection.imagePath.replace('local://', '/') : collection.imagePath}
-                      alt={collection.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 25vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-[var(--color-ivory-200)] flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
-                       <span className="text-zinc-400 font-bold">{collection.name}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 text-center bg-white">
-                  <h3 className="text-lg font-bold font-heading text-zinc-900 group-hover:text-[var(--color-rose-600)] transition-colors">
-                    {collection.name}
-                  </h3>
-                </div>
-              </Link>
-            )) : (
-              <>
-                {[isAr ? 'الوجه' : 'Face', isAr ? 'العيون' : 'Eyes', isAr ? 'الشفاه' : 'Lips', isAr ? 'العناية' : 'Skincare'].map((label, i) => (
-                  <div key={i} className="flex flex-col rounded-xl overflow-hidden shadow-sm border border-[var(--color-ivory-200)] bg-white text-center">
-                    <div className="relative aspect-square bg-[var(--color-ivory-100)] flex items-center justify-center text-zinc-400 font-bold">{label} Image</div>
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold font-heading text-zinc-900">{label}</h3>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
           </div>
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-20 bg-[var(--color-ivory-100)]">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-charcoal-900)] mb-4">
-              {isAr ? 'الأكثر مبيعاً' : 'Best Sellers'}
-            </h2>
-            <div className="w-24 h-1 bg-[var(--color-rose-600)] mx-auto" />
+      {/* ═══════════════════════════════════════════════
+          E — WHY RAWAQ
+          ═══════════════════════════════════════════════ */}
+      <section className="bg-[#fbfaf8] py-14 sm:py-20 relative overflow-hidden">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 relative z-10">
+          <div className="mb-10 text-center">
+            <span className="rawaq-eyebrow">{isAr ? 'لماذا رَواق' : 'WHY RAWAQ'}</span>
+            <h2 className="mt-3 text-3xl sm:text-4xl">{isAr ? 'تفاصيل تصنع الفرق' : 'Details that define the difference'}</h2>
+            <div className="mx-auto mt-4 h-px w-12 bg-[#B7935F]" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {featuredProducts.length > 0 ? featuredProducts.map((product) => {
-            const mainImage = product.images.find(img => img.isMain) || product.images[0];
-            const lowestPrice = product.variants.length > 0 
-              ? Math.min(...product.variants.map(v => v.price))
-              : 0;
-
-            return (
-              <Link key={product.id} href={`/${locale}/products/${product.slug}`} className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 p-4 border border-[var(--color-ivory-200)] flex flex-col h-full hover:border-[var(--color-rose-600)]">
-                <div className="relative aspect-[4/3] w-full bg-[var(--color-ivory-100)] rounded-md mb-4 overflow-hidden">
-                  <div className="absolute top-2 right-2 z-20">
-                    <WishlistHeart product={{
-                      id: product.id,
-                      nameAr: product.nameAr,
-                      nameEn: product.nameEn,
-                      slug: product.slug,
-                      imageUrl: mainImage?.url || '',
-                      price: lowestPrice,
-                      stockStatus: product.stockStatus
-                    }} />
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center text-[var(--color-charcoal-600)]">
-                    {mainImage ? (
-                      <div className="w-full h-full bg-cover bg-center bg-no-repeat group-hover:scale-105 transition-transform duration-500" style={{ backgroundImage: `url("${mainImage.url.startsWith('local://') ? mainImage.url.replace('local://', '/') : mainImage.url}")` }} />
-                    ) : (
-                      isAr ? 'صورة المنتج' : 'Product Image'
-                    )}
-                  </div>
-                </div>
-                <div className="text-center flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-[var(--color-charcoal-900)] mb-1 group-hover:text-[var(--color-rose-600)] transition-colors">
-                    {isAr ? product.nameAr : product.nameEn}
-                  </h3>
-                  {product.category && <p className="text-xs text-zinc-500 mb-2">{product.category.name}</p>}
-                  <div className="mt-auto text-sm text-[var(--color-rose-600)] font-bold">
-                    {isAr ? 'اختر اللون لعرض السعر' : 'Select shade for price'}
-                  </div>
-                </div>
-                <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <button className="w-full py-2 bg-black hover:bg-zinc-900 text-[var(--color-gold-500)] rounded-sm text-sm font-bold shadow-md transition-colors border border-[var(--color-gold-500)]/30 hover:border-[var(--color-gold-500)]">
-                    {isAr ? 'عرض التفاصيل' : 'View Details'}
-                  </button>
-                </div>
-              </Link>
-            );
-          }) : (
-             <div className="col-span-full text-center text-zinc-500 py-10">
-                {isAr ? 'لا توجد منتجات مميزة حالياً.' : 'No featured products found.'}
-             </div>
-          )}
+          <div className="grid border-s border-t border-[#e8e5df] sm:grid-cols-2 lg:grid-cols-4">
+            {(isAr
+              ? [
+                  { icon: '✦', title: 'اختيارات متنوعة', text: 'كوزمتكس، عبايات، وأثواب أردنية — كل ما يشبهكِ في مكان واحد.' },
+                  { icon: '◇', title: 'روح أردنية', text: 'تصاميم مستوحاة من الطرز الأردني والتراث الجميل.' },
+                  { icon: '❋', title: 'تجربة مريحة', text: 'تسوّق سهل وتوصيل موثوق إلى جميع مناطق المملكة.' },
+                  { icon: '◉', title: 'جمال حقيقي', text: 'منتجات مختارة بعناية لتلائم الذوق العصري.' },
+                ]
+              : [
+                  { icon: '✦', title: 'A considered edit', text: 'Cosmetics, abayas, Jordanian thobes — everything that feels like you, in one place.' },
+                  { icon: '◇', title: 'Jordanian spirit', text: 'Designs inspired by Jordanian embroidery and beautiful heritage.' },
+                  { icon: '❋', title: 'A clear experience', text: 'Easy shopping and reliable delivery across Jordan.' },
+                  { icon: '◉', title: 'Real beauty', text: 'Products selected with care for the contemporary taste.' },
+                ]
+            ).map(({ icon, title, text }) => (
+              <article key={title} className="group border-b border-e border-[#e8e5df] bg-white p-6 sm:p-7">
+                <span
+                  aria-hidden="true"
+                  className="text-2xl text-[#76584c]"
+                >
+                  {icon}
+                </span>
+                <h3 className="mt-5 text-base font-bold text-[#2B2B2B]">{title}</h3>
+                <p className="mt-2 text-sm leading-7 text-[#746A64]">{text}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Seamless Experience Section */}
-      <section className="py-20 bg-[var(--color-charcoal-900)] text-white text-center">
-        <div className="container mx-auto px-6 max-w-4xl space-y-8">
-          <h2 className="text-3xl md:text-4xl font-bold font-heading text-[var(--color-rose-400)]">
-            {isAr ? 'تجربة جمال استثنائية' : 'An Exceptional Beauty Experience'}
+      {/* ═══════════════════════════════════════════════
+          F — NEW ARRIVALS
+          ═══════════════════════════════════════════════ */}
+      <ProductSection
+        title={isAr ? 'وصل حديثاً' : 'Just arrived'}
+        eyebrow={isAr ? 'الأحدث في رَواق' : 'NEW AT RAWAQ'}
+        products={latest}
+        locale={locale}
+        bg="bg-[#fbfaf8]"
+      />
+
+      {/* ═══════════════════════════════════════════════
+          G — CLOSING CTA
+          ═══════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden bg-[#3F4B32] py-16 text-white sm:py-20">
+        <OliveBranchDecoration className="absolute -end-20 -bottom-20 w-80 text-white opacity-10 pointer-events-none" />
+        <div className="relative mx-auto flex max-w-3xl flex-col items-center px-5 text-center z-10">
+          <p className="rawaq-eyebrow text-[#B7935F]">RAWAQ</p>
+          <h2 className="mt-4 text-3xl !text-white sm:text-4xl">
+            {isAr ? 'كل تفصيل يحكي حكاية' : 'Every detail tells a story'}
           </h2>
-          <p className="text-lg md:text-xl text-zinc-300 leading-relaxed max-w-3xl mx-auto">
-            {isAr ? 'درجات الألوان المصممة لتناسبك تماماً.' : 'Shades designed to match you perfectly.'}
+          <p className="mb-8 max-w-lg text-base leading-7 text-white/70">
+            {isAr
+              ? 'اكتشفي عالم رَواق — حيث الأناقة الأردنية تلتقي بالجمال المعاصر.'
+              : 'Discover the world of Rawaq — where Jordanian elegance meets contemporary beauty.'}
           </p>
-          <p className="text-zinc-400 leading-relaxed max-w-2xl mx-auto">
-            {isAr 
-              ? 'في ميكاب ديمو، نهتم بأدق التفاصيل. من اختيار درجة الفاونديشن المثالية إلى الروج الأنسب لدرجة بشرتك. يمكنك زيارة متجرنا لاختبار المنتجات مباشرة.'
-              : 'At Makeup Demo, we care about the finest details. From choosing the perfect foundation shade to the most suitable lipstick for your skin tone. You can visit our store to test products firsthand.'}
-          </p>
-        </div>
-      </section>
-
-      {/* Brand Story */}
-      <section id="brand-story" className="py-20 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            <span className="text-[var(--color-rose-600)] font-bold tracking-widest uppercase text-sm">
-              {isAr ? 'عن ميكاب ديمو' : 'About Makeup Demo'}
-            </span>
-            <h2 className="text-4xl font-bold font-heading text-[var(--color-charcoal-900)]">
-              {isAr ? 'رؤيتنا' : 'Our Vision'}
-            </h2>
-            <p className="text-xl text-zinc-700 font-medium italic">
-              {isAr ? 'إبراز الجمال الداخلي لكل امرأة.' : 'Enhancing the inner beauty of every woman.'}
-            </p>
-            <div className="space-y-4 text-zinc-600 leading-relaxed text-justify md:text-center">
-              <p>
-                {isAr 
-                  ? 'ميكاب ديمو هو نموذج حصري صُمم ليعكس قوة العلامات التجارية الخاصة بالتجميل.'
-                  : 'Makeup Demo is an exclusive model designed to reflect the power of beauty brands.'}
-              </p>
-              <p className="font-bold text-[var(--color-charcoal-900)] text-lg pt-4">
-                {isAr 
-                  ? 'نمزج بين العلم، والفن، والجودة لنقدم لك الأفضل.'
-                  : 'We blend science, art, and quality to bring you the best.'}
-              </p>
-            </div>
-            
-            <div className="pt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/shop" className="px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md">
-                {isAr ? 'تصفح المجموعة' : 'Shop the Collection'}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Demo Access Section */}
-      <section className="py-16 bg-[var(--color-rose-50)] border-y border-[var(--color-rose-100)] text-center">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <h2 className="text-2xl font-bold font-heading text-[var(--color-charcoal-900)] mb-6">
-            {isAr ? 'الدخول التجريبي لنسخة العرض' : 'Demo Access'}
-          </h2>
-          <p className="text-zinc-600 mb-8 max-w-2xl mx-auto">
-            {isAr 
-              ? 'يمكنك الدخول وتجربة لوحة تحكم الإدارة ونظام نقاط البيع للكاشير بدون الحاجة لتسجيل الدخول.'
-              : 'You can test the Admin Dashboard and POS Cashier without logging in.'}
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
-            <form action="/api/demo-login" method="GET">
-              <input type="hidden" name="role" value="admin" />
-              <button className="w-full sm:w-auto px-8 py-3 bg-[var(--color-gold-500)] hover:bg-[var(--color-gold-600)] text-black font-bold rounded-sm transition-all shadow-md flex items-center justify-center gap-2">
-                <span className="text-xl">👩‍💼</span>
-                {isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}
-              </button>
-            </form>
-            <form action="/api/demo-login" method="GET">
-              <input type="hidden" name="role" value="cashier" />
-              <button className="w-full sm:w-auto px-8 py-3 bg-black border-2 border-[var(--color-gold-500)] hover:bg-zinc-900 text-[var(--color-gold-500)] font-bold rounded-sm transition-all shadow-sm flex items-center justify-center gap-2">
-                <span className="text-xl">🛒</span>
-                {isAr ? 'نظام الكاشير (POS)' : 'POS System'}
-              </button>
-            </form>
-          </div>
-        </div>
-      </section>
-      
-      {/* Quote Section */}
-      <section className="py-24 bg-[var(--color-ivory-50)] border-y border-[var(--color-ivory-200)] relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-9xl text-[var(--color-ivory-200)] opacity-50 select-none font-serif">&quot;</div>
-        <div className="container mx-auto px-6 text-center relative z-10">
-          <p className="text-2xl md:text-3xl font-heading font-medium text-[var(--color-charcoal-900)] leading-relaxed max-w-4xl mx-auto">
-            {isAr 
-              ? '«الجمال لا يعني أن تكوني خالية من العيوب، بل أن تشرقي بثقة.»'
-              : '&quot;Beauty is not about being flawless, it is about shining with confidence.&quot;'}
-          </p>
+          <Link href={`/${locale}/shop`} className="btn-rawaq-primary bg-white text-[#3F4B32] hover:bg-[#f1efeb]">
+            {isAr ? 'تسوّقي رَواق' : 'Shop Rawaq'}
+          </Link>
         </div>
       </section>
     </main>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   SECTION HELPERS
+   ══════════════════════════════════════════════════════ */
+
+function ProductSection({
+  title,
+  eyebrow,
+  products,
+  locale,
+  bg = 'bg-white',
+}: {
+  title: string;
+  eyebrow: string;
+  products: any[];
+  locale: string;
+  bg?: string;
+}) {
+  const isAr = locale === 'ar';
+  return (
+    <section className={`${bg} py-16 sm:py-20`}>
+      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        {/* Heading */}
+        <div className="mb-10 text-center">
+          <span className="rawaq-eyebrow">{eyebrow}</span>
+          <h2 className="mt-3 text-3xl sm:text-4xl">{title}</h2>
+          <div className="mx-auto mt-4 h-px w-10 bg-[#3F4B32]" />
+        </div>
+
+        {products.length ? (
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {products.map(product => {
+              const image = product.images[0]?.url;
+              const price = product.variants[0]?.price;
+              const name = isAr ? product.nameAr : product.nameEn;
+              return (
+                <Link
+                  key={product.id}
+                  href={`/${locale}/products/${product.slug}`}
+                  className="group relative flex h-full flex-col outline-none transition-all duration-300 hover:-translate-y-1 rounded-[1.5rem] rounded-tr-[2.5rem] rounded-bl-[2.5rem] border border-[#E9DDCC] bg-white shadow-sm hover:shadow-md hover:border-[#B7935F]/60 overflow-hidden"
+                >
+                  <div className="relative w-full aspect-square bg-[#F7F3EA] shrink-0 border-b border-[#E9DDCC]/40 p-4 flex items-center justify-center">
+                      {image ? (
+                        <Image
+                          src={image.startsWith('local://') ? image.replace('local://', '/') : image}
+                          alt={name}
+                          fill
+                          sizes="(max-width: 640px) 48vw, (max-width: 1024px) 30vw, 270px"
+                          className="object-contain p-4 transition-transform duration-500 group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-4xl text-[#76584c]/40" aria-hidden="true">
+                          ✦
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex flex-1 flex-col pt-4 pb-5 px-4 text-center bg-white">
+                    <h3 className="line-clamp-2 min-h-[3rem] text-sm md:text-[15px] font-medium leading-[1.6] text-[#242424] transition-colors group-hover:text-[#B7935F]">
+                      {name}
+                    </h3>
+                    <div className="mt-auto pt-4 flex items-center justify-center gap-1.5">
+                      {price ? (
+                        <>
+                          <span className="text-[10px] uppercase tracking-widest text-[#A69A8C] font-semibold">{isAr ? 'ابتداءً من' : 'From'}</span>
+                          <span className="text-[15px] font-bold text-[#3F4B32]">{filsToDisplay(price, isAr ? 'ar' : 'en')}</span>
+                        </>
+                      ) : (
+                        <span className="text-[13px] font-medium text-[#3F4B32] underline underline-offset-4 decoration-[#D9C6A8]">{isAr ? 'اكتشفي التفاصيل' : 'Discover more'}</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[#D9C6A8] bg-[#FBF8F2] px-6 py-16 text-center">
+            <span aria-hidden="true" className="block text-4xl text-[#B7935F]/50 mb-4">✦</span>
+            <p className="text-[#746A64]">{isAr ? 'تُجهّز رَواق مختاراتها الجديدة قريباً.' : 'New selections are coming soon.'}</p>
+          </div>
+        )}
+
+        <div className="mt-10 text-center">
+          <Link href={`/${locale}/shop`} className="btn-rawaq-gold text-sm">
+            {isAr ? 'عرض جميع المنتجات' : 'View all products'}
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

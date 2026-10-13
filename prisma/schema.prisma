@@ -1,59 +1,59 @@
 generator client {
-  provider        = "prisma-client-js"
-  engineType      = "library"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// ----------------------------------------------------------------------
-// AUTHENTICATION & AUTHORIZATION
-// ----------------------------------------------------------------------
-
 model Employee {
-  id                  String               @id @default(uuid())
-  email               String               @unique
-  name                String
-  passwordHash        String // Argon2id hash
-  pinHash             String? // Opaque PIN hash for shift unlocking
-  mustChangePassword  Boolean              @default(false)
-  bootstrapCredential Boolean              @default(false)
-  isActive            Boolean              @default(true)
-  roleId              String
-  role                Role                 @relation(fields: [roleId], references: [id])
-  sessions            Session[]
-  loginAttempts       LoginAttempt[]
-  auditLogs           AuditLog[]
-  sales               Sale[]
-  returns             Return[]
-  inventoryMoves      InventoryMovement[]
-  permissions         EmployeePermission[]
-  shifts              Shift[]
-  heldSales           HeldSale[]
-  soldSales           Sale[]               @relation("SoldSales")
-  failedAttempts      Int                  @default(0)
-  lockoutUntil        DateTime?
-  mfaSecret           String? // Encrypted secret
-  mfaEnabled          Boolean              @default(false)
-  mfaRecoveryCodes    String? // Hashed single-use recovery codes (JSON)
-  pendingMfaChallenge PendingMfaChallenge?
-  importJobs          ImportJob[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                                                                         String                  @id @default(uuid())
+  email                                                                      String                  @unique
+  name                                                                       String
+  passwordHash                                                               String
+  isActive                                                                   Boolean                 @default(true)
+  roleId                                                                     String
+  createdAt                                                                  DateTime                @default(now())
+  updatedAt                                                                  DateTime                @updatedAt
+  failedAttempts                                                             Int                     @default(0)
+  lockoutUntil                                                               DateTime?
+  bootstrapCredential                                                        Boolean                 @default(false)
+  mustChangePassword                                                         Boolean                 @default(false)
+  pinHash                                                                    String?
+  mfaEnabled                                                                 Boolean                 @default(false)
+  mfaRecoveryCodes                                                           String?
+  mfaSecret                                                                  String?
+  auditLogs                                                                  AuditLog[]
+  role                                                                       Role                    @relation(fields: [roleId], references: [id])
+  permissions                                                                EmployeePermission[]
+  heldSales                                                                  HeldSale[]
+  InventoryCountSession_InventoryCountSession_approvedByEmployeeIdToEmployee InventoryCountSession[] @relation("InventoryCountSession_approvedByEmployeeIdToEmployee")
+  InventoryCountSession_InventoryCountSession_assignedByEmployeeIdToEmployee InventoryCountSession[] @relation("InventoryCountSession_assignedByEmployeeIdToEmployee")
+  InventoryCountSession_InventoryCountSession_assignedEmployeeIdToEmployee   InventoryCountSession[] @relation("InventoryCountSession_assignedEmployeeIdToEmployee")
+  InventoryCountSession_InventoryCountSession_reviewedByEmployeeIdToEmployee InventoryCountSession[] @relation("InventoryCountSession_reviewedByEmployeeIdToEmployee")
+  inventoryMoves                                                             InventoryMovement[]
+  loginAttempts                                                              LoginAttempt[]
+  ProductLiquidMovement                                                      ProductLiquidMovement[]
+  ProductLiquidStock                                                         ProductLiquidStock[]
+  returns                                                                    Return[]
+  sales                                                                      Sale[]
+  soldSales                                                                  Sale[]                  @relation("SoldSales")
+  sessions                                                                   Session[]
+  shifts                                                                     Shift[]
 }
 
 model EmployeePermission {
   employeeId          String
   permissionId        String
-  effect              String     @default("ALLOW") // "ALLOW" or "DENY"
+  createdAt           DateTime   @default(now())
+  effect              String     @default("ALLOW")
+  expiresAt           DateTime?
   grantedByEmployeeId String
   reason              String?
-  expiresAt           DateTime?
+  updatedAt           DateTime   @updatedAt
   employee            Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   permission          Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
 
   @@id([employeeId, permissionId])
 }
@@ -68,28 +68,28 @@ model Role {
 
 model Permission {
   id          String               @id @default(uuid())
-  action      String               @unique // e.g., 'manage_products', 'manage_employees', 'void_sale'
+  action      String               @unique
   description String?
-  roles       RolePermission[]
   employees   EmployeePermission[]
+  roles       RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
 
 model Session {
-  id             String   @id // SHA-256 hash of the session token
+  id             String   @id
   employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   expiresAt      DateTime
-  lastActivityAt DateTime @default(now())
   createdAt      DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model LoginAttempt {
@@ -99,168 +99,97 @@ model LoginAttempt {
   userAgent  String?
   success    Boolean
   employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
-}
-
-model PendingMfaChallenge {
-  id         String   @id @default(uuid())
-  employeeId String   @unique
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  token      String   @unique
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-}
-
-// ----------------------------------------------------------------------
-// PRODUCT CATALOG (COSMETICS & BEAUTY)
-// ----------------------------------------------------------------------
-
-model Brand {
-  id          String    @id @default(uuid())
-  slug        String    @unique
-  nameAr      String
-  nameEn      String
-  description String?
-  logoUrl     String?
-  isVisible   Boolean   @default(true)
-  products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Product {
-  id               String              @id @default(uuid())
-  slug             String              @unique
-  nameAr           String
-  nameEn           String
-  sku              String              @unique
-  barcode          String?             @unique
-  shortDescription String?
-  longDescription  String?
-  
-  categoryId       String
-  category         Category            @relation(fields: [categoryId], references: [id])
-  
-  brandId          String?
-  brand            Brand?              @relation(fields: [brandId], references: [id])
-  
-  productType      String?
-  
-  isVisible        Boolean             @default(true)
-  isFeatured       Boolean             @default(false)
-  isBestSeller     Boolean             @default(false)
-  isNew            Boolean             @default(false)
-  isTrending       Boolean             @default(false)
-  featuredOrder    Int                 @default(0)
-  
-  needsReview      Boolean             @default(false)
-  reviewReasons    String? 
-  stockStatus      String              @default("UNVERIFIED")
-  notesStatus      String              @default("VERIFIED")
-  
-  tags             String?
-  ingredients      String?
-  howToUse         String?
-  warnings         String?
-  
-  finish           String?
-  coverage         String?
-  skinType         String?
-  benefits         String?
-
-  variants         ProductVariant[]
-  images           ProductImage[]
-  orderItems       OrderItem[]
-  slides           HomepageHeroSlide[]
-  
-  // Similar products (many-to-many self-relation)
-  similarProducts  ProductSimilar[]    @relation("ProductSimilars")
-  similarOf        ProductSimilar[]    @relation("SimilarOf")
-  
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-
-  @@index([slug])
-  @@index([categoryId])
-  @@index([brandId])
-  @@index([isVisible])
-}
-
-model ProductSimilar {
-  productId String
-  similarId String
-  order     Int     @default(0)
-  product   Product @relation("ProductSimilars", fields: [productId], references: [id], onDelete: Cascade)
-  similar   Product @relation("SimilarOf", fields: [similarId], references: [id], onDelete: Cascade)
-
-  @@id([productId, similarId])
-  @@index([productId])
+  id                    String                  @id @default(uuid())
+  slug                  String                  @unique
+  nameAr                String
+  nameEn                String
+  sku                   String                  @unique
+  shortDescription      String?
+  longDescription       String?
+  categoryId            String
+  collectionId          String?
+  genderId              String?
+  seasonId              String?
+  familyId              String?
+  isVisible             Boolean                 @default(true)
+  isFeatured            Boolean                 @default(false)
+  featuredOrder         Int                     @default(0)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  needsReview           Boolean                 @default(false)
+  reviewReasons         String?
+  stockStatus           String                  @default("UNVERIFIED")
+  inventoryMode         String                  @default("FINISHED_PRODUCT")
+  notesStatus           String                  @default("VERIFIED")
+  InventoryCountLine    InventoryCountLine[]
+  orderItems            OrderItem[]
+  category              Category                @relation(fields: [categoryId], references: [id])
+  Collection            Collection?             @relation(fields: [collectionId], references: [id])
+  FragranceFamily       FragranceFamily?        @relation(fields: [familyId], references: [id])
+  Gender                Gender?                 @relation(fields: [genderId], references: [id])
+  Season                Season?                 @relation(fields: [seasonId], references: [id])
+  ProductAccord         ProductAccord[]
+  ProductFormula        ProductFormula[]
+  images                ProductImage[]
+  ProductLiquidMovement ProductLiquidMovement[]
+  ProductLiquidStock    ProductLiquidStock?
+  ProductNote           ProductNote[]
+  variants              ProductVariant[]
 }
 
 model ProductVariant {
-  id                String       @id @default(uuid())
+  id                String          @id @default(uuid())
   productId         String
-  product           Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name              String       // e.g. "Rosewood", "50ml", "Standard"
-  sku               String       @unique
-  barcode           String?      @unique
-  price             Int          // Stored in minor units (e.g. fils or cents)
+  size              String
+  sku               String          @unique
+  price             Int
   compareAt         Int?
-  
-  stock             Int          @default(0)
-  colorName         String?
-  colorHex          String?
-  mainImage         String?
-  swatchImage       String?
-  modelImage        String?
-
-  isActive          Boolean      @default(true)
-  usesGlobalPricing Boolean      @default(true)
-  inventorySource   String       @default("INTERNAL") // INTERNAL or SUPPLIER
-  
-  images            ProductImage[]
-  supplierOffers    SupplierOffer[]
-  saleItems         SaleItem[]
+  stock             Int             @default(0)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  usesGlobalPricing Boolean         @default(true)
+  inventorySource   String          @default("INTERNAL")
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   returnItems       ReturnItem[]
-  
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-
-  @@index([sku])
+  saleItems         SaleItem[]
+  supplierOffers    SupplierOffer[]
 }
 
-// A variant can be sourced from multiple suppliers. Financial values are
-// snapshotted onto OrderItem when a checkout is created.
 model Supplier {
-  id          String          @id @default(uuid())
+  id          String               @id @default(uuid())
   name        String
   phone       String?
   email       String?
   notes       String?
-  isActive    Boolean         @default(true)
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
   offers      SupplierOffer[]
   settlements SupplierSettlement[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
 
   @@index([isActive, name])
 }
 
 model SupplierOffer {
-  id                       String         @id @default(uuid())
-  supplierId               String
-  supplier                 Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  variantId                String
-  variant                  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  unitCost                 Int            // fils
-  supplierProfitShareBps   Int            @default(0) // 0-10000 basis points of product margin
-  stock                    Int            @default(0)
-  inventoryMovements       SupplierInventoryMovement[]
-  supplierSku              String?
-  isActive                 Boolean        @default(true)
-  createdAt                DateTime       @default(now())
-  updatedAt                DateTime       @updatedAt
+  id                     String                      @id @default(uuid())
+  supplierId             String
+  variantId              String
+  unitCost               Int
+  supplierProfitShareBps Int                         @default(0)
+  stock                  Int                         @default(0)
+  supplierSku            String?
+  isActive               Boolean                     @default(true)
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  inventoryMovements     SupplierInventoryMovement[]
+  supplier               Supplier                    @relation(fields: [supplierId], references: [id])
+  variant                ProductVariant              @relation(fields: [variantId], references: [id])
 
   @@unique([supplierId, variantId])
   @@index([variantId, isActive])
@@ -268,252 +197,224 @@ model SupplierOffer {
 }
 
 model SupplierInventoryMovement {
-  id             String        @id @default(uuid())
+  id              String        @id @default(uuid())
   supplierOfferId String
-  supplierOffer  SupplierOffer @relation(fields: [supplierOfferId], references: [id], onDelete: Restrict)
-  quantityDelta  Int
-  quantityBefore Int
-  quantityAfter  Int
-  reason         String
-  reference      String?
+  quantityDelta   Int
+  quantityBefore  Int
+  quantityAfter   Int
+  reason          String
+  reference       String?
   actorEmployeeId String?
-  createdAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  supplierOffer   SupplierOffer @relation(fields: [supplierOfferId], references: [id])
+
   @@index([supplierOfferId, createdAt])
 }
 
 model ProductImage {
-  id        String          @id @default(uuid())
+  id        String   @id @default(uuid())
   productId String
-  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantId String?
-  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   url       String
   alt       String?
-  type      String          @default("PRIMARY") // "PRIMARY", "CLOSEUP", "SWATCH", "DETAIL", "LIFESTYLE", "PACKAGING", "INGREDIENTS", "SIZE"
-  isMain    Boolean         @default(false)
-  order     Int             @default(0)
-  createdAt DateTime        @default(now())
+  isMain    Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Category {
-  id          String              @id @default(uuid())
-  slug        String              @unique
+  id          String    @id @default(uuid())
+  slug        String    @unique
   name        String
   description String?
-  imagePath   String?
   products    Product[]
-  slides      HomepageHeroSlide[]
 }
 
-// ----------------------------------------------------------------------
-// ORDERS & SALES (STOREFRONT + POS)
-// ----------------------------------------------------------------------
-
 model Order {
-  id             String               @id @default(uuid())
-  reference      String               @unique // Secure public reference
-  customerName   String
-  customerPhone  String
-  status         String // "AWAITING_WHATSAPP", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"
-  totalAmount    Int
-  shippingCost   Int
-  actualDeliveryCost Int? // carrier cost snapshot in fils; null marks an order predating cost tracking
-  discountAmount    Int               @default(0)
-  couponDiscount    Int               @default(0)
-  rewardDiscount    Int               @default(0)
-  couponCodeSnapshot String?
-  rewardNameSnapshot String?
+  id                       String                 @id @default(uuid())
+  reference                String                 @unique
+  customerName             String
+  customerPhone            String
+  status                   String
+  totalAmount              Int
+  shippingCost             Int
+  notes                    String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  idempotencyKey           String?                @unique
+  paymentStatus            String                 @default("UNPAID")
+  actualDeliveryCost       Int?
+  discountAmount           Int                    @default(0)
+  couponDiscount           Int                    @default(0)
+  rewardDiscount           Int                    @default(0)
+  couponCodeSnapshot       String?
+  rewardNameSnapshot       String?
   shippingZoneNameSnapshot String?
-  deliveryAssignment DeliveryAssignment?
-  couponRedemption CouponRedemption?
-  rewardRedemptions RewardRedemption[]
-  financialTransactions FinancialTransaction[]
-  notes          String?
-  idempotencyKey String?              @unique
-  items          OrderItem[]
-  statusHistory  OrderStatusHistory[]
-  invoice        Invoice?
-  paymentStatus  String               @default("UNPAID") // "UNPAID", "COD_PENDING", "PARTIALLY_PAID", "PAID", "REFUNDED"
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  couponRedemption         CouponRedemption?
+  deliveryAssignment       DeliveryAssignment?
+  financialTransactions    FinancialTransaction[]
+  invoice                  Invoice?
+  items                    OrderItem[]
+  statusHistory            OrderStatusHistory[]
+  rewardRedemptions        RewardRedemption[]
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  variantId String
-  sku       String
-  name      String
-  size      String
-  quantity  Int
-  unitPrice Int
-  total     Int
-  supplierOfferIdSnapshot String?
-  supplierIdSnapshot String?
-  supplierNameSnapshot String?
-  unitCostSnapshot Int?
+  id                             String  @id @default(uuid())
+  orderId                        String
+  productId                      String
+  variantId                      String
+  sku                            String
+  name                           String
+  size                           String
+  quantity                       Int
+  unitPrice                      Int
+  total                          Int
+  supplierIdSnapshot             String?
+  supplierOfferIdSnapshot        String?
+  supplierNameSnapshot           String?
+  unitCostSnapshot               Int?
   supplierProfitShareBpsSnapshot Int?
-  supplierAmountSnapshot Int?
-  platformProductProfitSnapshot Int?
-  discountAmountSnapshot Int @default(0)
+  supplierAmountSnapshot         Int?
+  platformProductProfitSnapshot  Int?
+  discountAmountSnapshot         Int     @default(0)
+  order                          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product                        Product @relation(fields: [productId], references: [id])
 }
 
 model OrderStatusHistory {
   id        String   @id @default(uuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status    String
   notes     String?
   createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model Sale {
-  id           String   @id @default(uuid())
-  reference    String   @unique
-  employeeId   String
-  employee     Employee @relation(fields: [employeeId], references: [id])
-  customerName String?  @default("عميل نقدي")
-  subtotal     Int
-  tax          Int
-  discount     Int      @default(0)
-  total        Int
-  status       String // "COMPLETED", "VOIDED"
-  source       String   @default("POS")
-
-  // Attribution Snapshots
-  soldByEmployeeId           String?
-  soldBy                     Employee? @relation("SoldSales", fields: [soldByEmployeeId], references: [id])
-  sellerNameSnapshot         String?
+  id                         String                 @id @default(uuid())
+  reference                  String                 @unique
+  employeeId                 String
+  customerName               String?                @default("عميل نقدي")
+  subtotal                   Int
+  tax                        Int
+  discount                   Int                    @default(0)
+  total                      Int
+  status                     String
+  source                     String                 @default("POS")
+  createdAt                  DateTime               @default(now())
+  completedAt                DateTime?
+  saleSource                 String                 @default("POS")
   sellerEmailSnapshot        String?
-  sellerRoleSnapshot         String?
   sellerEmployeeCodeSnapshot String?
-  saleSource                 String    @default("POS")
+  sellerNameSnapshot         String?
+  sellerRoleSnapshot         String?
   sessionId                  String?
   shiftId                    String?
+  soldByEmployeeId           String?
   terminalId                 String?
-  completedAt                DateTime?
-
-  items          SaleItem[]
-  payments       Payment[]
-  invoice        Invoice?
-  returns        Return[]
-  financialTransactions FinancialTransaction[]
-  idempotencyKey String?    @unique
-  createdAt      DateTime   @default(now())
+  financialTransactions      FinancialTransaction[]
+  invoice                    Invoice?
+  payments                   Payment[]
+  returns                    Return[]
+  employee                   Employee               @relation(fields: [employeeId], references: [id])
+  soldBy                     Employee?              @relation("SoldSales", fields: [soldByEmployeeId], references: [id])
+  items                      SaleItem[]
 }
 
 model SaleItem {
-  id        String         @id @default(uuid())
-  saleId    String
-  sale      Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-  sku       String
-  name      String
-  size      String
-  quantity  Int
-  unitPrice Int
-  total     Int
-  discountAmountSnapshot Int @default(0)
-  supplierOfferIdSnapshot String?
-  supplierIdSnapshot String?
-  supplierNameSnapshot String?
-  unitCostSnapshot Int?
+  id                             String         @id @default(uuid())
+  saleId                         String
+  variantId                      String
+  sku                            String
+  name                           String
+  size                           String
+  quantity                       Int
+  unitPrice                      Int
+  total                          Int
+  discountAmountSnapshot         Int            @default(0)
+  supplierOfferIdSnapshot        String?
+  supplierIdSnapshot             String?
+  supplierNameSnapshot           String?
+  unitCostSnapshot               Int?
   supplierProfitShareBpsSnapshot Int?
-  supplierAmountSnapshot Int?
-  platformProductProfitSnapshot Int?
+  supplierAmountSnapshot         Int?
+  platformProductProfitSnapshot  Int?
+  sale                           Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant                        ProductVariant @relation(fields: [variantId], references: [id])
 }
 
 model Payment {
   id             String   @id @default(uuid())
   saleId         String
-  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  method         String // "CASH", "CARD"
-  amount         Int // The applied payment amount
-  amountTendered Int? // The physical amount tendered by the customer
-  terminalRef    String? // Cashier-recorded card terminal reference
+  method         String
+  amount         Int
+  amountTendered Int?
   createdAt      DateTime @default(now())
+  terminalRef    String?
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
 }
 
 model Invoice {
-  id      String  @id @default(uuid())
-  saleId  String? @unique
-  sale    Sale?   @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  orderId String? @unique
-  order   Order?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  number  String  @unique // Sequential invoice number
-  taxId   String? // Company Tax ID at time of sale
-
-  // Unambiguous Financial Snapshots (in Fils)
-  netSubtotalFils          Int     @default(0)
-  discountAmountFils       Int     @default(0)
-  shippingAmountFils       Int     @default(0)
-  taxAmountFils            Int     @default(0)
-  grossTotalFils           Int     @default(0)
-  taxRateSnapshot          Float   @default(0.0)
-  taxModeSnapshot          String  @default("DISABLED") // "DISABLED", "INCLUSIVE", "EXCLUSIVE"
-  pricesIncludeTaxSnapshot Boolean @default(true)
-
-  // Payment & Cash Tender/Allocation Breakdown (in Fils)
-  cashAppliedFils       Int     @default(0)
-  cardAppliedFils       Int     @default(0)
-  cashTenderedFils      Int     @default(0)
-  changeDueFils         Int     @default(0)
-  paymentStatus         String  @default("UNPAID") // "UNPAID", "COD_PENDING", "PARTIALLY_PAID", "PAID", "REFUNDED", "PARTIALLY_REFUNDED"
-  refundAmountFils      Int     @default(0)
-  confirmedByEmployeeId String? // Employee who confirmed storefront order or processed POS sale
-
-  // Cashier Attribution Snapshots
-  cashierNameSnapshot String?
-  cashierRoleSnapshot String?
-
-  printed   Int      @default(0) // Number of times printed
-  createdAt DateTime @default(now())
+  id                       String   @id @default(uuid())
+  saleId                   String?  @unique
+  number                   String   @unique
+  taxId                    String?
+  printed                  Int      @default(0)
+  createdAt                DateTime @default(now())
+  orderId                  String?  @unique
+  confirmedByEmployeeId    String?
+  paymentStatus            String   @default("UNPAID")
+  pricesIncludeTaxSnapshot Boolean  @default(true)
+  taxModeSnapshot          String   @default("DISABLED")
+  taxRateSnapshot          Float    @default(0.0)
+  cardAppliedFils          Int      @default(0)
+  cashAppliedFils          Int      @default(0)
+  cashTenderedFils         Int      @default(0)
+  changeDueFils            Int      @default(0)
+  discountAmountFils       Int      @default(0)
+  grossTotalFils           Int      @default(0)
+  netSubtotalFils          Int      @default(0)
+  shippingAmountFils       Int      @default(0)
+  taxAmountFils            Int      @default(0)
+  cashierNameSnapshot      String?
+  cashierRoleSnapshot      String?
+  refundAmountFils         Int      @default(0)
+  order                    Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sale                     Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
 }
 
 model Return {
-  id                   String       @id @default(uuid())
-  saleId               String
-  sale                 Sale         @relation(fields: [saleId], references: [id])
-  employeeId           String
-  employee             Employee     @relation(fields: [employeeId], references: [id])
-  reason               String?
-  totalAmount          Int
-  refundMethod         String?      @default("CASH")
-  approvedByEmployeeId String?
-  stockMovementRef     String?
-  items                ReturnItem[]
-  createdAt            DateTime     @default(now())
+  id          String       @id @default(uuid())
+  saleId      String
+  employeeId  String
+  reason      String?
+  totalAmount Int
+  createdAt   DateTime     @default(now())
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  sale        Sale         @relation(fields: [saleId], references: [id])
+  items       ReturnItem[]
 }
 
 model ReturnItem {
   id        String         @id @default(uuid())
   returnId  String
-  return    Return         @relation(fields: [returnId], references: [id], onDelete: Cascade)
   variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
   quantity  Int
   amount    Int
+  return    Return         @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
 }
 
-// ----------------------------------------------------------------------
-// INVENTORY & FORMULAS
-// ----------------------------------------------------------------------
-
 model InventoryMovement {
-  id             String   @id @default(uuid())
-  sku            String
-  type           String // "IN", "OUT", "SALE", "RETURN"
-  quantity       Int // the change amount
-  quantityBefore Int      @default(0)
-  quantityAfter  Int      @default(0)
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id])
-  reference      String?
-  createdAt      DateTime @default(now())
+  id         String   @id @default(uuid())
+  sku        String
+  type       String
+  quantity   Int
+  employeeId String
+  reference  String?
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model StockAdjustment {
@@ -525,93 +426,92 @@ model StockAdjustment {
   createdAt DateTime @default(now())
 }
 
-// ----------------------------------------------------------------------
-// SYSTEM & CMS
-// ----------------------------------------------------------------------
-
 model AuditLog {
   id         String    @id @default(uuid())
   employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  action     String // e.g. "SALE_VOIDED", "PRODUCT_UPDATED"
+  action     String
   entityType String
   entityId   String
-  details    String? // JSON string with changes
+  details    String?
   ipAddress  String?
   createdAt  DateTime  @default(now())
+  employee   Employee? @relation(fields: [employeeId], references: [id])
 }
 
 model SiteSettings {
   key   String @id
-  value String // JSON string
+  value String
 }
 
 model GlobalPricingSettings {
   id               String  @id @default("1")
-  taxEnabled       Boolean @default(false)
   taxRate          Float   @default(0.0)
-  pricesIncludeTax Boolean @default(true)
   currencyCode     String  @default("JOD")
   currencySymbol   String  @default("د.أ")
+  pricesIncludeTax Boolean @default(true)
+  taxEnabled       Boolean @default(false)
 }
 
 model ShippingZone {
   id                    String  @id @default(uuid())
   nameAr                String
   nameEn                String
-  fee                   Int // in minor units (fils)
-  actualDeliveryCost    Int?    // carrier cost in fils; null means not configured
-  captainEarning        Int?    // default captain earnings in fils; null means not configured
-  estimatedDeliveryTime String // e.g. "24-48 hours"
+  fee                   Int
+  estimatedDeliveryTime String
   isEnabled             Boolean @default(true)
-  freeShippingThreshold Int? // in minor units, null means disabled
+  freeShippingThreshold Int?
+  actualDeliveryCost    Int?
+  captainEarning        Int?
 }
 
 model RewardRule {
-  id             String   @id @default(uuid())
-  name           String
-  minimumAmount  Int
-  rewardType     String   // FREE_DELIVERY, PERCENT, FIXED
-  rewardValue    Int      @default(0) // percent integer or fils
-  priority       Int      @default(0)
-  isActive       Boolean  @default(true)
-  startsAt       DateTime?
-  endsAt         DateTime?
-  usageLimit     Int?
-  usageCount     Int      @default(0)
-  redemptions    RewardRedemption[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String             @id @default(uuid())
+  name          String
+  minimumAmount Int
+  rewardType    String
+  rewardValue   Int                @default(0)
+  isActive      Boolean            @default(true)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  usageLimit    Int?
+  usageCount    Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  priority      Int                @default(0)
+  redemptions   RewardRedemption[]
+
   @@index([isActive, minimumAmount])
 }
 
 model Coupon {
-  id                    String             @id @default(uuid())
-  code                  String             @unique
-  name                  String?
-  discountType          String             // PERCENT, FIXED, FREE_DELIVERY
-  discountValue         Int                @default(0)
-  minimumOrderAmount    Int                @default(0)
-  maximumDiscount       Int?
-  startsAt              DateTime?
-  endsAt                DateTime?
-  usageLimit            Int?
-  perCustomerLimit      Int?
-  usageCount            Int                @default(0)
-  isActive              Boolean            @default(true)
-  targets               CouponTarget[]
-  redemptions           CouponRedemption[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  id                 String             @id @default(uuid())
+  code               String             @unique
+  name               String?
+  discountType       String
+  discountValue      Int                @default(0)
+  minimumOrderAmount Int                @default(0)
+  maximumDiscount    Int?
+  startsAt           DateTime?
+  endsAt             DateTime?
+  usageLimit         Int?
+  perCustomerLimit   Int?
+  usageCount         Int                @default(0)
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  redemptions        CouponRedemption[]
+  targets            CouponTarget[]
+
   @@index([isActive, startsAt, endsAt])
 }
 
 model CouponTarget {
-  id        String @id @default(uuid())
-  couponId  String
-  coupon    Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  targetType String // PRODUCT, CATEGORY, BRAND
+  id         String @id @default(uuid())
+  couponId   String
+  targetType String
   targetId   String
+  coupon     Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
   @@unique([couponId, targetType, targetId])
   @@index([targetType, targetId])
 }
@@ -619,25 +519,27 @@ model CouponTarget {
 model CouponRedemption {
   id          String   @id @default(uuid())
   couponId    String
-  coupon      Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
   orderId     String   @unique
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   customerKey String
   amount      Int
   isVoided    Boolean  @default(false)
   createdAt   DateTime @default(now())
+  coupon      Coupon   @relation(fields: [couponId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id])
+
   @@index([couponId, customerKey])
 }
 
 model RewardRedemption {
-  id          String    @id @default(uuid())
+  id           String     @id @default(uuid())
   rewardRuleId String
-  rewardRule  RewardRule @relation(fields: [rewardRuleId], references: [id], onDelete: Restrict)
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  amount      Int       @default(0)
-  isVoided    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
+  orderId      String
+  amount       Int        @default(0)
+  isVoided     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  order        Order      @relation(fields: [orderId], references: [id])
+  rewardRule   RewardRule @relation(fields: [rewardRuleId], references: [id])
+
   @@unique([rewardRuleId, orderId])
   @@index([rewardRuleId, isVoided])
 }
@@ -649,124 +551,126 @@ model Captain {
   status      String               @default("AVAILABLE")
   isActive    Boolean              @default(true)
   notes       String?
-  assignments DeliveryAssignment[]
-  settlements CaptainSettlement[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+  settlements CaptainSettlement[]
+  assignments DeliveryAssignment[]
 }
 
 model DeliveryAssignment {
-  id                    String   @id @default(uuid())
-  orderId               String   @unique
-  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  id                    String                 @id @default(uuid())
+  orderId               String                 @unique
   captainId             String
-  captain               Captain  @relation(fields: [captainId], references: [id], onDelete: Restrict)
-  status                String   @default("ASSIGNED")
-  captainEarning        Int      // immutable snapshot, fils
-  customerDeliveryFee   Int      // immutable snapshot, fils
-  actualCarrierCost     Int?     // immutable snapshot, fils
+  status                String                 @default("ASSIGNED")
+  captainEarning        Int
+  customerDeliveryFee   Int
+  actualCarrierCost     Int?
   assignedByEmployeeId  String?
   deliveredAt           DateTime?
   notes                 String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  captain               Captain                @relation(fields: [captainId], references: [id])
+  order                 Order                  @relation(fields: [orderId], references: [id])
   financialTransactions FinancialTransaction[]
+
   @@index([captainId, status])
 }
 
 model SupplierSettlement {
-  id          String   @id @default(uuid())
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  amount      Int
-  paymentMethod String
-  reference   String?
-  notes       String?
+  id                  String   @id @default(uuid())
+  supplierId          String
+  amount              Int
+  paymentMethod       String
+  reference           String?
+  notes               String?
   createdByEmployeeId String?
-  createdAt   DateTime @default(now())
+  createdAt           DateTime @default(now())
+  supplier            Supplier @relation(fields: [supplierId], references: [id])
+
   @@index([supplierId, createdAt])
 }
 
 model CaptainSettlement {
-  id          String   @id @default(uuid())
-  captainId   String
-  captain     Captain  @relation(fields: [captainId], references: [id], onDelete: Restrict)
-  amount      Int
-  paymentMethod String
-  reference   String?
-  notes       String?
+  id                  String   @id @default(uuid())
+  captainId           String
+  amount              Int
+  paymentMethod       String
+  reference           String?
+  notes               String?
   createdByEmployeeId String?
-  createdAt   DateTime @default(now())
+  createdAt           DateTime @default(now())
+  captain             Captain  @relation(fields: [captainId], references: [id])
+
   @@index([captainId, createdAt])
 }
 
 model FinancialTransaction {
-  id          String   @id @default(uuid())
-  businessEventKey String? @unique
-  type        String
-  direction   String   // IN or OUT
-  amount      Int
-  orderId     String?
-  order       Order?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  saleId      String?
-  sale        Sale?    @relation(fields: [saleId], references: [id], onDelete: Restrict)
-  supplierId  String?
-  captainId   String?
+  id                   String              @id @default(uuid())
+  type                 String
+  direction            String
+  amount               Int
+  orderId              String?
+  saleId               String?
+  supplierId           String?
+  captainId            String?
   deliveryAssignmentId String?
-  deliveryAssignment DeliveryAssignment? @relation(fields: [deliveryAssignmentId], references: [id], onDelete: Restrict)
-  description String
-  createdByEmployeeId String?
-  createdAt   DateTime @default(now())
-  expense     Expense?
+  description          String
+  createdByEmployeeId  String?
+  createdAt            DateTime            @default(now())
+  businessEventKey     String?             @unique
+  expense              Expense?
+  deliveryAssignment   DeliveryAssignment? @relation(fields: [deliveryAssignmentId], references: [id], onDelete: Restrict)
+  order                Order?              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  sale                 Sale?               @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
   @@index([type, createdAt])
   @@index([supplierId, createdAt])
   @@index([captainId, createdAt])
   @@index([orderId, type])
+  @@index([saleId])
 }
 
 model Expense {
-  id          String   @id @default(uuid())
-  category    String
-  amount      Int
-  expenseDate DateTime @default(now())
-  description String
-  reference   String?
-  createdByEmployeeId String?
-  createdAt   DateTime @default(now())
-  financialTransactionId String? @unique
-  financialTransaction FinancialTransaction? @relation(fields: [financialTransactionId], references: [id], onDelete: Restrict)
+  id                     String                @id @default(uuid())
+  category               String
+  amount                 Int
+  expenseDate            DateTime              @default(now())
+  description            String
+  reference              String?
+  createdByEmployeeId    String?
+  financialTransactionId String?               @unique
+  createdAt              DateTime              @default(now())
+  financialTransaction   FinancialTransaction? @relation(fields: [financialTransactionId], references: [id], onDelete: Restrict)
+
   @@index([expenseDate, category])
 }
 
 model RateLimitEvent {
   id        String   @id @default(uuid())
-  key       String // SHA-256 hash of IP or account ID
+  key       String
   route     String
   points    Int      @default(1)
   expireAt  DateTime
   createdAt DateTime @default(now())
-
-  // فهارس لتسريع الاستعلامات تحت الضغط العالي
-  @@index([expireAt])              // للحذف الدوري
-  @@index([key, route, expireAt]) // للبحث في كل طلب
 }
 
 model Shift {
   id                   String    @id @default(uuid())
   employeeId           String
-  employee             Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   openingCashFils      Int
   expectedCashFils     Int?
   actualCashFils       Int?
   varianceFils         Int?
   cardRecordedFils     Int?
   refundFils           Int?
-  status               String    @default("OPEN") // "OPEN", "CLOSED"
+  status               String    @default("OPEN")
   notes                String?
   terminalId           String
   approvedByEmployeeId String?
   openedAt             DateTime  @default(now())
   closedAt             DateTime?
+  employee             Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model HeldSale {
@@ -776,130 +680,209 @@ model HeldSale {
   customerPhone String?
   reason        String?
   employeeId    String
-  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  cartData      String // JSON string
+  cartData      String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
-model HomepageHeroCarouselSettings {
-  id                  String   @id @default("default")
-  enabled             Boolean  @default(true)
-  autoplayEnabled     Boolean  @default(true)
-  autoplayIntervalMs  Int      @default(5000)
-  pauseOnHover        Boolean  @default(true)
-  showIndicators      Boolean  @default(true)
-  showNavigation      Boolean  @default(true)
-  transitionType      String   @default("FADE") // "FADE", "SLIDE"
-  updatedByEmployeeId String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model Accord {
+  id            String          @id
+  name          String          @unique
+  color         String?
+  ProductAccord ProductAccord[]
 }
 
-model HomepageHeroSlide {
-  id                  String    @id @default(uuid())
-  titleAr             String
-  titleEn             String
-  descriptionAr       String
-  descriptionEn       String
-  eyebrowAr           String?
-  eyebrowEn           String?
-  ctaAr               String?
-  ctaEn               String?
-  imageDesktopPath    String
-  imageMobilePath     String
-  altAr               String
-  altEn               String
-  destinationType     String // "COLLECTION", "CATEGORY", "PRODUCT", "INTERNAL_ROUTE", "EXTERNAL_URL", "NONE"
-  productId           String?
-  product             Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
-  categoryId          String?
-  category            Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  internalPath        String?
-  externalUrl         String?
-  displayOrder        Int       @default(0)
-  isEnabled           Boolean   @default(true)
-  startsAt            DateTime?
-  endsAt              DateTime?
-  openInNewTab        Boolean   @default(false)
-  overlayStrength     Float     @default(0.4) // overlay opacity (0.0 to 1.0)
-  textPosition        String    @default("CENTER") // "RIGHT", "LEFT", "CENTER"
-  createdByEmployeeId String?
-  updatedByEmployeeId String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([isEnabled])
-  @@index([displayOrder])
-  @@index([startsAt])
-  @@index([endsAt])
+model Collection {
+  id          String    @id
+  slug        String    @unique
+  name        String
+  description String?
+  image       String?
+  Product     Product[]
 }
 
-model StoreLocationSettings {
-  id                      String   @id @default("default")
-  storeName               String   @default("Dahab Perfumes")
-  addressAr               String
-  addressEn               String
-  latitude                Float
-  longitude               Float
-  mapPlaceUrl             String
-  mapEmbedUrl             String
-  phone                   String
-  whatsapp                String
-  openingHours            String
-  locationSectionEnabled  Boolean  @default(true)
-  directionsButtonEnabled Boolean  @default(true)
-  mapZoom                 Int      @default(15)
-  mapLabelAr              String?
-  mapLabelEn              String?
-  sectionOrder            Int      @default(10)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+model ConsumptionRecord {
+  id          String      @id
+  materialId  String
+  quantity    Float
+  saleId      String?
+  createdAt   DateTime    @default(now())
+  RawMaterial RawMaterial @relation(fields: [materialId], references: [id])
 }
 
-model ImportJob {
-  id           String         @id @default(uuid())
-  status       String // "PENDING" | "DRY_RUN" | "COMPLETED" | "FAILED" | "CANCELLED"
-  fileName     String
-  fileType     String // "CSV" | "XLSX"
-  totalRows    Int
-  successRows  Int            @default(0)
-  failedRows   Int            @default(0)
-  skippedRows  Int            @default(0)
-  confirmedBy  String? // employee name of the confirming employee
-  startedAt    DateTime       @default(now())
-  completedAt  DateTime?
-  errorSummary String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  employeeId   String
-  employee     Employee       @relation(fields: [employeeId], references: [id])
-  rows         ImportJobRow[]
+model FragranceFamily {
+  id      String    @id
+  name    String    @unique
+  Product Product[]
 }
 
-model ImportJobRow {
-  id              String    @id @default(uuid())
-  jobId           String
-  job             ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  rowNumber       Int
-  sku             String?
-  nameAr          String?
-  rawData         String? // Raw line from file
-  normalizedData  String? // Normalized representation JSON
-  status          String // "VALID" | "INVALID" | "SKIPPED"
-  errorMessage    String? // validation errors
-  warnings        String? // validation warnings
-  resultStatus    String? // "CREATED" | "UPDATED" | "SKIPPED"
-  entityReference String? // Created/updated product or variant reference details
-  createdAt       DateTime  @default(now())
+model Gender {
+  id      String    @id
+  name    String    @unique
+  Product Product[]
 }
 
-model AdminNotification {
-  id        String   @id @default(uuid())
-  title     String
-  message   String
-  type      String   @default("INFO") // "LOW_STOCK", "OUT_OF_STOCK", "INFO"
-  isRead    Boolean  @default(false)
-  link      String?  
-  createdAt DateTime @default(now())
+model InventoryCountLine {
+  id                         String                @id
+  countSessionId             String
+  productId                  String
+  inventoryMode              String
+  expectedQuantityMlSnapshot Int
+  countedQuantityMl          Int
+  varianceMl                 Int
+  expectedUnitsSnapshot      Int?
+  countedUnits               Int?
+  varianceUnits              Int?
+  countStatus                String
+  employeeNote               String?
+  managerNote                String?
+  countedAt                  DateTime?
+  InventoryCountSession      InventoryCountSession @relation(fields: [countSessionId], references: [id], onDelete: Cascade)
+  Product                    Product               @relation(fields: [productId], references: [id])
+}
+
+model InventoryCountSession {
+  id                                                            String               @id
+  reference                                                     String               @unique
+  title                                                         String
+  status                                                        String
+  assignedEmployeeId                                            String
+  assignedByEmployeeId                                          String
+  reviewedByEmployeeId                                          String?
+  approvedByEmployeeId                                          String?
+  scopeType                                                     String
+  startedAt                                                     DateTime?
+  submittedAt                                                   DateTime?
+  reviewedAt                                                    DateTime?
+  approvedAt                                                    DateTime?
+  notes                                                         String?
+  createdAt                                                     DateTime             @default(now())
+  updatedAt                                                     DateTime
+  InventoryCountLine                                            InventoryCountLine[]
+  Employee_InventoryCountSession_approvedByEmployeeIdToEmployee Employee?            @relation("InventoryCountSession_approvedByEmployeeIdToEmployee", fields: [approvedByEmployeeId], references: [id])
+  Employee_InventoryCountSession_assignedByEmployeeIdToEmployee Employee             @relation("InventoryCountSession_assignedByEmployeeIdToEmployee", fields: [assignedByEmployeeId], references: [id])
+  Employee_InventoryCountSession_assignedEmployeeIdToEmployee   Employee             @relation("InventoryCountSession_assignedEmployeeIdToEmployee", fields: [assignedEmployeeId], references: [id])
+  Employee_InventoryCountSession_reviewedByEmployeeIdToEmployee Employee?            @relation("InventoryCountSession_reviewedByEmployeeIdToEmployee", fields: [reviewedByEmployeeId], references: [id])
+}
+
+model ProductAccord {
+  productId String
+  accordId  String
+  value     Int
+  order     Int     @default(0)
+  Accord    Accord  @relation(fields: [accordId], references: [id], onDelete: Cascade)
+  Product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([productId, accordId])
+}
+
+model ProductFormula {
+  id                 String               @id
+  productId          String
+  name               String
+  size               String
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  Product            Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ProductFormulaItem ProductFormulaItem[]
+}
+
+model ProductFormulaItem {
+  id             String         @id
+  formulaId      String
+  materialId     String
+  quantity       Float
+  ProductFormula ProductFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  RawMaterial    RawMaterial    @relation(fields: [materialId], references: [id])
+}
+
+model ProductLiquidMovement {
+  id               String   @id
+  productId        String
+  type             String
+  quantityBeforeMl Int
+  quantityChangeMl Int
+  quantityAfterMl  Int
+  relatedSaleId    String?
+  relatedInvoiceId String?
+  employeeId       String
+  reason           String?
+  idempotencyKey   String?  @unique
+  createdAt        DateTime @default(now())
+  Employee         Employee @relation(fields: [employeeId], references: [id])
+  Product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductLiquidStock {
+  productId                String    @id @unique
+  quantityMl               Int       @default(0)
+  lowStockThresholdMl      Int       @default(1000)
+  verificationStatus       String    @default("UNVERIFIED")
+  lastVerifiedAt           DateTime?
+  lastVerifiedByEmployeeId String?
+  version                  Int       @default(1)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime
+  Employee                 Employee? @relation(fields: [lastVerifiedByEmployeeId], references: [id])
+  Product                  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductNote {
+  id           String  @id
+  productId    String
+  displayOrder Int     @default(0)
+  nameAr       String
+  nameEn       String
+  noteType     String
+  Product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model RawMaterial {
+  id                  String                @id
+  sku                 String                @unique
+  name                String
+  categoryId          String
+  unit                String
+  costPerUnit         Int
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  ConsumptionRecord   ConsumptionRecord[]
+  ProductFormulaItem  ProductFormulaItem[]
+  RawMaterialCategory RawMaterialCategory   @relation(fields: [categoryId], references: [id])
+  RawMaterialMovement RawMaterialMovement[]
+  RawMaterialStock    RawMaterialStock?
+}
+
+model RawMaterialCategory {
+  id          String        @id
+  name        String        @unique
+  RawMaterial RawMaterial[]
+}
+
+model RawMaterialMovement {
+  id          String      @id
+  materialId  String
+  type        String
+  quantity    Float
+  reference   String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  RawMaterial RawMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+}
+
+model RawMaterialStock {
+  id           String      @id
+  materialId   String      @unique
+  quantity     Float
+  minThreshold Float?
+  lastUpdated  DateTime
+  RawMaterial  RawMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+}
+
+model Season {
+  id      String    @id
+  name    String    @unique
+  Product Product[]
 }

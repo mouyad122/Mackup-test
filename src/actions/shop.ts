@@ -1,32 +1,22 @@
 'use server';
 
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@prisma/client';
 
 export async function getPaginatedProducts({
   skip = 0,
   take = 40,
   categoryId = '',
-  brandId = '',
-  finish = '',
-  skinType = '',
   q = '',
-  orderBy = 'createdAt_desc'
 }: {
   skip?: number;
   take?: number;
   categoryId?: string;
-  brandId?: string;
-  finish?: string;
-  skinType?: string;
   q?: string;
-  orderBy?: string;
 }) {
-  const where: any = { isVisible: true };
+  const where: Prisma.ProductWhereInput = { isVisible: true };
   
   if (categoryId) where.categoryId = categoryId;
-  if (brandId) where.brandId = brandId;
-  if (finish) where.finish = finish;
-  if (skinType) where.skinType = skinType;
   
   if (q) {
     where.OR = [
@@ -35,8 +25,6 @@ export async function getPaginatedProducts({
     ];
   }
 
-  let orderByClause: any = { createdAt: 'desc' };
-  
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
@@ -47,10 +35,13 @@ export async function getPaginatedProducts({
         images: { orderBy: { order: 'asc' } },
         category: true,
       },
-      orderBy: orderByClause
+      orderBy: { createdAt: 'desc' }
     }),
     prisma.product.count({ where })
   ]);
 
+  for (const product of products) for (const variant of product.variants) {
+    variant.stock = variant.isActive ? 1 : 0;
+  }
   return { success: true, products, total };
 }

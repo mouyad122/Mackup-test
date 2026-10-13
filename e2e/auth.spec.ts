@@ -5,7 +5,7 @@ test.describe('Public Accessibility', () => {
     // Navigate to homepage
     await page.goto('/ar');
     
-    // Check that we see DAHAB PERFUMES branding
+    // Check that we see Cosmetics Store branding
     await expect(page.locator('text=دهب للعطور').first()).toBeVisible();
   });
 
@@ -13,6 +13,6 @@ test.describe('Public Accessibility', () => {
     await page.goto('/admin/login');
     
     // Check login form title
-    await expect(page.locator('text=Dahab Perfumes Admin')).toBeVisible();
+    await expect(page.locator('text=Cosmetics Store Admin')).toBeVisible();
   });
 });

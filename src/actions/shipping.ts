@@ -4,47 +4,23 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/dal';
 import { revalidatePath } from 'next/cache';
 
-const JORDAN_GOVERNORATES = [
-  { nameAr: 'عمان', nameEn: 'Amman', fee: 3000, estimatedDeliveryTime: '24 hours' },
-  { nameAr: 'إربد', nameEn: 'Irbid', fee: 3000, estimatedDeliveryTime: '24-48 hours' },
-  { nameAr: 'الزرقاء', nameEn: 'Zarqa', fee: 3000, estimatedDeliveryTime: '24 hours' },
-  { nameAr: 'المفرق', nameEn: 'Mafraq', fee: 4000, estimatedDeliveryTime: '48 hours' },
-  { nameAr: 'عجلون', nameEn: 'Ajloun', fee: 4000, estimatedDeliveryTime: '48 hours' },
-  { nameAr: 'جرش', nameEn: 'Jerash', fee: 4000, estimatedDeliveryTime: '48 hours' },
-  { nameAr: 'مادبا', nameEn: 'Madaba', fee: 3000, estimatedDeliveryTime: '24-48 hours' },
-  { nameAr: 'البلقاء', nameEn: 'Balqa', fee: 3000, estimatedDeliveryTime: '24-48 hours' },
-  { nameAr: 'الكرك', nameEn: 'Karak', fee: 5000, estimatedDeliveryTime: '48-72 hours' },
-  { nameAr: 'الطفيلة', nameEn: 'Tafilah', fee: 5000, estimatedDeliveryTime: '48-72 hours' },
-  { nameAr: 'معان', nameEn: 'Maan', fee: 5000, estimatedDeliveryTime: '48-72 hours' },
-  { nameAr: 'العقبة', nameEn: 'Aqaba', fee: 5000, estimatedDeliveryTime: '48-72 hours' },
-];
+import { configureJordanShipping } from '@/lib/jordan-shipping';
 
 export async function initializeShippingZones() {
   await requirePermission('manage:settings');
-  
-  const count = await prisma.shippingZone.count();
-  if (count === 0) {
-    for (const gov of JORDAN_GOVERNORATES) {
-      await prisma.shippingZone.create({
-        data: {
-          nameAr: gov.nameAr,
-          nameEn: gov.nameEn,
-          fee: gov.fee,
-          estimatedDeliveryTime: gov.estimatedDeliveryTime,
-          isEnabled: true
-        }
-      });
-    }
-  }
+  await prisma.$transaction(configureJordanShipping, { isolationLevel: 'Serializable' });
 }
-export async function updateShippingZone(id: string, data: { fee: number, actualDeliveryCost: number, captainEarning: number, isEnabled: boolean, estimatedDeliveryTime: string }) {
-  await requirePermission('manage:settings');
 
-  if (!Number.isSafeInteger(data.fee) || data.fee < 0 || !Number.isSafeInteger(data.actualDeliveryCost) || data.actualDeliveryCost < 0 || !Number.isSafeInteger(data.captainEarning) || data.captainEarning < 0) {
+export async function updateShippingZone(id: string, data: { fee: number, actualDeliveryCost: number | null, captainEarning: number | null, isEnabled: boolean, estimatedDeliveryTime: string }) {
+  const session = await requirePermission('manage:settings');
+
+  if (!Number.isSafeInteger(data.fee) || data.fee < 0 || (data.actualDeliveryCost !== null && (!Number.isSafeInteger(data.actualDeliveryCost) || data.actualDeliveryCost < 0)) || (data.captainEarning !== null && (!Number.isSafeInteger(data.captainEarning) || data.captainEarning < 0))) {
     return { success: false, error: 'قيمة رسوم التوصيل غير صالحة' };
   }
   
-  await prisma.shippingZone.update({
+  await prisma.$transaction(async tx => {
+  const previous = await tx.shippingZone.findUniqueOrThrow({ where: { id } });
+  await tx.shippingZone.update({
     where: { id },
     data: {
       fee: data.fee,
@@ -55,6 +31,9 @@ export async function updateShippingZone(id: string, data: { fee: number, actual
     }
   });
   
-  revalidatePath('/admin/settings/shipping');
+  await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'SHIPPING_ZONE_UPDATED', entityType: 'ShippingZone', entityId: id, details: JSON.stringify({ previous, current: data }) } });
+  });
+  revalidatePath('/admin/deliveries');
+  revalidatePath('/', 'layout');
   return { success: true };
 }

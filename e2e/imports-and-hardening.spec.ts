@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('DAHAB Hardening and Imports E2E Flow', () => {
+test.describe('Cosmetics Store Hardening and Imports E2E Flow', () => {
 
   test('Cashier is blocked from Admin dashboard route', async ({ page }) => {
     // Unauthenticated user is redirected to login

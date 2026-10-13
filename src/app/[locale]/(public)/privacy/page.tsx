@@ -1,52 +1,65 @@
 import React from 'react';
 import { getCMSContent } from '@/lib/cms';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isAr = locale === 'ar';
+  return {
+    title: isAr ? 'سياسة الخصوصية | رَواق' : 'Privacy Policy | Rawaq',
+  };
+}
 
 export default async function PrivacyPage({ params }: { params: Promise<{ locale: string }> }) {
-  const resolvedParams = await params;
-  const locale = resolvedParams.locale;
+  const { locale } = await params;
   const isAr = locale === 'ar';
 
   const defaultPrivacy = {
     titleAr: 'سياسة الخصوصية',
     titleEn: 'Privacy Policy',
-    contentAr: `نحن في ميكاب ديمو نلتزم بحماية خصوصيتك وبياناتك الشخصية. توضح هذه السياسة كيف نقوم بجمع واستخدام وحماية البيانات التي تزودنا بها عند زيارة موقعنا:
+    contentAr: `في رَواق، نلتزم بحماية خصوصية زوارنا وعملائنا.
 
-1. **البيانات التي نجمعها:**
-   - الاسم، رقم الهاتف، وعنوان التوصيل عند إتمام الطلب لتسهيل إرسال رسائل WhatsApp والتوصيل.
-   - نحن لا نقوم بحفظ أو معالجة تفاصيل بطاقات الدفع مباشرة على خوادمنا.
+**المعلومات التي نجمعها:**
+- نجمع المعلومات الأساسية مثل الاسم، رقم الهاتف، وعنوان التوصيل عند إجراء طلب.
+- قد نجمع بيانات التصفح لتحسين تجربة المستخدم عبر الموقع.
 
-2. **كيف نستخدم بياناتك:**
-   - لمعالجة طلبات الشراء والشحن والتحقق من المخزون.
-   - للتواصل معك بخصوص الطلبات والاستفسارات.
+**استخدام المعلومات:**
+- نستخدم معلوماتك لمعالجة طلباتك وتوصيلها بنجاح.
+- قد نستخدم رقم هاتفك (واتساب) لإرسال تحديثات الطلب أو العروض الترويجية (يمكنك إلغاء الاشتراك في أي وقت).
 
-3. **حماية البيانات:**
-   - نحن نطبق بروتوكولات حماية متقدمة لضمان أمان معلوماتك ومنع الوصول غير المصرح به.`,
-    contentEn: `At Makeup Demo, we are committed to protecting your privacy. This policy explains how we collect, use, and secure your personal information:
+**حماية البيانات:**
+- لا نقوم ببيع أو مشاركة معلوماتك الشخصية مع أطراف ثالثة إلا لغايات توصيل الطلبات (مثل شركات الشحن المعتمدة لدينا).`,
+    contentEn: `At Rawaq, we are committed to protecting the privacy of our visitors and customers.
 
-1. **Information We Collect:**
-   - Full name, phone number, and delivery address during checkout to facilitate WhatsApp ordering and delivery.
-   - We do not store or process payment card details directly on our servers.
+**Information We Collect:**
+- We collect essential information such as name, phone number, and delivery address when you place an order.
+- We may collect browsing data to improve user experience on the site.
 
-2. **How We Use Your Data:**
-   - To process checkout orders, verify stock, and manage logistics.
-   - To communicate with you regarding your purchases.
+**Use of Information:**
+- We use your information to process and deliver your orders successfully.
+- We may use your phone number (WhatsApp) to send order updates or promotional offers (you can opt-out at any time).
 
-3. **Security:**
-   - We implement standard security protocols to safeguard your personal data from unauthorized access.`
+**Data Protection:**
+- We do not sell or share your personal information with third parties, except for the purpose of order delivery (e.g., our authorized shipping partners).`
   };
 
   const cms = await getCMSContent('privacy_policy', defaultPrivacy);
 
   return (
-    <div className="container mx-auto px-6 py-16">
-      <div className="max-w-3xl mx-auto bg-white border border-[var(--color-ivory-200)] rounded-lg p-10 shadow-sm">
-        <h1 className="text-4xl font-bold font-heading text-[var(--color-charcoal-900)] mb-8 border-b pb-4">
-          {isAr ? cms.titleAr : cms.titleEn}
-        </h1>
-        <div className="text-zinc-700 leading-relaxed whitespace-pre-line text-sm md:text-base">
-          {isAr ? cms.contentAr : cms.contentEn}
+    <main className="min-h-screen bg-[#F7F3EA]">
+      {/* Header */}
+      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+        <p className="rawaq-eyebrow text-[#B7935F]">YOUR DATA</p>
+        <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? cms.titleAr : cms.titleEn}</h1>
+      </section>
+
+      <section className="py-16 sm:py-20 px-5 sm:px-8 max-w-4xl mx-auto -mt-10 relative z-10">
+        <div className="rounded-3xl border border-[#E9DDCC] bg-white p-8 sm:p-12 shadow-[0_4px_24px_rgba(139,30,45,.04)]">
+          <div className="prose prose-zinc max-w-none text-[#746A64] leading-loose whitespace-pre-line prose-headings:text-[#2B2B2B] prose-strong:text-[#2B2B2B] marker:text-[#B7935F]">
+            {isAr ? cms.contentAr : cms.contentEn}
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

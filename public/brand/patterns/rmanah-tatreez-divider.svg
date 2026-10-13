@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="20" viewBox="0 0 560 20" fill="none">
+  <!-- Gold border lines -->
+  <path d="M0 0.5H560M0 19.5H560" stroke="#C9A24D" stroke-opacity=".6" stroke-width=".75"/>
+  <!-- Center line -->
+  <path d="M0 10H215M345 10H560" stroke="#C9A24D" stroke-opacity=".35" stroke-width=".5"/>
+  <!-- Left small diamonds (burgundy) -->
+  <path d="m20 6 2 2-2 2-2-2 2-2Zm12 0 2 2-2 2-2-2 2-2Z" fill="#A61E22" fill-opacity=".7"/>
+  <!-- Left small diamonds (green) -->
+  <path d="m32 6 2 2-2 2-2-2 2-2Z" fill="#1F4D3A" fill-opacity=".7"/>
+  <!-- Right small diamonds (mirrored) -->
+  <path d="m528 6 2 2-2 2-2-2 2-2Zm-12 0 2 2-2 2-2-2 2-2Z" fill="#A61E22" fill-opacity=".7"/>
+  <path d="m528 6 2 2-2 2-2-2 2-2Z" fill="#1F4D3A" fill-opacity=".7"/>
+  <!-- Center motif -->
+  <path d="m280 3 2.5 5.5 5.5-2.5-2.5 5.5 5.5 2.5-5.5 2.5 2.5 5.5-5.5-2.5-2.5 5.5-2.5-5.5-5.5 2.5 2.5-5.5-5.5-2.5 5.5-2.5-2.5-5.5 5.5 2.5 2.5-5.5Z" fill="#A61E22" fill-opacity=".75"/>
+  <path d="M280 6v8M276 10h8M277 7l6 6M283 7l-6 6" stroke="#F8F2E8" stroke-width=".75"/>
+  <!-- Small accent diamonds left of center -->
+  <path d="m248 8 2 2-2 2-2-2 2-2Zm12 0 2 2-2 2-2-2 2-2Z" fill="#1F4D3A" fill-opacity=".6"/>
+  <path d="m260 8 2 2-2 2-2-2 2-2Z" fill="#A61E22" fill-opacity=".6"/>
+  <!-- Small accent diamonds right of center -->
+  <path d="m300 8 2 2-2 2-2-2 2-2Zm12 0 2 2-2 2-2-2 2-2Z" fill="#1F4D3A" fill-opacity=".6"/>
+  <path d="m300 8 2 2-2 2-2-2 2-2Z" fill="#A61E22" fill-opacity=".6"/>
+</svg>

@@ -16,6 +16,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // السماح بالتطوير من الجهاز الآخر على الشبكة المحلية
+  allowedDevOrigins: ['192.168.100.15'],
+
   // إخفاء هوية الـ framework
   poweredByHeader: false,
   // ضغط الاستجابات
@@ -69,13 +72,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
         ],
       },
-      {
-        // Cache الملفات الثابتة
-        source: '/_next/static/(.*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
+
       {
         // Cache الصور العامة
         source: '/uploads/(.*)',

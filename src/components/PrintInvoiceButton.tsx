@@ -8,7 +8,7 @@ interface PrintInvoiceButtonProps {
 }
 
 export function PrintInvoiceButton({ 
-  className = "bg-[var(--color-charcoal-900)] hover:bg-[var(--color-charcoal-800)] text-white font-bold py-2 px-8 rounded transition-colors shadow-md",
+  className = "bg-[#3F4B32] hover:bg-[#2d3623] text-white font-bold py-2 px-8 rounded transition-colors shadow-md",
   label = "طباعة الفاتورة"
 }: PrintInvoiceButtonProps) {
   return (

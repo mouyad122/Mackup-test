@@ -15,52 +15,46 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const allLinks = [
-    { href: '/admin/dashboard', label: 'لوحة التحكم', permission: null },
-    { href: '/admin/products', label: 'المنتجات والأسعار', permission: 'manage:products' },
-    { href: '/admin/categories', label: 'المجموعات', permission: 'manage:products' },
-    { href: '/admin/orders', label: 'طلبات المتجر', permission: 'manage:orders' },
-    { href: '/admin/sales', label: 'المبيعات والفواتير', permission: 'manage:orders' },
-    { href: '/admin/financials', label: 'الملخص المالي', permission: 'manage:settings' },
-    { href: '/admin/transactions', label: 'دفتر الحركات المالية', permission: 'manage:settings' },
-    { href: '/admin/expenses', label: 'المصروفات', permission: 'manage:settings' },
-    { href: '/admin/reports', label: 'تقارير الأعمال', permission: 'manage:settings' },
-    { href: '/admin/inventory', label: 'المخزون', permission: 'manage:inventory' },
-    { href: '/admin/suppliers', label: 'الموردون', permission: 'manage:settings' },
-    { href: '/admin/supplier-settlements', label: 'تسويات الموردين', permission: 'manage:settings' },
-    { href: '/admin/captains', label: 'المندوبون والتوصيل', permission: 'manage:settings' },
-    { href: '/admin/deliveries', label: 'إدارة التوصيلات', permission: 'manage:settings' },
-    { href: '/admin/captain-settlements', label: 'تسويات المندوبين', permission: 'manage:settings' },
-    { href: '/admin/coupons', label: 'القسائم والخصومات', permission: 'manage:settings' },
-    { href: '/admin/rewards', label: 'مكافآت العملاء', permission: 'manage:settings' },
-    { href: '/admin/employees', label: 'الموظفين والصلاحيات', permission: 'manage:settings' },
-    { href: '/admin/customers', label: 'العملاء', permission: 'manage:settings' },
-    { href: '/admin/settings/shipping', label: 'أسعار التوصيل', permission: 'manage:settings' },
-    { href: '/admin/content', label: 'المحتوى والمدونة (CMS)', permission: 'manage:settings' }
-  ];
+    const allLinks = [
+      { href: '/admin/dashboard', label: 'لوحة التحكم', permission: null },
+      { href: '/admin/products', label: 'المنتجات والأسعار', permission: 'manage:products' },
+      { href: '/admin/categories', label: 'المجموعات', permission: 'manage:products' },
+      { href: '/admin/orders', label: 'طلبات المتجر', permission: 'manage:orders' },
+      { href: '/admin/reports', label: 'تقارير الأعمال', permission: 'manage:settings' },
+      { href: '/admin/suppliers', label: 'الموردون', permission: 'manage:settings' },
+      { href: '/admin/reconciliation', label: 'الجرد والتسويات', permission: 'manage:settings' },
+      { href: '/admin/captains', label: 'الكباتن والمندوبون', permission: 'manage:orders' },
+      { href: '/admin/deliveries', label: 'إدارة التوصيلات', permission: 'manage:settings' },
+      { href: '/admin/rewards', label: 'مكافآت العملاء', permission: 'manage:settings' },
+      { href: '/admin/employees', label: 'الموظفين والصلاحيات', permission: 'manage:settings' },
+      { href: '/admin/content', label: 'المحتوى والمدونة (CMS)', permission: 'manage:settings' },
+      { href: '/admin/logs', label: 'سجلات النظام', permission: 'manage:settings' }
+    ];
 
   const normalizedRole = roleName.trim().toUpperCase().replace(/[_-]+/g, ' ');
   const roleAccess: Record<string, string[]> = {
+    'أدمن تشغيلي': ['manage:orders'],
+    'ادمن تشغيلي': ['manage:orders'],
     'STORE MANAGER': ['manage:products', 'manage:orders'],
     'INVENTORY MANAGER': ['manage:products', 'manage:inventory'],
     'FINANCE MANAGER': ['manage:settings'],
     'DELIVERY MANAGER': ['manage:orders', 'manage:settings'],
     'CONTENT MANAGER': ['manage:products', 'manage:settings'],
   };
-  const filteredLinks = ['ADMIN', 'SUPER ADMIN'].includes(normalizedRole)
+  const filteredLinks = ['ADMIN', 'SUPER ADMIN', 'أدمن رئيسي', 'ادمن رئيسي'].includes(normalizedRole)
     ? allLinks
     : allLinks.filter(link => !link.permission || (roleAccess[normalizedRole] || []).includes(link.permission));
 
   return (
     <>
       {/* Mobile Top Header containing Hamburger Toggle */}
-      <div className="md:hidden flex items-center justify-between bg-[var(--color-charcoal-900)] text-white px-4 py-3 sticky top-0 z-40 w-full shadow-md border-b border-[var(--color-champagne-600)]">
-        <span className="font-heading font-bold text-lg text-[var(--color-champagne-400)]">
-          ميكاب ديمو
+      <div className="md:hidden flex items-center justify-between bg-[#3F4B32] text-white px-4 py-3 sticky top-0 z-40 w-full shadow-md border-b border-[#B7935F]">
+        <span className="font-heading font-bold text-lg text-[#B7935F]">
+          رَواق
         </span>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-2 text-zinc-100 focus:outline-none hover:text-[var(--color-champagne-400)]"
+          className="p-2 text-zinc-100 focus:outline-none hover:text-[#B7935F]"
           aria-label="Toggle Menu"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,7 +77,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
 
       {/* Sidebar Content container */}
       <aside
-        className={`fixed md:sticky top-0 right-0 z-30 bg-[var(--color-charcoal-900)] text-white flex flex-col h-screen font-sans border-l-4 border-[var(--color-champagne-600)] transition-all duration-300 transform md:transform-none ${
+        className={`fixed md:sticky top-0 right-0 z-30 bg-[#3F4B32] text-white flex flex-col h-screen font-sans border-l-4 border-[#B7935F] transition-all duration-300 transform md:transform-none ${
           isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-16' : 'md:w-64'} w-64`}
         dir="rtl"
@@ -91,7 +85,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
         {/* Desktop Toggle Button */}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex absolute -left-4 top-6 bg-[var(--color-champagne-600)] text-white p-1 rounded-full shadow-md hover:bg-[var(--color-champagne-500)] transition-colors z-50"
+          className="hidden md:flex absolute -left-4 top-6 bg-[#B7935F] text-white p-1 rounded-full shadow-md hover:bg-[#a68250] transition-colors z-50"
           title={isCollapsed ? "توسيع" : "طي"}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -103,22 +97,22 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
           </svg>
         </button>
         {/* Brand Header */}
-        <div className={`p-6 border-b border-[var(--color-charcoal-800)] flex flex-col items-center transition-all relative ${isCollapsed ? 'md:p-3 md:pb-4' : ''}`}>
+        <div className={`p-6 border-b border-[#2d3623] flex flex-col items-center transition-all relative ${isCollapsed ? 'md:p-3 md:pb-4' : ''}`}>
           {/* Mobile Close Button */}
           <button 
             onClick={() => setIsOpen(false)}
-            className="md:hidden absolute top-4 left-4 p-2 text-zinc-400 hover:text-white rounded-full hover:bg-[var(--color-charcoal-800)] transition-colors"
+            className="md:hidden absolute top-4 left-4 p-2 text-zinc-400 hover:text-white rounded-full hover:bg-[#2d3623] transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
 
           <div className={`flex items-center justify-center mb-3 ${isCollapsed ? 'md:w-10 md:h-10 md:mb-0' : 'w-24 h-24'}`}>
-            <img src="/logo.png" alt="Makeup Demo Logo" className="object-contain w-full h-full drop-shadow-md" />
+            <img src="/brand/logo_rawaq.png" alt="Rawaq Logo" className="object-contain w-full h-full drop-shadow-md filter invert" />
           </div>
           {!isCollapsed && (
             <>
-              <span className="font-heading font-bold text-2xl tracking-widest text-[var(--color-champagne-400)] mb-1">
-                ميكاب ديمو
+              <span className="font-heading font-bold text-2xl tracking-widest text-[#B7935F] mb-1">
+                رَواق
               </span>
               <span className="text-xs text-zinc-400">لوحة الإدارة والتحكم</span>
             </>
@@ -126,14 +120,14 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
         </div>
 
         {/* Employee Welcome & Log Out */}
-        <div className={`p-4 border-b border-[var(--color-charcoal-800)] text-xs text-zinc-300 flex ${isCollapsed ? 'md:flex-col md:gap-2' : 'justify-between items-center'}`}>
+        <div className={`p-4 border-b border-[#2d3623] text-xs text-zinc-300 flex ${isCollapsed ? 'md:flex-col md:gap-2' : 'justify-between items-center'}`}>
           {!isCollapsed && <span className="truncate max-w-[120px]">مرحباً، {employeeName}</span>}
           <div className={`flex items-center ${isCollapsed ? 'flex-col gap-3' : 'gap-3'}`}>
             <AdminNotificationsDropdown />
             <form action={logout}>
               <button
                 type="submit"
-                className="text-[var(--color-champagne-400)] hover:text-white underline font-bold"
+                className="text-[#B7935F] hover:text-white underline font-bold"
                 title="تسجيل الخروج"
               >
                 {isCollapsed ? (
@@ -165,7 +159,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded hover:bg-[var(--color-charcoal-800)] text-sm font-medium transition-colors text-zinc-200 hover:text-white ${isCollapsed ? 'md:justify-center md:px-2' : ''}`}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded hover:bg-[#2d3623] text-sm font-medium transition-colors text-zinc-200 hover:text-white ${isCollapsed ? 'md:justify-center md:px-2' : ''}`}
                 title={link.label}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
