@@ -201,12 +201,14 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
       tabIndex={0}
       aria-label="Hero Carousel"
     >
-      <div className="relative w-full h-[85vh] min-h-[600px] max-h-[900px]">
+      <div className="relative w-full aspect-[16/9] min-h-0 max-h-none md:h-[85vh] md:min-h-[600px] md:max-h-[900px]">
         {slidesToRender.map((slide, index) => {
           const isActive = index === currentIndex;
           const slideUrl = resolveSlideUrl(slide as any);
           const hasAction = slide.destinationType !== 'NONE';
-          const isVideoMedia = isVideo(slide.imageDesktopPath);
+          const desktopMediaPath = slide.imageDesktopPath;
+          const mobileMediaPath = slide.imageMobilePath || desktopMediaPath;
+          const isVideoMedia = isVideo(desktopMediaPath);
           const eyebrow = isAr ? slide.eyebrowAr : slide.eyebrowEn;
           const title = isAr ? slide.titleAr : slide.titleEn;
           const description = isAr ? slide.descriptionAr : slide.descriptionEn;
@@ -229,17 +231,29 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
                    ------------------------------------------------------------- */
                 <>
                   <div className="absolute inset-0 bg-[#2b2b2b]">
-                    {slide.imageDesktopPath ? (
+                    {desktopMediaPath ? (
                       isVideoMedia ? (
-                        <video 
-                          src={slide.imageDesktopPath} autoPlay loop muted playsInline
-                          className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100"
-                        />
+                        <>
+                          <video
+                            src={mobileMediaPath} autoPlay loop muted playsInline
+                            className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100 md:hidden"
+                          />
+                          <video
+                            src={desktopMediaPath} autoPlay loop muted playsInline
+                            className="absolute inset-0 hidden h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100 md:block"
+                          />
+                        </>
                       ) : (
-                        <Image
-                          src={slide.imageDesktopPath} alt={isAr ? slide.altAr : slide.altEn} fill priority={index === 0}
-                          className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100"
-                        />
+                        <>
+                          <Image
+                            src={mobileMediaPath} alt={isAr ? slide.altAr : slide.altEn} fill priority={index === 0}
+                            className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100 md:hidden"
+                          />
+                          <Image
+                            src={desktopMediaPath} alt={isAr ? slide.altAr : slide.altEn} fill priority={index === 0}
+                            className="absolute inset-0 hidden h-full w-full object-cover opacity-90 transition-transform duration-[10000ms] ease-out scale-105 group-hover/carousel:scale-100 md:block"
+                          />
+                        </>
                       )
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center bg-[#3F4B32]"><span className="text-white/20 text-6xl">✦</span></div>
@@ -250,27 +264,27 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute inset-0 bg-black/20" />
 
-                  <div className="relative z-20 h-full flex flex-col justify-end pb-24 md:pb-32 px-6 sm:px-12 lg:px-20 max-w-7xl mx-auto w-full">
+                  <div className="relative z-20 flex h-full w-full max-w-7xl mx-auto flex-col justify-end px-4 pb-5 md:px-12 md:pb-32 lg:px-20">
                     <div className={`transform transition-all duration-[1000ms] delay-300 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
-                      <p className="text-[#D9C6A8] text-[11px] md:text-sm font-bold tracking-[0.25em] uppercase mb-4 md:mb-5">
+                      <p className="mb-4 hidden text-[11px] font-bold uppercase tracking-[0.25em] text-[#D9C6A8] md:mb-5 md:block md:text-sm">
                         {eyebrow || 'RAWAQ'}
                       </p>
-                      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] leading-[1.15] text-white font-heading font-bold max-w-3xl drop-shadow-lg">
+                      <h1 className="max-w-3xl font-heading text-xl font-bold leading-[1.15] text-white drop-shadow-lg sm:text-5xl md:text-6xl lg:text-[4.5rem]">
                         {renderTitle(title)}
                       </h1>
                       {description && (
-                        <p className="mt-6 max-w-xl text-base md:text-lg text-white/90 leading-relaxed drop-shadow-md">
+                        <p className="mt-6 hidden max-w-xl text-base leading-relaxed text-white/90 drop-shadow-md md:block md:text-lg">
                           {description}
                         </p>
                       )}
                       
-                      <div className="mt-8 md:mt-10 flex flex-wrap gap-4 items-center">
+                      <div className="mt-3 flex flex-wrap items-center gap-3 md:mt-10 md:gap-4">
                         {hasAction && (
-                          <Link href={slideUrl} className="bg-white text-[#2B2B2B] hover:bg-[#F7F3EA] px-8 py-3.5 rounded-full text-sm md:text-base font-bold shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                          <Link href={slideUrl} className="rounded-full bg-white px-4 py-2 text-xs font-bold text-[#2B2B2B] shadow-xl transition-all hover:-translate-y-1 hover:bg-[#F7F3EA] md:px-8 md:py-3.5 md:text-base hover:shadow-2xl">
                             {cta || (isAr ? 'تسوّقي الآن' : 'Shop Now')}
                           </Link>
                         )}
-                        <Link href={`/${locale}/about`} className="bg-transparent border border-white/50 text-white hover:bg-white/10 px-8 py-3.5 rounded-full text-sm md:text-base font-bold transition-all">
+                        <Link href={`/${locale}/about`} className="hidden rounded-full border border-white/50 bg-transparent px-8 py-3.5 text-sm font-bold text-white transition-all hover:bg-white/10 md:inline-flex md:text-base">
                           {isAr ? 'حكاية رَواق' : 'Our Story'}
                         </Link>
                       </div>
