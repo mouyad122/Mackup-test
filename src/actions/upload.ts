@@ -2,6 +2,8 @@
 
 import { requirePermission } from '@/lib/dal';
 import { createClient } from '@supabase/supabase-js';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { getObjectStorageClient, hasObjectStorageConfig, mediaUrlForKey, uploadsBucket } from '@/lib/object-storage';
 import path from 'path';
 
 // Setup Supabase admin client to bypass RLS and create buckets if needed
@@ -98,8 +100,26 @@ export async function uploadMedia(formData: FormData): Promise<{ success: boolea
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const isDummy = url === 'https://dummy.supabase.co' || !url;
 
-    // Fallback to local filesystem for development/dummy Supabase
+    // A Vercel deployment has a read-only filesystem. When Supabase is not
+    // configured, use the project's S3-compatible Neon object storage.
     if (isDummy) {
+      if (hasObjectStorageConfig()) {
+        const key = `uploads/${newFilename}`;
+        await getObjectStorageClient().send(new PutObjectCommand({
+          Bucket: uploadsBucket,
+          Key: key,
+          Body: buffer,
+          ContentType: file.type || 'application/octet-stream',
+          CacheControl: 'public, max-age=31536000, immutable',
+        }));
+        return { success: true, url: mediaUrlForKey(key) };
+      }
+
+      if (process.env.NODE_ENV === 'production') {
+        return { success: false, error: 'إعدادات تخزين الملفات غير مكتملة.' };
+      }
+
+      // Local development fallback only.
       const fs = require('fs');
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       
