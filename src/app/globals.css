@@ -1,6 +1,28 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
+/* The app is intentionally light-only. Do not inherit the browser's dark
+   preference through Tailwind's `dark:` media variant. */
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
+:root {
+  color-scheme: only light;
+  background-color: #F7F3EA;
+}
+
+html,
+body {
+  min-height: 100%;
+  background-color: #F7F3EA;
+  color: #3F4B32;
+}
+
+input,
+select,
+textarea {
+  color-scheme: only light;
+}
+
 @theme {
   /* ─── RAWAQ Color Palette ─── */
   --color-olive: #3F4B32;
