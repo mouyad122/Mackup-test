@@ -20,6 +20,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
       { href: '/admin/products', label: 'المنتجات والأسعار', permission: 'manage:products' },
       { href: '/admin/categories', label: 'المجموعات', permission: 'manage:products' },
       { href: '/admin/orders', label: 'طلبات المتجر', permission: 'manage:orders' },
+      { href: '/admin/settings', label: 'طلبيات شركة التوصيل', permission: 'manage:orders' },
       { href: '/admin/reports', label: 'تقارير الأعمال', permission: 'manage:settings' },
       { href: '/admin/suppliers', label: 'الموردون', permission: 'manage:settings' },
       { href: '/admin/reconciliation', label: 'الجرد والتسويات', permission: 'manage:settings' },

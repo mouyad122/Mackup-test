@@ -118,7 +118,7 @@ export function AdminOrderQuickActions({
         </button>
       )}
       {status === 'PREPARED' && (
-        <Link href="/admin/captains" className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-4 rounded shadow-sm text-sm w-full text-center transition-colors">
+        <Link href="/admin/settings" className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-4 rounded shadow-sm text-sm w-full text-center transition-colors">
           إنشاء طلبية شركة التوصيل
         </Link>
       )}
