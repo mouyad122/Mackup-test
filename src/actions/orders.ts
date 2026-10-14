@@ -475,7 +475,7 @@ export async function updateOrderStatus(orderId: string, status: string, shippin
 
     revalidatePath(`/admin/orders/${orderId}`);
     revalidatePath('/admin/orders');
-    if (status === 'PREPARED') revalidatePath('/admin/captains');
+    if (status === 'PREPARED') revalidatePath('/admin/settings');
     
     // Import dynamically to avoid top-level import issues or add it to imports later
     const { logAction } = await import('@/lib/audit');
@@ -605,36 +605,18 @@ export async function registerOrderPayment(orderId: string, amountFils: number, 
   }
 }
 
-export async function updateOrderDelivery(orderId: string, captainId: string, actualCost: number) {
+export async function updateOrderDelivery(orderId: string, actualCost: number) {
   const session = await requirePermission('manage:orders');
   try {
     return await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order) throw new Error('Order not found');
 
-      const existingAssignment = await tx.deliveryAssignment.findUnique({ where: { orderId } });
-      if (existingAssignment) {
-        await tx.deliveryAssignment.update({
-          where: { orderId },
-          data: { captainId, actualCarrierCost: actualCost }
-        });
-      } else {
-        await tx.deliveryAssignment.create({
-          data: {
-            orderId,
-            captainId,
-            actualCarrierCost: actualCost,
-            captainEarning: actualCost,
-            customerDeliveryFee: order.shippingCost,
-            assignedByEmployeeId: session.employeeId
-          }
-        });
-      }
-      
       await tx.order.update({
         where: { id: orderId },
         data: { actualDeliveryCost: actualCost }
       });
+      await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'ORDER_DELIVERY_COST_UPDATED', entityType: 'Order', entityId: orderId, details: JSON.stringify({ previousActualDeliveryCost: order.actualDeliveryCost, actualDeliveryCost: actualCost }) } });
       
       return { success: true };
     });

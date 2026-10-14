@@ -34,6 +34,13 @@ export default async function AdminProductEditPage({
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
   const supplierRows = await prisma.supplier.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } });
   const suppliers = await Promise.all(supplierRows.map(async supplier => ({ ...supplier, profitMargin: await getSupplierProfitMargin(prisma, supplier.id) })));
+  const activity = await prisma.auditLog.findMany({
+    where: { entityType: 'PRODUCT', entityId: product.id },
+    include: { employee: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 8,
+  });
+  const actionLabel: Record<string, string> = { CREATE_PRODUCT: 'تمت إضافة المنتج', UPDATE_PRODUCT: 'تم تعديل بيانات المنتج' };
 
   const initialData = {
     nameAr: product.nameAr,
@@ -90,6 +97,10 @@ export default async function AdminProductEditPage({
         <section className="mt-8 overflow-hidden rounded-lg border bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4"><div><h2 className="font-bold">اتفاقات الموردين حسب الدرجة</h2><p className="text-xs text-zinc-500">المورد والكلفة ونسبة المشاركة تُحفظ مع كل طلب. حالة التوفر تُدار يدوياً من كل درجة أعلاه.</p></div><Link className="text-sm underline" href="/admin/suppliers">إدارة الموردين</Link></div>
           <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-right text-sm"><thead className="bg-zinc-50"><tr><th className="p-3">المقاس</th><th className="p-3">المورد</th><th className="p-3">تكلفة الوحدة</th><th className="p-3">حصة المورد</th><th className="p-3">حصة المنصة</th><th className="p-3">الحالة</th></tr></thead><tbody className="divide-y">{product.variants.flatMap(v=>v.supplierOffers.map(offer=><tr key={offer.id}><td className="p-3">{v.size}</td><td className="p-3">{offer.supplier.name}</td><td className="p-3">{(offer.unitCost/1000).toFixed(3)} د.أ</td><td className="p-3">{(offer.supplierProfitShareBps/100).toFixed(2)}%</td><td className="p-3">{((10000-offer.supplierProfitShareBps)/100).toFixed(2)}%</td><td className="p-3">{offer.isActive&&offer.supplier.isActive?'فعال':'متوقف'}</td></tr>))}</tbody></table></div>
+        </section>
+        <section className="mt-8 rounded-lg border bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div><h2 className="font-bold">تاريخ هذا المنتج</h2><p className="mt-1 text-xs text-zinc-500">آخر تعديلات الاسم والوصف والأسعار والصور الخاصة بهذا المنتج.</p></div><Link href={`/admin/logs?type=products&entityId=${product.id}`} className="text-sm font-semibold underline">عرض كل السجل</Link></div>
+          <div className="mt-3 space-y-2">{activity.map(log => <div key={log.id} className="flex flex-wrap justify-between gap-2 rounded bg-zinc-50 p-3 text-sm"><span>{actionLabel[log.action] || log.action} <span className="text-zinc-500">بواسطة {log.employee?.name || 'النظام'}</span></span><span className="text-xs text-zinc-500">{new Date(log.createdAt).toLocaleString('ar-JO')}</span></div>)}{!activity.length && <p className="py-3 text-sm text-zinc-500">لا توجد عمليات مسجلة لهذا المنتج بعد.</p>}</div>
         </section>
       </main>
     </div>

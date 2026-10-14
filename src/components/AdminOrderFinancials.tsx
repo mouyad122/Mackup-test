@@ -4,10 +4,9 @@ import React, { useState } from 'react';
 import { syncOrderProfits, registerOrderPayment, updateOrderDelivery } from '@/actions/orders';
 import { useRouter } from 'next/navigation';
 
-export function AdminOrderFinancials({ orderId, captains, hasMissingProfits }: { orderId: string, captains: any[], hasMissingProfits: boolean }) {
+export function AdminOrderFinancials({ orderId, hasMissingProfits }: { orderId: string, hasMissingProfits: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const defaultCaptainId = captains.length > 0 ? captains[0].id : '';
   const [actualCost, setActualCost] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
 
@@ -38,12 +37,9 @@ export function AdminOrderFinancials({ orderId, captains, hasMissingProfits }: {
 
   const handleUpdateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!defaultCaptainId || !actualCost) {
-      if (!defaultCaptainId) alert('لم يتم العثور على شركة توصيل مسجلة في النظام.');
-      return;
-    }
+    if (!actualCost) return;
     setLoading(true);
-    const res = await updateOrderDelivery(orderId, defaultCaptainId, parseFloat(actualCost) * 1000);
+    const res = await updateOrderDelivery(orderId, parseFloat(actualCost) * 1000);
     setLoading(false);
     if (res.success) {
       router.refresh();
@@ -96,7 +92,6 @@ export function AdminOrderFinancials({ orderId, captains, hasMissingProfits }: {
       <form onSubmit={handleUpdateDelivery} className="space-y-3 pt-4 border-t">
         <h4 className="font-bold text-sm text-zinc-800">تحديث تكلفة التوصيل الفعلية</h4>
         <div className="flex flex-col gap-2">
-          {captains.length > 0 && <p className="text-xs text-zinc-500">شركة التوصيل الحالية: <strong>{captains[0].name}</strong></p>}
           <div className="flex gap-2">
             <input 
               type="number"  

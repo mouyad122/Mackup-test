@@ -24,7 +24,6 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
       { href: '/admin/reports', label: 'تقارير الأعمال', permission: 'manage:settings' },
       { href: '/admin/suppliers', label: 'الموردون', permission: 'manage:settings' },
       { href: '/admin/reconciliation', label: 'الجرد والتسويات', permission: 'manage:settings' },
-      { href: '/admin/captains', label: 'الكباتن والمندوبون', permission: 'manage:orders' },
       { href: '/admin/deliveries', label: 'إدارة التوصيلات', permission: 'manage:settings' },
       { href: '/admin/rewards', label: 'مكافآت العملاء', permission: 'manage:settings' },
       { href: '/admin/employees', label: 'الموظفين والصلاحيات', permission: 'manage:settings' },

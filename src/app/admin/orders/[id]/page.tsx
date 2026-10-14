@@ -44,8 +44,11 @@ export default async function AdminOrderDetailPage({
     notFound();
   }
 
-  const captains = await prisma.captain.findMany({ where: { isActive: true } });
   const hasMissingProfits = order.items.some(item => item.unitCostSnapshot === null || item.platformProductProfitSnapshot === null);
+  const productProfit = order.items.reduce((sum, item) => sum + (item.platformProductProfitSnapshot ?? 0), 0);
+  const netPlatformProfit = hasMissingProfits || order.actualDeliveryCost === null
+    ? null
+    : productProfit + order.shippingCost - order.actualDeliveryCost;
 
   async function handleUpdateStatusQuick(orderId: string, newStatus: string, shippingCost?: number) {
     'use server';
@@ -145,17 +148,10 @@ export default async function AdminOrderDetailPage({
                   <span>رسوم التوصيل:</span>
                   <span>{filsToDisplay(order.shippingCost, 'ar')}</span>
                 </div>
-                {order.discountAmount > 0 && <div className="flex justify-between text-emerald-700"><span>الخصم {order.couponCodeSnapshot ? `(${order.couponCodeSnapshot})` : ''}:</span><span>−{filsToDisplay(order.discountAmount, 'ar')}</span></div>}
-                {order.couponDiscount > 0 && <div className="flex justify-between text-zinc-600"><span>خصم القسيمة:</span><span>−{filsToDisplay(order.couponDiscount, 'ar')}</span></div>}
-                {order.rewardDiscount > 0 && <div className="flex justify-between text-zinc-600"><span>خصم المكافأة {order.rewardNameSnapshot ? `(${order.rewardNameSnapshot})` : ''}:</span><span>−{filsToDisplay(order.rewardDiscount, 'ar')}</span></div>}
                 <div className="flex justify-between text-zinc-600"><span>تكلفة شركة التوصيل:</span><span>{order.actualDeliveryCost === null ? 'غير مسجلة' : filsToDisplay(order.actualDeliveryCost, 'ar')}</span></div>
-                <div className="flex justify-between text-zinc-600"><span>المندوب:</span><span>{order.deliveryAssignment?.captain.name || 'غير معين'}</span></div>
-                {order.deliveryAssignment && <div className="flex justify-between text-zinc-600"><span>أجر المندوب:</span><span>{filsToDisplay(order.deliveryAssignment.captainEarning, 'ar')}</span></div>}
-                {order.deliveryAssignment && <div className="flex justify-between text-zinc-600"><span>ربح التوصيل:</span><span>{order.deliveryAssignment.actualCarrierCost === null ? 'تكلفة الناقل غير مسجلة' : filsToDisplay(order.deliveryAssignment.customerDeliveryFee - order.deliveryAssignment.actualCarrierCost - order.deliveryAssignment.captainEarning, 'ar')}</span></div>}
-                <div className="flex justify-between text-emerald-800"><span>ربح المنصة للمنتجات:</span><span>{order.items.some(item => item.platformProductProfitSnapshot === null) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.platformProductProfitSnapshot ?? 0),0), 'ar')}</span></div>
                 <div className="flex justify-between text-zinc-600"><span>المبلغ المسجل كمدفوع:</span><span>{order.invoice ? filsToDisplay(order.invoice.cashAppliedFils + order.invoice.cardAppliedFils, 'ar') : 'لم تسجل دفعة'}</span></div>
                 <div className="flex justify-between text-zinc-600"><span>التزام الموردين:</span><span>{order.items.some(item => item.unitCostSnapshot === null) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.unitCostSnapshot ?? 0)*item.quantity+(item.supplierAmountSnapshot ?? 0),0), 'ar')}</span></div>
-                <div className="flex justify-between text-zinc-600"><span>صافي ربح المنصة من الطلب:</span><span>{order.items.some(item => item.platformProductProfitSnapshot === null) || order.actualDeliveryCost === null || (!order.deliveryAssignment && !['CANCELLED','REFUNDED'].includes(order.status)) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.platformProductProfitSnapshot ?? 0),0) + order.shippingCost - order.actualDeliveryCost, 'ar')}</span></div>
+                <div className="flex justify-between border-t pt-2 text-lg font-bold text-emerald-800"><span>ربح المنصة بعد تكلفة التوصيل:</span><span>{netPlatformProfit === null ? 'بيانات غير مكتملة' : filsToDisplay(netPlatformProfit, 'ar')}</span></div>
                 <div className="flex justify-between text-lg font-bold text-[#3F4B32] pt-2 border-t mt-2">
                   <span>المجموع الإجمالي المطلوب:</span>
                   <span>{filsToDisplay(order.totalAmount, 'ar')}</span>
@@ -216,7 +212,6 @@ export default async function AdminOrderDetailPage({
             
             <AdminOrderFinancials 
               orderId={order.id} 
-              captains={captains} 
               hasMissingProfits={hasMissingProfits} 
             />
           </div>

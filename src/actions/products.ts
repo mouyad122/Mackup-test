@@ -20,6 +20,16 @@ type VariantInput = {
   supplierOfferUpdatedAt?: string | null;
 };
 
+function auditProductSnapshot(product: { nameAr: string; nameEn: string; sku: string; shortDescription: string | null; longDescription: string | null; isVisible: boolean; isFeatured: boolean; categoryId: string; variants: Array<{ size: string; sku: string; price: number; stock: number; isActive: boolean; inventorySource: string }>; images: Array<{ url: string; isMain: boolean }> }) {
+  return {
+    nameAr: product.nameAr, nameEn: product.nameEn, sku: product.sku, categoryId: product.categoryId,
+    shortDescription: product.shortDescription, longDescription: product.longDescription,
+    isVisible: product.isVisible, isFeatured: product.isFeatured,
+    variants: product.variants.map(variant => ({ size: variant.size, sku: variant.sku, price: variant.price, stock: variant.stock, isActive: variant.isActive, inventorySource: variant.inventorySource })),
+    images: product.images.map(image => ({ url: image.url, isMain: image.isMain })),
+  };
+}
+
 function text(formData: FormData, key: string, required = false) {
   const value = String(formData.get(key) ?? '').trim();
   if (required && !value) throw new Error('يرجى تعبئة جميع الحقول المطلوبة.');
@@ -126,7 +136,8 @@ export async function updateProduct(productId: string, formData: FormData) {
     const existingImageIds = JSON.parse(String(formData.get('existingImageIds') ?? '[]')) as string[];
     const imageUrls = await uploadedImages(formData);
 
-    await prisma.$transaction(async (tx) => {
+    const audit = await prisma.$transaction(async (tx) => {
+      const previous = await tx.product.findUniqueOrThrow({ where: { id: productId }, include: { variants: true, images: true } });
       if (incomingIds.length) {
         const count = await tx.productVariant.count({ where: { productId, id: { in: incomingIds } } });
         if (count !== incomingIds.length) throw new Error('أحد الخيارات لا يتبع هذا المنتج.');
@@ -152,9 +163,11 @@ export async function updateProduct(productId: string, formData: FormData) {
       if (imageUrls.length) await tx.productImage.createMany({ data: imageUrls.map((url, index) => ({ productId, url, alt: data.nameAr, order: existingImageIds.length + index, isMain: existingImageIds.length === 0 && index === 0 })) });
       const images = await tx.productImage.findMany({ where: { productId }, orderBy: { order: 'asc' } });
       if (images.length && !images.some(image => image.isMain)) await tx.productImage.update({ where: { id: images[0].id }, data: { isMain: true } });
+      const current = await tx.product.findUniqueOrThrow({ where: { id: productId }, include: { variants: true, images: true } });
+      return { before: auditProductSnapshot(previous), after: auditProductSnapshot(current) };
     }, { isolationLevel: 'Serializable' });
 
-    await logAction(session.employeeId, 'UPDATE_PRODUCT', 'PRODUCT', productId);
+    await logAction(session.employeeId, 'UPDATE_PRODUCT', 'PRODUCT', productId, audit);
     revalidatePath(`/admin/products/${productId}`);
     revalidatePath('/admin/products');
     revalidatePath('/admin/suppliers');

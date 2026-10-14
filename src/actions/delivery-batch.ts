@@ -15,7 +15,6 @@ function parseOrders(formData: FormData) {
 }
 
 function refreshBatch(reference: string) {
-  revalidatePath('/admin/captains');
   revalidatePath('/admin/settings');
   revalidatePath('/admin/orders');
   revalidatePath(`/delivery/${reference}`);

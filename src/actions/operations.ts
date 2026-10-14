@@ -18,7 +18,6 @@ export async function createCaptain(formData: FormData) {
   const parsed = z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(7).max(30), notes: z.string().max(500).optional() }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
   await prisma.captain.create({ data: parsed.data });
-  revalidatePath('/admin/captains');
 }
 
 export async function updateCaptain(id: string, formData: FormData) {
@@ -26,7 +25,6 @@ export async function updateCaptain(id: string, formData: FormData) {
   const parsed = z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(7).max(30), notes: z.string().trim().max(500).optional() }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
   await prisma.captain.update({ where: { id }, data: parsed.data });
-  revalidatePath('/admin/captains');
 }
 
 export async function setCaptainActive(id: string, isActive: boolean) {
@@ -34,7 +32,6 @@ export async function setCaptainActive(id: string, isActive: boolean) {
   const activeAssignments = await prisma.deliveryAssignment.count({ where: { captainId: id, status: { in: ['ASSIGNED', 'PICKED_UP', 'OUT_FOR_DELIVERY'] } } });
   if (!isActive && activeAssignments > 0) throw new Error('لا يمكن إيقاف مندوب لديه توصيلات نشطة.');
   await prisma.captain.update({ where: { id }, data: { isActive, status: isActive ? (activeAssignments > 0 ? 'BUSY' : 'AVAILABLE') : 'INACTIVE' } });
-  revalidatePath('/admin/captains');
 }
 
 export async function assignCaptain(formData: FormData) {
@@ -63,7 +60,6 @@ export async function assignCaptain(formData: FormData) {
     await tx.orderStatusHistory.create({ data: { orderId, status: 'ASSIGNED', notes: `Delivery assigned to ${captain.name}` } });
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'DELIVERY_ASSIGNED', entityType: 'DeliveryAssignment', entityId: assignment.id, details: JSON.stringify({ orderId, captainId }) } });
   });
-  revalidatePath('/admin/captains');
   revalidatePath('/admin/orders');
 }
 
@@ -82,7 +78,6 @@ export async function reassignCaptain(assignmentId: string, captainId: string) {
     await tx.captain.update({ where: { id: captainId }, data: { status: 'BUSY' } });
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'DELIVERY_REASSIGNED', entityType: 'DeliveryAssignment', entityId: assignment.id, details: JSON.stringify({ previousCaptainId: assignment.captainId, captainId, orderId: assignment.orderId, financialSnapshotUnchanged: true }) } });
   });
-  revalidatePath('/admin/captains');
   revalidatePath('/admin/deliveries');
 }
 
@@ -121,7 +116,6 @@ export async function updateDeliveryStatus(assignmentId: string, status: string,
     }
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'DELIVERY_STATUS_UPDATED', entityType: 'DeliveryAssignment', entityId: assignment.id, details: JSON.stringify({ status, notes }) } });
   }, { isolationLevel: 'Serializable' });
-  revalidatePath('/admin/captains');
   revalidatePath('/admin/orders');
 }
 
@@ -173,7 +167,6 @@ export async function settleCaptain(captainId: string, formData: FormData) {
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_CREATED', entityType: 'CaptainSettlement', entityId: settlement.id, details: JSON.stringify({ amount, paymentMethod: data.paymentMethod }) } });
   }, { isolationLevel: 'Serializable' });
   revalidatePath('/admin/captain-settlements');
-  revalidatePath('/admin/captains');
   revalidatePath('/admin/reconciliation');
 }
 
@@ -206,7 +199,6 @@ export async function deleteCaptainSettlement(settlementId: string) {
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_DELETED', entityType: 'CaptainSettlement', entityId: settlementId, details: JSON.stringify({ amount: settlement.amount }) } });
   });
   revalidatePath('/admin/captain-settlements');
-  revalidatePath('/admin/captains');
 }
 
 export async function createExpense(formData: FormData) {

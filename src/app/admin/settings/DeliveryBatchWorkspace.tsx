@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createDeliveryBatch, deleteDeliveryBatch, updateDeliveryBatch } from '@/actions/delivery-batch';
 import { filsToDisplay } from '@/lib/money';
-import { BatchActions } from '../captains/BatchActions';
-import { BatchStatusForm } from '../captains/BatchStatusForm';
+import { BatchActions } from './BatchActions';
+import { BatchStatusForm } from './BatchStatusForm';
 
 type Order = {
   id: string;

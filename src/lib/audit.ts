@@ -18,19 +18,6 @@ export async function logAction(
       },
     });
 
-    // Cleanup logs older than 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    // Non-blocking cleanup
-    prisma.auditLog.deleteMany({
-      where: {
-        createdAt: {
-          lt: thirtyDaysAgo
-        }
-      }
-    }).catch(console.error);
-
   } catch (error) {
     console.error('Failed to log action:', error);
   }
