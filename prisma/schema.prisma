@@ -121,6 +121,7 @@ model Product {
   brandId               String?
   barcode               String?                 @unique
   productType           String?
+  productTemplateId     String?
   isBestSeller          Boolean                 @default(false)
   isNew                 Boolean                 @default(false)
   isTrending            Boolean                 @default(false)
@@ -162,8 +163,11 @@ model Product {
   similarProducts       ProductSimilar[]        @relation("ProductSimilars")
   similarOf             ProductSimilar[]        @relation("SimilarOf")
   slides                HomepageHeroSlide[]
+  productTemplate       ProductTemplate?         @relation(fields: [productTemplateId], references: [id], onDelete: SetNull)
+  attributeValues       ProductAttributeValue[]
 
   @@index([brandId])
+  @@index([productTemplateId])
 }
 
 model ProductVariant {
@@ -196,6 +200,75 @@ model ProductVariant {
   purchaseOrderItems PurchaseOrderItem[]
   stockTransfers     StockTransfer[]
   shade              Shade?              @relation(fields: [shadeId], references: [id], onDelete: SetNull)
+  attributeValues    ProductVariantAttributeValue[]
+}
+
+model ProductTemplate {
+  id          String                 @id @default(uuid())
+  code        String                 @unique
+  nameAr      String
+  nameEn      String?
+  description String?
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  fields      ProductTemplateField[]
+  products    Product[]
+}
+
+model ProductAttributeDefinition {
+  id             String                 @id @default(uuid())
+  key            String                 @unique
+  nameAr         String
+  nameEn         String?
+  inputType      String                 @default("TEXT")
+  optionsJson    String?
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  templateFields ProductTemplateField[]
+  productValues  ProductAttributeValue[]
+  variantValues  ProductVariantAttributeValue[]
+}
+
+model ProductTemplateField {
+  id                    String                     @id @default(uuid())
+  templateId            String
+  attributeDefinitionId String
+  isRequired            Boolean                    @default(false)
+  showOnProductPage     Boolean                    @default(true)
+  isFilterable          Boolean                    @default(false)
+  useAsVariant          Boolean                    @default(false)
+  sortOrder             Int                        @default(0)
+  template              ProductTemplate            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  attributeDefinition   ProductAttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, attributeDefinitionId])
+  @@index([templateId, sortOrder])
+}
+
+model ProductAttributeValue {
+  id                    String                     @id @default(uuid())
+  productId             String
+  attributeDefinitionId String
+  valueJson             String
+  product               Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeDefinition   ProductAttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, attributeDefinitionId])
+  @@index([attributeDefinitionId])
+}
+
+model ProductVariantAttributeValue {
+  id                    String                     @id @default(uuid())
+  variantId             String
+  attributeDefinitionId String
+  valueJson             String
+  variant               ProductVariant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  attributeDefinition   ProductAttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([variantId, attributeDefinitionId])
+  @@index([attributeDefinitionId])
 }
 
 model Supplier {

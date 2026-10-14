@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createProduct, updateProduct } from '@/actions/products';
 
@@ -29,12 +29,13 @@ type InitialData = {
   images: { id: string; url: string; isMain: boolean }[];
 };
 
-export function ProductCatalogForm({ productId, initialData, categories, suppliers, nextSku }: {
+export function ProductCatalogForm({ productId, initialData, categories, suppliers, nextSku, templates = [] }: {
   productId?: string;
   initialData?: InitialData;
   categories: { id: string; name: string }[];
   suppliers: { id: string; name: string; profitMargin: number }[];
   nextSku?: string;
+  templates?: { id: string; nameAr: string; fields: { attributeDefinitionId: string; isRequired: boolean; useAsVariant: boolean; attributeDefinition: { nameAr: string; inputType: string; optionsJson: string | null } }[] }[];
 }) {
   const baseSku = initialData?.sku || nextSku || 'RAW-PRODUCT';
   const [variants, setVariants] = useState<Variant[]>(initialData?.variants.length ? initialData.variants : [{
@@ -43,6 +44,9 @@ export function ProductCatalogForm({ productId, initialData, categories, supplie
   const [images, setImages] = useState(initialData?.images || []);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const [templateValues, setTemplateValues] = useState<Record<string, string>>({});
+  const template = useMemo(() => templates.find(item => item.id === templateId), [templateId, templates]);
 
   function updateVariant(index: number, patch: Partial<Variant>) {
     setVariants(current => current.map((variant, i) => i === index ? { ...variant, ...patch } : variant));
@@ -56,6 +60,8 @@ export function ProductCatalogForm({ productId, initialData, categories, supplie
     formData.set('sku', baseSku);
     formData.set('variants', JSON.stringify(variants));
     formData.set('existingImageIds', JSON.stringify(images.map(image => image.id)));
+    formData.set('productTemplateId', templateId);
+    formData.set('templateAttributes', JSON.stringify(Object.entries(templateValues).filter(([, value]) => value !== '').map(([attributeDefinitionId, value]) => ({ attributeDefinitionId, value }))));
     const result = productId ? await updateProduct(productId, formData) : await createProduct(formData);
     if (result.success) window.location.href = '/admin/products';
     else { setError(result.error || 'تعذر حفظ المنتج.'); setPending(false); }
@@ -68,9 +74,11 @@ export function ProductCatalogForm({ productId, initialData, categories, supplie
       <label className="grid gap-1 text-sm font-bold">اسم المنتج بالإنجليزية<input name="nameEn" required defaultValue={initialData?.nameEn} className="rounded border p-2 font-normal" dir="ltr" /></label>
       <label className="grid gap-1 text-sm font-bold">SKU<input value={baseSku} readOnly className="rounded border bg-zinc-50 p-2 font-mono font-normal" dir="ltr" /></label>
       <label className="grid gap-1 text-sm font-bold">القسم<select name="categoryId" required defaultValue={initialData?.categoryId || ''} className="rounded border bg-white p-2 font-normal"><option value="">اختر القسم</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+      <label className="grid gap-1 text-sm font-bold">نوع المنتج<select value={templateId} onChange={event => { setTemplateId(event.target.value); setTemplateValues({}); }} className="rounded border bg-white p-2 font-normal"><option value="">منتج عام</option>{templates.map(item => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</select></label>
       <label className="grid gap-1 text-sm font-bold md:col-span-2">الوصف المختصر<textarea name="shortDescription" rows={2} defaultValue={initialData?.shortDescription || ''} className="rounded border p-2 font-normal" /></label>
       <label className="grid gap-1 text-sm font-bold md:col-span-2">الوصف التفصيلي<textarea name="longDescription" rows={4} defaultValue={initialData?.longDescription || ''} className="rounded border p-2 font-normal" /></label>
     </section>
+    {template && <section className="rounded-lg border bg-[#F7F3EA] p-4"><h2 className="mb-3 font-bold">خصائص {template.nameAr}</h2><div className="grid gap-3 md:grid-cols-2">{template.fields.filter(field => !field.useAsVariant).map(field => { const options = field.attributeDefinition.optionsJson ? JSON.parse(field.attributeDefinition.optionsJson) as string[] : []; return <label key={field.attributeDefinitionId} className="grid gap-1 text-sm font-bold">{field.attributeDefinition.nameAr}{field.isRequired ? ' *' : ''}{field.attributeDefinition.inputType === 'SELECT' ? <select required={field.isRequired} value={templateValues[field.attributeDefinitionId] || ''} onChange={event => setTemplateValues(current => ({ ...current, [field.attributeDefinitionId]: event.target.value }))} className="rounded border p-2 font-normal"><option value="">اختر</option>{options.map(option => <option key={option}>{option}</option>)}</select> : field.attributeDefinition.inputType === 'BOOLEAN' ? <select value={templateValues[field.attributeDefinitionId] || ''} onChange={event => setTemplateValues(current => ({ ...current, [field.attributeDefinitionId]: event.target.value }))} className="rounded border p-2 font-normal"><option value="">اختر</option><option value="true">نعم</option><option value="false">لا</option></select> : <input required={field.isRequired} type={field.attributeDefinition.inputType === 'NUMBER' ? 'number' : field.attributeDefinition.inputType === 'COLOR' ? 'color' : 'text'} value={templateValues[field.attributeDefinitionId] || ''} onChange={event => setTemplateValues(current => ({ ...current, [field.attributeDefinitionId]: event.target.value }))} className="rounded border p-2 font-normal" />}</label>; })}</div><p className="mt-3 text-xs text-zinc-600">الحقول المعلَّمة كمتغير تُدار من جدول الخيارات أدناه؛ أنشئ فقط التركيبات المتاحة فعليًا.</p></section>}
 
     <section className="space-y-3">
       <div className="flex items-center justify-between"><h2 className="font-bold">المقاسات / الخيارات</h2><button type="button" onClick={() => setVariants(current => [...current, { size: '', sku: `${baseSku}-${current.length + 1}`, price: 0, isActive: true, inventorySource: 'INTERNAL' }])} className="rounded border px-3 py-1 text-sm">+ إضافة خيار</button></div>

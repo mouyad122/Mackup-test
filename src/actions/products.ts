@@ -73,7 +73,12 @@ function productFields(formData: FormData) {
     longDescription: text(formData, 'longDescription') || null,
     isVisible: formData.get('isVisible') === 'true',
     isFeatured: formData.get('isFeatured') === 'true',
+    productTemplateId: text(formData, 'productTemplateId') || null,
   };
+}
+
+function parseTemplateAttributes(formData: FormData) {
+  try { const value = JSON.parse(String(formData.get('templateAttributes') || '[]')); return Array.isArray(value) ? value.filter((item): item is { attributeDefinitionId: string; value: unknown } => item && typeof item.attributeDefinitionId === 'string') : []; } catch { throw new Error('خصائص القالب غير صالحة.'); }
 }
 
 async function applySupplier(tx: Prisma.TransactionClient, variantId: string, variant: VariantInput) {
@@ -91,10 +96,15 @@ export async function createProduct(formData: FormData) {
   try {
     const data = productFields(formData);
     const variants = parseVariants(formData);
+    const templateAttributes = parseTemplateAttributes(formData);
     const imageUrls = await uploadedImages(formData);
     const slug = `${data.sku.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
 
     const product = await prisma.$transaction(async (tx) => {
+      if (data.productTemplateId) {
+        const fields = await tx.productTemplateField.findMany({ where: { templateId: data.productTemplateId }, select: { attributeDefinitionId: true, isRequired: true } });
+        if (!fields.length || templateAttributes.some(value => !fields.some(field => field.attributeDefinitionId === value.attributeDefinitionId)) || fields.some(field => field.isRequired && !templateAttributes.some(value => value.attributeDefinitionId === field.attributeDefinitionId && value.value !== '' && value.value !== null))) throw new Error('أكمل الحقول الإلزامية الخاصة بنوع المنتج.');
+      }
       const created = await tx.product.create({
         data: {
           ...data,
@@ -111,6 +121,7 @@ export async function createProduct(formData: FormData) {
         },
         include: { variants: true },
       });
+      if (templateAttributes.length) await tx.productAttributeValue.createMany({ data: templateAttributes.map(value => ({ productId: created.id, attributeDefinitionId: value.attributeDefinitionId, valueJson: JSON.stringify(value.value) })) });
       for (let index = 0; index < variants.length; index++) await applySupplier(tx, created.variants[index].id, variants[index]);
       return created;
     }, { isolationLevel: 'Serializable' });

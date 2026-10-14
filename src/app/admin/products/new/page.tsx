@@ -14,6 +14,7 @@ export default async function AdminProductsNewPage() {
   });
 
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  const templates = await prisma.productTemplate.findMany({ where: { isActive: true }, include: { fields: { include: { attributeDefinition: true }, orderBy: { sortOrder: 'asc' } } }, orderBy: { nameAr: 'asc' } }).catch(() => []);
   const supplierRows = await prisma.supplier.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } });
   const suppliers = await Promise.all(supplierRows.map(async supplier => ({ ...supplier, profitMargin: await getSupplierProfitMargin(prisma, supplier.id) })));
 
@@ -56,6 +57,7 @@ export default async function AdminProductsNewPage() {
           categories={categories.map(c => ({ id: c.id, name: c.name }))}
           nextSku={nextSku}
           suppliers={suppliers}
+          templates={templates}
         />
       </main>
     </div>
