@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
           <div className="flex items-center justify-center w-28 h-28 mb-4">
             <img src="/brand/logo_rawaq.png" alt="Rawaq Logo" className="object-contain w-full h-full drop-shadow-md" />
           </div>
-          <h2 className="text-center text-3xl font-heading font-extrabold text-[#3F4B32]">
+          <h2 className="text-center text-3xl font-heading font-extrabold text-[#3F4832]">
             رَواق
           </h2>
           <p className="mt-2 text-center text-sm text-[#B7935F] font-bold">
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-md text-white bg-[#3F4B32] hover:bg-[#2d3623] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3F4B32] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-md text-white bg-[#3F4832] hover:bg-[#2d3623] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3F4832] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isPending ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
             </button>

@@ -47,7 +47,7 @@ export function MobileCategoriesFeed({ categories, locale, isAr }: { categories:
                   {category.name}
                 </h3>
               </div>
-              <Link href={`/${locale}/shop?category=${category.id}`} className="text-xs font-bold text-[#3F4B32] pb-1 flex items-center gap-1 group">
+              <Link href={`/${locale}/shop?category=${category.id}`} className="text-xs font-bold text-[#3F4832] pb-1 flex items-center gap-1 group">
                 {isAr ? 'عرض الكل' : 'View all'}
                 <span className="transition-transform group-hover:-translate-x-1" aria-hidden="true">{isAr ? '←' : '→'}</span>
               </Link>
@@ -84,14 +84,14 @@ export function MobileCategoriesFeed({ categories, locale, isAr }: { categories:
                       {mainImage ? (
                         <div className="h-full w-full bg-cover bg-center bg-no-repeat transition-transform duration-700 group-hover:scale-[1.03]" style={{ backgroundImage: `url("${mainImage.url.startsWith('local://') ? mainImage.url.replace('local://', '/') : mainImage.url}")` }} />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-3xl text-[#3F4B32]/20">✦</div>
+                        <div className="flex h-full w-full items-center justify-center text-3xl text-[#3F4832]/20">✦</div>
                       )}
                     </RawaqProductFrame>
                     <div className="flex min-h-[90px] flex-1 flex-col pt-3 px-1 text-center bg-transparent">
-                      <h4 className="text-sm font-semibold text-[#2B2B2B] mb-1 line-clamp-2 leading-snug group-hover:text-[#3F4B32] transition-colors">
+                      <h4 className="text-sm font-semibold text-[#2B2B2B] mb-1 line-clamp-2 leading-snug group-hover:text-[#3F4832] transition-colors">
                         {isAr ? product.nameAr : product.nameEn}
                       </h4>
-                      <div className="mt-auto pt-1 text-sm text-[#3F4B32] font-bold">
+                      <div className="mt-auto pt-1 text-sm text-[#3F4832] font-bold">
                         {lowestPrice > 0 ? `${isAr ? 'ابتداءً من ' : 'From '} ${filsToDisplay(lowestPrice, isAr ? 'ar' : 'en')}` : (isAr ? 'عرض التفاصيل' : 'View details')}
                       </div>
                     </div>

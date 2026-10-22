@@ -36,7 +36,7 @@ export function InventorySettingsForm({ initialThreshold, employeeId }: { initia
       <button 
         onClick={handleSave}
         disabled={isPending}
-        className="bg-[#3F4B32] text-white px-6 py-2 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
+        className="bg-[#3F4832] text-white px-6 py-2 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
       >
         {isPending ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
       </button>

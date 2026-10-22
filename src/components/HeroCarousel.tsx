@@ -256,7 +256,7 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
                         </>
                       )
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-[#3F4B32]"><span className="text-white/20 text-6xl">✦</span></div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#3F4832]"><span className="text-white/20 text-6xl">✦</span></div>
                     )}
                   </div>
                   
@@ -321,7 +321,7 @@ export function HeroCarousel({ slides, settings }: HeroCarouselProps) {
                       )}
                       <div className="mt-8 flex flex-wrap gap-4 items-center">
                         {hasAction && (
-                          <Link href={slideUrl} className="bg-[#3F4B32] text-white hover:bg-[#2A3321] px-8 py-3.5 rounded-full text-sm md:text-base font-bold shadow-lg transition-all">
+                          <Link href={slideUrl} className="bg-[#3F4832] text-white hover:bg-[#2A3321] px-8 py-3.5 rounded-full text-sm md:text-base font-bold shadow-lg transition-all">
                             {cta || (isAr ? 'اكتشفي المزيد' : 'Discover More')}
                           </Link>
                         )}

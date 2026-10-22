@@ -10,46 +10,78 @@
   background-color: #F7F3EA;
 }
 
+@font-face {
+  font-family: 'EnglishDigits';
+  src: local('Segoe UI'), local('Roboto'), local('Helvetica Neue'), local('Arial'), local('sans-serif');
+  unicode-range: U+0030-0039, U+002E, U+002C, U+002F, U+003A, U+002D, U+002B, U+0025;
+}
+
 html,
 body {
   min-height: 100%;
   background-color: #F7F3EA;
-  color: #3F4B32;
+  color: #3F4832;
+  font-family: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-feature-settings: "locl" 0;
+  font-feature-settings: "locl" 0;
+}
+
+*, *::before, *::after {
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-feature-settings: "locl" 0;
+  font-feature-settings: "locl" 0;
 }
 
 input,
 select,
 textarea {
   color-scheme: only light;
+  font-family: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 @theme {
-  /* ─── RAWAQ Color Palette ─── */
-  --color-olive: #3F4B32;
+  /* ─── RAWAQ Color Palette (الهوية الأصلية المعتمدة) ─── */
+  --color-olive: #3F4832;
+  --color-olive-dark: #2D3424;
+  --color-olive-light: #4E5A3E;
   --color-warm-sand: #D9C6A8;
   --color-ivory: #F7F3EA;
+  --color-ivory-soft: #fbfaf8;
   --color-blush-nude: #D6ACA1;
+  --color-blush-dusty: #C9A89E;   /* وردي ترابي للعروض */
+  --color-sand-warm: #E8D5B7;     /* رملي فاتح للخلفيات */
   --color-antique-gold: #B7935F;
+  --color-gold-muted: #a68250;
+
+  /* ─── Radii ─── */
+  --radius-pill: 9999px;           /* أزرار الإجراءات الرئيسية ممتدة */
+  --radius-filter: 0.75rem;        /* أزرار الفلاتر والتبويبات بحواف ناعمة 12px */
+  --radius-form: 0.5rem;           /* حقول الإدخال والنماذج 8px */
+  --radius-card: 1.25rem;          /* بطاقات المنتجات */
+  --radius-card-lg: 2rem;          /* بطاقات كبيرة */
+  --radius-card-accent: 2.5rem;   /* زوايا مميزة */
 
   /* ─── Typography ─── */
-  --font-heading: var(--font-noto-naskh);
-  --font-body: var(--font-noto-naskh);
+  --font-heading: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
+  --font-body: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
   --font-english: var(--font-cormorant);
 }
 
 /* The storefront uses a deliberately restrained visual language: one dark
    anchor, calm neutrals, square edges and thin separators. */
 [data-brand="rawaq"] footer {
-  background: #3F4B32 !important;
+  background: #3F4832 !important;
 }
 
 [data-brand="rawaq"] .rawaq-nav-link::after {
   height: 1px;
-  background: #3F4B32;
+  background: #3F4832;
 }
 
 [data-brand="rawaq"] .rawaq-section-heading .divider {
-  background: #3F4B32;
+  background: #3F4832;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -81,7 +113,7 @@ textarea {
   --border-gold:    rgba(183, 147, 95, .42);
 
   /* Semantic */
-  --status-success: #3F4B32;
+  --status-success: #3F4832;
   --status-error:   #A61E22;
 
   color: var(--text-primary);
@@ -188,71 +220,112 @@ textarea {
     background-repeat: repeat-x;
   }
 
-  /* ── Primary Button ── */
+  /* ═══════════════════════════════════
+     RAWAQ BUTTON & CONTROLS HIERARCHY
+     هرمية أزرار رَواق المتوازنة
+     ═══════════════════════════════════ */
+
+  /* ── Primary CTA Button (دائري طويل ممتد للإجراءات الكبرى) ── */
   .btn-rawaq-primary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: .5rem;
     background-color: var(--brand-primary, var(--color-olive));
     color: #fff;
     font-weight: 700;
     font-family: var(--font-heading);
-    padding: .75rem 1.75rem;
-    border-radius: .25rem;
+    padding: .8rem 2.2rem;
+    border-radius: var(--radius-pill);
     border: 2px solid transparent;
-    transition: background-color 150ms ease, transform 120ms ease, box-shadow 150ms ease;
+    transition: background-color 200ms ease, transform 150ms ease, box-shadow 200ms ease;
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
+    white-space: nowrap;
   }
   .btn-rawaq-primary:hover {
-    background-color: var(--brand-primary-hover, #2d3623);
-    box-shadow: none;
+    background-color: var(--brand-primary-hover, #2D3424);
+    box-shadow: 0 4px 20px rgba(63,72,50,.25);
   }
   .btn-rawaq-primary:active { transform: scale(.97); }
 
-  /* ── Ghost Button ── */
+  /* ── Ghost Button (على الخلفيات الداكنة - حواف ناعمة راقية) ── */
   .btn-rawaq-ghost {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: .5rem;
     background-color: transparent;
     color: white;
     font-weight: 700;
     font-family: var(--font-heading);
-    padding: .75rem 1.75rem;
-    border-radius: .25rem;
-    border: 2px solid rgba(255,255,255,.5);
-    transition: border-color 150ms ease, background-color 150ms ease;
+    padding: .75rem 1.8rem;
+    border-radius: var(--radius-filter);
+    border: 1.5px solid rgba(255,255,255,.6);
+    transition: border-color 200ms ease, background-color 200ms ease;
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
+    white-space: nowrap;
   }
   .btn-rawaq-ghost:hover {
     border-color: white;
-    background-color: rgba(255,255,255,.08);
+    background-color: rgba(255,255,255,.12);
   }
 
-  /* ── Gold Outline Button ── */
+  /* ── Gold Accent Button (دائري ممتد للفرص الخاصة) ── */
   .btn-rawaq-gold {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: .5rem;
-    background-color: transparent;
-    color: var(--color-olive);
+    background-color: var(--color-antique-gold);
+    color: white;
     font-weight: 700;
     font-family: var(--font-heading);
-    padding: .75rem 1.75rem;
-    border-radius: .25rem;
-    border: 1px solid var(--color-olive);
-    transition: background-color 150ms ease, color 150ms ease;
+    padding: .8rem 2.2rem;
+    border-radius: var(--radius-pill);
+    border: 2px solid transparent;
+    transition: background-color 200ms ease, transform 150ms ease, box-shadow 200ms ease;
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
+    white-space: nowrap;
   }
   .btn-rawaq-gold:hover {
+    background-color: #a3814f;
+    box-shadow: 0 4px 16px rgba(183,147,95,.3);
+  }
+
+  /* ── Filter / Tab Button (حواف ناعمة متوازنة للفلاتر والتبويبات) ── */
+  .btn-rawaq-filter,
+  .btn-rawaq-pill-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background-color: var(--color-ivory);
+    color: var(--color-olive);
+    font-weight: 600;
+    font-size: .85rem;
+    padding: .5rem 1.2rem;
+    border-radius: var(--radius-filter);
+    border: 1px solid var(--color-warm-sand);
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-rawaq-filter:hover,
+  .btn-rawaq-pill-sm:hover {
+    border-color: var(--color-olive);
+    background-color: #f1ebdE;
+  }
+  .btn-rawaq-filter.active,
+  .btn-rawaq-pill-sm.active {
     background-color: var(--color-olive);
     color: white;
+    border-color: var(--color-olive);
   }
 
   /* ════════════════════════════════════════════
@@ -386,6 +459,63 @@ textarea {
   .report-data-table tbody tr:nth-child(even) { background: #FBF8F2; }
   .report-empty-state { padding: 28px 14px; border: 1px dashed #D9C6A8; border-radius: 10px; color: #746A64; text-align: center; }
   .report-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 26px; padding-top: 10px; border-top: 1px solid #E9DDCC; color: #746A64; font-size: 10px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     RAWAQ ANIMATIONS
+     ═══════════════════════════════════════════════════════════ */
+
+  @keyframes rawaqFadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes rawaqFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes rawaqSlideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .rawaq-fade-up    { animation: rawaqFadeUp    0.55s ease both; }
+  .rawaq-fade-in    { animation: rawaqFadeIn    0.4s  ease both; }
+  .rawaq-slide-in   { animation: rawaqSlideInRight 0.5s ease both; }
+
+  /* stagger helpers */
+  .rawaq-delay-1 { animation-delay: 0.1s; }
+  .rawaq-delay-2 { animation-delay: 0.2s; }
+  .rawaq-delay-3 { animation-delay: 0.3s; }
+  .rawaq-delay-4 { animation-delay: 0.4s; }
+
+  /* ── Toast Notification ── */
+  .rawaq-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    inset-inline-end: 1.5rem;
+    z-index: 9999;
+    background: var(--color-olive);
+    color: white;
+    padding: .75rem 1.5rem;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: .875rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    animation: rawaqFadeUp 0.3s ease both;
+    pointer-events: none;
+  }
+
+  /* ── Skeleton Loading ── */
+  .rawaq-skeleton {
+    background: linear-gradient(90deg, #e8e3d9 25%, #f0ece4 50%, #e8e3d9 75%);
+    background-size: 200% 100%;
+    animation: rawaqSkeleton 1.4s ease infinite;
+    border-radius: var(--radius-card);
+  }
+  @keyframes rawaqSkeleton {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
 }
 
 /* ═══════════════════════════════════════════════════════════

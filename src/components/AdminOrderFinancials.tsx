@@ -50,7 +50,7 @@ export function AdminOrderFinancials({ orderId, hasMissingProfits }: { orderId: 
 
   return (
     <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
-      <h3 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+      <h3 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
         الإدارة المالية واللوجستية
       </h3>
 

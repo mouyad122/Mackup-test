@@ -36,7 +36,7 @@ export default async function PurchaseOrderDetailsPage({ params }: { params: Pro
       <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
         <header>
           <div className="flex items-center gap-4">
-            <h1 className="font-heading text-3xl font-bold text-[#3F4B32]">تفاصيل أمر الشراء</h1>
+            <h1 className="font-heading text-3xl font-bold text-[#3F4832]">تفاصيل أمر الشراء</h1>
             <span className={`px-3 py-1 rounded-full text-sm font-bold ${
               po.status === 'DRAFT' ? 'bg-gray-200 text-gray-800' :
               po.status === 'SENT' ? 'bg-blue-200 text-blue-800' :
@@ -70,7 +70,6 @@ export default async function PurchaseOrderDetailsPage({ params }: { params: Pro
                       <tr key={item.id}>
                         <td className="py-3">
                           <p className="font-medium">{item.variant.product.nameAr} - {item.variant.name}</p>
-                          <p className="text-xs text-zinc-500">{item.variant.sku}</p>
                         </td>
                         <td className="py-3">{item.quantityOrdered}</td>
                         <td className="py-3 font-medium text-green-600">{item.quantityReceived}</td>
@@ -82,7 +81,7 @@ export default async function PurchaseOrderDetailsPage({ params }: { params: Pro
                   <tfoot className="border-t font-bold">
                     <tr>
                       <td colSpan={4} className="py-3">المجموع الكلي:</td>
-                      <td className="py-3 text-[#3F4B32] text-lg">{(po.totalAmount / 1000).toFixed(3)} د.أ</td>
+                      <td className="py-3 text-[#3F4832] text-lg">{(po.totalAmount / 1000).toFixed(3)} د.أ</td>
                     </tr>
                   </tfoot>
                 </table>

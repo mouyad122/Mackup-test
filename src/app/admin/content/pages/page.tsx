@@ -75,7 +75,7 @@ export default async function AdminPagesCMS() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
+              <h1 className="text-3xl font-bold font-heading text-[#3F4832]">
                 إدارة صفحات الموقع (الفوتر)
               </h1>
               <p className="text-zinc-650 mt-1">
@@ -89,8 +89,8 @@ export default async function AdminPagesCMS() {
           {pages.map((page) => (
             <form key={page.key} action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-xl font-bold text-[#3F4B32]">{page.label}</h2>
-                <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
+                <h2 className="text-xl font-bold text-[#3F4832]">{page.label}</h2>
+                <button type="submit" className="bg-[#3F4832] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                   حفظ ({page.label})
                 </button>
               </div>
@@ -121,8 +121,8 @@ export default async function AdminPagesCMS() {
           {/* Shipping Policy Form (Different Schema) */}
           <form action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-xl font-bold text-[#3F4B32]">الشحن والتوصيل (مقدمة الصفحة)</h2>
-              <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
+              <h2 className="text-xl font-bold text-[#3F4832]">الشحن والتوصيل (مقدمة الصفحة)</h2>
+              <button type="submit" className="bg-[#3F4832] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                 حفظ (الشحن)
               </button>
             </div>
@@ -153,8 +153,8 @@ export default async function AdminPagesCMS() {
           {/* Contact Info Form */}
           <form action={handleSavePageCMS} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-6">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-xl font-bold text-[#3F4B32]">معلومات الاتصال (عنوان وأوقات عمل)</h2>
-              <button type="submit" className="bg-[#3F4B32] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
+              <h2 className="text-xl font-bold text-[#3F4832]">معلومات الاتصال (عنوان وأوقات عمل)</h2>
+              <button type="submit" className="bg-[#3F4832] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#2d3623] transition-colors">
                 حفظ (معلومات الاتصال)
               </button>
             </div>

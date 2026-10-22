@@ -53,7 +53,7 @@ export default async function DeliveriesPage() {
                         {zone.isEnabled ? 'فعال' : 'معطل'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-[#3F4B32]">
+                    <td className="px-6 py-4 font-bold text-[#3F4832]">
                       {filsToDisplay(zone.fee, 'ar')}
                     </td>
                     <td className="px-6 py-4">

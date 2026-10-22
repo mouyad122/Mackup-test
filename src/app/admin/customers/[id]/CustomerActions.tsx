@@ -34,7 +34,7 @@ export function CustomerActions({ customer }: { customer: { id: string; notes: s
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--color-ivory-200)]">
-        <h3 className="font-bold text-lg mb-4 text-[#3F4B32]">الإجراءات والحالة</h3>
+        <h3 className="font-bold text-lg mb-4 text-[#3F4832]">الإجراءات والحالة</h3>
         <div className="flex items-center justify-between p-4 bg-zinc-50 rounded border border-zinc-200">
           <div>
             <p className="font-bold">حالة الحساب</p>
@@ -51,7 +51,7 @@ export function CustomerActions({ customer }: { customer: { id: string; notes: s
       </div>
 
       <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--color-ivory-200)]">
-        <h3 className="font-bold text-lg mb-4 text-[#3F4B32]">ملاحظات إدارية</h3>
+        <h3 className="font-bold text-lg mb-4 text-[#3F4832]">ملاحظات إدارية</h3>
         <form onSubmit={handleNotesSubmit} className="space-y-4">
           <div>
             <textarea
@@ -65,7 +65,7 @@ export function CustomerActions({ customer }: { customer: { id: string; notes: s
             <button
               type="submit"
               disabled={isUpdating}
-              className="px-6 py-2 bg-[#3F4B32] text-white rounded font-bold text-sm hover:bg-zinc-800 disabled:opacity-50"
+              className="px-6 py-2 bg-[#3F4832] text-white rounded font-bold text-sm hover:bg-zinc-800 disabled:opacity-50"
             >
               حفظ الملاحظات
             </button>

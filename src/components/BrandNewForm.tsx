@@ -33,7 +33,7 @@ export function BrandNewForm({ products = [] }: { products?: { id: string, nameA
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm h-fit">
-      <h3 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+      <h3 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
         إضافة ماركة جديدة
       </h3>
       <div className="space-y-4">
@@ -87,7 +87,7 @@ export function BrandNewForm({ products = [] }: { products?: { id: string, nameA
           <div className="max-h-48 overflow-y-auto border border-zinc-200 rounded p-2 text-sm bg-zinc-50 space-y-1">
             {filteredProducts.map(p => (
               <label key={p.id} className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded cursor-pointer">
-                <input type="checkbox" name="productIds" value={p.id} className="w-4 h-4 rounded text-[#3F4B32] focus:ring-[#3F4B32]" />
+                <input type="checkbox" name="productIds" value={p.id} className="w-4 h-4 rounded text-[#3F4832] focus:ring-[#3F4832]" />
                 <span className="flex-1 truncate text-zinc-700 font-medium">{p.nameAr}</span>
                 {p.brand && (
                   <span className="text-[10px] text-zinc-500 bg-zinc-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
@@ -104,7 +104,7 @@ export function BrandNewForm({ products = [] }: { products?: { id: string, nameA
         <button 
           type="submit"
           disabled={isPending} 
-          className="w-full bg-[#3F4B32] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
+          className="w-full bg-[#3F4832] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
         >
           {isPending ? 'جاري الإضافة...' : 'إضافة ماركة'}
         </button>

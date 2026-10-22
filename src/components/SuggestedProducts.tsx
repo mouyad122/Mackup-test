@@ -48,11 +48,11 @@ export default function SuggestedProducts({ products, locale }: SuggestedProduct
             </RawaqProductFrame>
 
             <div className="flex flex-1 flex-col pt-4 px-2 text-center bg-transparent">
-              <h3 className="mb-1 line-clamp-2 text-base font-bold text-[#2B2B2B] transition-colors group-hover:text-[#3F4B32]">
+              <h3 className="mb-1 line-clamp-2 text-base font-bold text-[#2B2B2B] transition-colors group-hover:text-[#3F4832]">
                 {productName}
               </h3>
               {product.lowestPrice > 0 && (
-                <p className="mt-auto pt-1 text-sm font-bold text-[#3F4B32]">
+                <p className="mt-auto pt-1 text-sm font-bold text-[#3F4832]">
                   {isAr ? 'يبدأ من' : 'From'} <span className="text-base">{filsToDisplay(product.lowestPrice, isAr ? 'ar' : 'en')}</span>
                 </p>
               )}

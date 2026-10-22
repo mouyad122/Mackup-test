@@ -41,7 +41,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
       <main className="flex-1 p-4 md:p-8 font-sans">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4832]">
               ملف العميل: {customer.firstName} {customer.lastName || ''}
             </h1>
             <p className="text-zinc-650 mt-1">عرض تفاصيل العميل، نقاط الولاء، وسجل الطلبات</p>
@@ -56,7 +56,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
           {/* Right Column: Basic Info & Actions */}
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--color-ivory-200)]">
-              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4B32]">المعلومات الأساسية</h3>
+              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4832]">المعلومات الأساسية</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-zinc-500">الاسم:</span>
@@ -78,7 +78,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--color-ivory-200)]">
-              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4B32]">نقاط الولاء (Loyalty)</h3>
+              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4832]">نقاط الولاء (Loyalty)</h3>
               {customer.loyaltyAccount ? (
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
@@ -102,7 +102,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             <CustomerActions customer={{ id: customer.id, notes: customer.notes, isActive: customer.isActive }} />
 
             <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--color-ivory-200)]">
-              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4B32]">العناوين المسجلة</h3>
+              <h3 className="font-bold text-lg mb-4 border-b pb-2 text-[#3F4832]">العناوين المسجلة</h3>
               {customer.addresses.length > 0 ? (
                 <div className="space-y-4">
                   {customer.addresses.map((addr) => (
@@ -123,7 +123,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-[var(--color-ivory-200)] p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-xl text-[#3F4B32]">سجل الطلبات (أونلاين)</h3>
+                <h3 className="font-bold text-xl text-[#3F4832]">سجل الطلبات (أونلاين)</h3>
                 <span className="text-sm font-bold bg-zinc-100 px-3 py-1 rounded">الإجمالي: {filsToDisplay(totalOrdersValue)}</span>
               </div>
               
@@ -159,7 +159,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
 
             <div className="bg-white rounded-lg shadow-sm border border-[var(--color-ivory-200)] p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-xl text-[#3F4B32]">سجل المبيعات (نقاط البيع - POS)</h3>
+                <h3 className="font-bold text-xl text-[#3F4832]">سجل المبيعات (نقاط البيع - POS)</h3>
                 <span className="text-sm font-bold bg-zinc-100 px-3 py-1 rounded">الإجمالي: {filsToDisplay(totalSalesValue)}</span>
               </div>
               

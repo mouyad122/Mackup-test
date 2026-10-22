@@ -17,7 +17,7 @@ export default async function CollectionsPage({ params }: { params: Promise<{ lo
   return (
     <div className="bg-[var(--color-ivory-100)] min-h-screen pb-20">
       {/* Header Banner */}
-      <div className="bg-[#3F4B32] text-white py-16 text-center border-b-4 border-[var(--color-champagne-600)] relative overflow-hidden">
+      <div className="bg-[#3F4832] text-white py-16 text-center border-b-4 border-[var(--color-champagne-600)] relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/pattern.png')] opacity-10 bg-repeat" />
         <div className="relative z-10">
           <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4">

@@ -185,7 +185,7 @@ export function CategoryActionsMenu({
               <button 
                 onClick={handleUpdate}
                 disabled={isPending}
-                className="px-4 py-2 bg-[#3F4B32] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-[#3F4832] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 {isPending ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </button>
@@ -210,7 +210,7 @@ export function CategoryActionsMenu({
                   name="deleteOption" 
                   checked={!deleteWithProducts}
                   onChange={() => setDeleteWithProducts(false)}
-                  className="mt-1 accent-[#3F4B32]"
+                  className="mt-1 accent-[#3F4832]"
                 />
                 <div>
                   <span className="block font-bold text-sm">الاحتفاظ بالمنتجات (موصى به)</span>

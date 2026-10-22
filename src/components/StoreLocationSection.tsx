@@ -71,7 +71,7 @@ export function StoreLocationSection({ settings }: StoreLocationSectionProps) {
           <span className="text-[10px] tracking-widest font-bold text-[var(--color-champagne-600)] uppercase block">
             {isAr ? 'موقعنا الرسمي' : 'Our Showroom'}
           </span>
-          <h2 className="text-2xl md:text-3xl font-bold font-heading text-[#3F4B32]">
+          <h2 className="text-2xl md:text-3xl font-bold font-heading text-[#3F4832]">
             {isAr ? 'تفضل بزيارة معرض فيلورا بيوتي' : 'Visit Velora Beauty Store'}
           </h2>
           <div className="w-16 h-1 bg-[var(--color-champagne-600)] mx-auto rounded-full" />
@@ -85,7 +85,7 @@ export function StoreLocationSection({ settings }: StoreLocationSectionProps) {
             <div className="space-y-6">
               {/* Store Title */}
               <div>
-                <h3 className="text-xl font-bold text-[#3F4B32]">
+                <h3 className="text-xl font-bold text-[#3F4832]">
                   {settings.storeName}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1">
@@ -123,7 +123,7 @@ export function StoreLocationSection({ settings }: StoreLocationSectionProps) {
               {settings.directionsButtonEnabled && (
                 <button
                   onClick={handleDirectionsClick}
-                  className="w-full bg-[#3F4B32] hover:bg-[#2d3623] text-white text-xs font-bold py-3 rounded-sm transition-all shadow-sm flex items-center justify-center gap-2"
+                  className="w-full bg-[#3F4832] hover:bg-[#2d3623] text-white text-xs font-bold py-3 rounded-sm transition-all shadow-sm flex items-center justify-center gap-2"
                 >
                   <Map className="w-4 h-4" />
                   <span>{isAr ? 'الحصول على الاتجاهات' : 'Get Directions'}</span>

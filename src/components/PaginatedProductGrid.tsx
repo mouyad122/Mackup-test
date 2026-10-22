@@ -93,7 +93,7 @@ export function PaginatedProductGrid({
                       className={`object-contain p-5 transition duration-700 group-hover:scale-[1.03] ${totalStock === 0 ? 'opacity-50 grayscale-[0.3]' : ''}`}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-4xl text-[#3F4B32]/20">✦</div>
+                    <div className="absolute inset-0 flex items-center justify-center text-4xl text-[#3F4832]/20">✦</div>
                   )}
                 </div>
 
@@ -108,10 +108,10 @@ export function PaginatedProductGrid({
                     {product.variants?.length > 0 ? (
                       <>
                         <span className="text-[10px] uppercase tracking-widest text-[#A69A8C] font-semibold">{isAr ? 'ابتداءً من' : 'From'}</span>
-                        <span className="text-[15px] font-bold text-[#3F4B32]">{filsToDisplay(lowestPrice, isAr ? 'ar' : 'en')}</span>
+                        <span className="text-[15px] font-bold text-[#3F4832]">{filsToDisplay(lowestPrice, isAr ? 'ar' : 'en')}</span>
                       </>
                     ) : (
-                      <span className="text-[13px] font-medium text-[#3F4B32] underline underline-offset-4 decoration-[#D9C6A8]">{isAr ? 'اكتشفي التفاصيل' : 'Discover more'}</span>
+                      <span className="text-[13px] font-medium text-[#3F4832] underline underline-offset-4 decoration-[#D9C6A8]">{isAr ? 'اكتشفي التفاصيل' : 'Discover more'}</span>
                     )}
                   </div>
                 </div>

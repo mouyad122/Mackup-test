@@ -89,7 +89,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
   return (
     <div className="min-h-screen bg-[#F7F3EA] pb-24">
       {/* Header Pattern */}
-      <div className="bg-[#3F4B32] py-16 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+      <div className="bg-[#3F4832] py-16 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
         <p className="rawaq-eyebrow text-[#B7935F]">SHOPPING CART</p>
         <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? 'سلة المشتريات' : 'Your Cart'}</h1>
       </div>
@@ -114,7 +114,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                     <div className="relative w-16 h-16 flex-shrink-0">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="16" fill="none" className="stroke-[#F7F3EA]" strokeWidth="4" />
-                        <circle cx="18" cy="18" r="16" fill="none" className={`stroke-current ${rewardProgress >= 100 ? 'text-[#3F4B32]' : 'text-[#B7935F]'} transition-all duration-700`} strokeWidth="4" strokeDasharray="100" strokeDashoffset={Math.max(0, 100 - rewardProgress)} strokeLinecap="round" />
+                        <circle cx="18" cy="18" r="16" fill="none" className={`stroke-current ${rewardProgress >= 100 ? 'text-[#3F4832]' : 'text-[#B7935F]'} transition-all duration-700`} strokeWidth="4" strokeDasharray="100" strokeDashoffset={Math.max(0, 100 - rewardProgress)} strokeLinecap="round" />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-[#2B2B2B]">{rewardProgress}%</div>
                     </div>
@@ -144,7 +144,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                         <div>
                           <div className="flex justify-between items-start gap-4">
                             <h3 className="font-bold text-[#2B2B2B] leading-snug">{item.name}</h3>
-                            <button onClick={() => removeFromCart(item.sku)} className="text-[#A69A8C] hover:text-[#3F4B32] transition-colors p-1" aria-label="Remove">
+                            <button onClick={() => removeFromCart(item.sku)} className="text-[#A69A8C] hover:text-[#3F4832] transition-colors p-1" aria-label="Remove">
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                             </button>
                           </div>
@@ -157,7 +157,7 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                             <span className="w-8 text-center text-sm font-bold text-[#2B2B2B]">{item.quantity}</span>
                             <button onClick={() => updateQuantity(item.sku, 1)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#2B2B2B] hover:bg-white hover:shadow-sm transition-all">+</button>
                           </div>
-                          <span className="font-bold text-[#3F4B32]">{filsToDisplay(item.price * item.quantity, isAr ? 'ar' : 'en')}</span>
+                          <span className="font-bold text-[#3F4832]">{filsToDisplay(item.price * item.quantity, isAr ? 'ar' : 'en')}</span>
                         </div>
                       </div>
                     </div>
@@ -190,13 +190,13 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                 <div className="flex justify-between text-[#746A64]">
                   <span>{isAr ? 'التوصيل' : 'Shipping'}</span>
                   <span className="font-bold text-[#2B2B2B]">
-                    {shippingFee === 0 ? <span className="text-[#3F4B32]">{isAr ? 'مجاني' : 'Free'}</span> : filsToDisplay(shippingFee, isAr ? 'ar' : 'en')}
+                    {shippingFee === 0 ? <span className="text-[#3F4832]">{isAr ? 'مجاني' : 'Free'}</span> : filsToDisplay(shippingFee, isAr ? 'ar' : 'en')}
                   </span>
                 </div>
 
                 <div className="flex justify-between font-bold text-lg border-t border-[#E9DDCC] pt-5 mt-5 text-[#2B2B2B]">
                   <span>{isAr ? 'الإجمالي' : 'Total'}</span>
-                  <span className="text-[#3F4B32]">{filsToDisplay(grandTotal, isAr ? 'ar' : 'en')}</span>
+                  <span className="text-[#3F4832]">{filsToDisplay(grandTotal, isAr ? 'ar' : 'en')}</span>
                 </div>
               </div>
 

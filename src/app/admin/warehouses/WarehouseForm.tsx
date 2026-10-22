@@ -109,7 +109,7 @@ export function WarehouseForm({ initialData }: { initialData?: Warehouse }) {
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 bg-[#3F4B32] hover:bg-[#2d3623] text-white p-3 rounded-md font-bold transition-colors disabled:opacity-70 flex justify-center items-center gap-2"
+            className="flex-1 bg-[#3F4832] hover:bg-[#2d3623] text-white p-3 rounded-md font-bold transition-colors disabled:opacity-70 flex justify-center items-center gap-2"
           >
             {isLoading ? (
               <span>جاري الحفظ...</span>

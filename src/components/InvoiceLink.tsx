@@ -33,7 +33,7 @@ export default function InvoiceLink({ orderId }: InvoiceLinkProps) {
       <button
         type="button"
         onClick={copyToClipboard}
-        className="p-1 rounded bg-[#3F4B32] hover:bg-[#2d3623] text-white"
+        className="p-1 rounded bg-[#3F4832] hover:bg-[#2d3623] text-white"
         title="Copy invoice link"
       >
         نسخ

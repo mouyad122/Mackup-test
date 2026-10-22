@@ -32,10 +32,10 @@ export function AdminOrderQuickActions({
 
   const openConfirmationWhatsApp = (popup: Window | null) => {
     const invoiceUrl = `${window.location.origin}/ar/invoice/${orderId}`;
-    const msg = encodeURIComponent(`مرحباً بك في فيلورا بيوتي 🌟.\nتم تأكيد طلبك والبدء بتجهيزه! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية عبر الرابط التالي:\n${invoiceUrl}`);
+    const msg = encodeURIComponent(`مرحباً بك في رَواق 🌟.\nتم تأكيد طلبك والبدء بتجهيزه! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية وتتبع الحالة عبر الرابط التالي:\n${invoiceUrl}`);
     const cleanPhone = phone.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${msg}`;
-    if (popup) {
+    if (popup && !popup.closed) {
       popup.location.href = whatsappUrl;
     } else {
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
@@ -47,31 +47,35 @@ export function AdminOrderQuickActions({
     // block WhatsApp after the server-side confirmation finishes.
     const whatsappPopup = openWhatsApp ? window.open('about:blank', '_blank') : null;
     startTransition(async () => {
-      if (newStatus === 'PREPARING' && (status === 'PENDING' || status === 'AWAITING_WHATSAPP')) {
-        // Confirm first to deduct stock and create sale/invoice
-        const res = await confirmAction(orderId);
-        if (res.success) {
-          const updated = await updateStatusAction(orderId, newStatus);
-          if (!updated.success) {
+      try {
+        if (newStatus === 'PREPARING' && (status === 'PENDING' || status === 'AWAITING_WHATSAPP')) {
+          // Confirm first to deduct stock and create sale/invoice
+          const res = await confirmAction(orderId);
+          if (!res || !res.success) {
             whatsappPopup?.close();
-            setMessage(updated.error || 'تعذر تحديث حالة الطلب.');
+            setMessage(res?.error || 'حدث خطأ أثناء التأكيد وخصم المخزون');
             return;
           }
-          if (openWhatsApp) openConfirmationWhatsApp(whatsappPopup);
-          setMessage('تم تحديث حالة الطلب إلى قيد التجهيز.');
-          router.refresh();
+        }
+
+        const updated = await updateStatusAction(orderId, newStatus);
+        if (!updated || !updated.success) {
+          whatsappPopup?.close();
+          setMessage(updated?.error || 'تعذر تحديث حالة الطلب.');
+          return;
+        }
+
+        if (openWhatsApp) {
+          openConfirmationWhatsApp(whatsappPopup);
         } else {
           whatsappPopup?.close();
-          setMessage(res.error || 'حدث خطأ أثناء التأكيد وخصم المخزون');
         }
-      } else {
-        const res = await updateStatusAction(orderId, newStatus);
-        if (!res.success) {
-          setMessage(res.error || 'حدث خطأ أثناء تحديث الحالة');
-        } else {
-          setMessage('تم تحديث حالة الطلب.');
-          router.refresh();
-        }
+
+        setMessage(newStatus === 'PREPARING' ? 'تم تحديث حالة الطلب إلى قيد التجهيز بنجاح.' : 'تم تحديث حالة الطلب.');
+        router.refresh();
+      } catch (err: any) {
+        whatsappPopup?.close();
+        setMessage(err?.message || 'حدث خطأ أثناء معالجة الطلب');
       }
     });
   };

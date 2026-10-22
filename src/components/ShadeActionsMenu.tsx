@@ -134,7 +134,7 @@ export function ShadeActionsMenu({
               <button 
                 onClick={handleUpdate}
                 disabled={isPending}
-                className="px-4 py-2 bg-[#3F4B32] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-[#3F4832] text-white rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 {isPending ? 'جاري الحفظ...' : 'حفظ'}
               </button>

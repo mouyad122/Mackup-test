@@ -33,7 +33,7 @@ export default function WishlistPage({ params }: { params: Promise<{ locale: str
   return (
     <div className="min-h-screen bg-[#F7F3EA] pb-24">
       {/* Header */}
-      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+      <section className="bg-[#3F4832] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
         <p className="rawaq-eyebrow text-[#B7935F]">YOUR FAVORITES</p>
         <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? 'قائمة الأمنيات' : 'My Wishlist'}</h1>
       </section>
@@ -63,10 +63,10 @@ export default function WishlistPage({ params }: { params: Promise<{ locale: str
                 </div>
                 
                 <div className="flex-1">
-                  <h3 className="font-bold text-lg text-[#2B2B2B] leading-snug mb-2 group-hover:text-[#3F4B32] transition-colors">
+                  <h3 className="font-bold text-lg text-[#2B2B2B] leading-snug mb-2 group-hover:text-[#3F4832] transition-colors">
                     {item.nameAr || item.name}
                   </h3>
-                  <div className="text-[#3F4B32] font-bold text-lg mb-5">
+                  <div className="text-[#3F4832] font-bold text-lg mb-5">
                     {filsToDisplay(item.price, isAr ? 'ar' : 'en')}
                   </div>
                   
@@ -79,7 +79,7 @@ export default function WishlistPage({ params }: { params: Promise<{ locale: str
                     </Link>
                     <button 
                       onClick={() => removeFromWishlist(item.id)}
-                      className="text-xs bg-transparent border border-[#A69A8C] text-[#746A64] hover:border-[#3F4B32] hover:text-[#3F4B32] hover:bg-[#3F4B32]/5 py-2 px-5 rounded-full font-bold transition-colors"
+                      className="text-xs bg-transparent border border-[#A69A8C] text-[#746A64] hover:border-[#3F4832] hover:text-[#3F4832] hover:bg-[#3F4832]/5 py-2 px-5 rounded-full font-bold transition-colors"
                     >
                       {isAr ? 'إزالة' : 'Remove'}
                     </button>

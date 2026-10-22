@@ -96,22 +96,22 @@ export function FloatingCart({ locale = 'ar', rewardRule }: { locale?: string, r
         <div className="absolute bottom-full mb-3 right-4 left-4 md:right-0 md:left-auto md:w-80 bg-white rounded-2xl shadow-[0_12px_40px_rgba(139,30,45,.15)] border border-[#E9DDCC] p-5 animate-fade-in z-[101]">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xl">{isRewardUnlocked ? '✨' : '🎁'}</span>
-            <span className="font-bold text-sm text-[#3F4B32] tracking-wide uppercase">
+            <span className="font-bold text-sm text-[#3F4832] tracking-wide uppercase">
               {isRewardUnlocked ? copy.unlockedMessage : copy.rewardLabel}
             </span>
           </div>
           
           {isRewardUnlocked ? (
-            <p className="text-sm text-[#3F4B32] font-semibold">{copy.reachedMessage}</p>
+            <p className="text-sm text-[#3F4832] font-semibold">{copy.reachedMessage}</p>
           ) : (
             <p className="text-sm text-[#746A64] leading-relaxed">
-              {copy.addForReward} <span className="font-bold text-[#3F4B32]">{filsToDisplay(remaining, displayLocale)}</span> {copy.remaining} {copy.forReward}.
+              {copy.addForReward} <span className="font-bold text-[#3F4832]">{filsToDisplay(remaining, displayLocale)}</span> {copy.remaining} {copy.forReward}.
             </p>
           )}
           
           <div className="mt-4 h-1.5 bg-[#F7F3EA] rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full transition-all duration-1000 ${isRewardUnlocked ? 'bg-[#3F4B32]' : 'bg-[#B7935F]'}`} 
+              className={`h-full rounded-full transition-all duration-1000 ${isRewardUnlocked ? 'bg-[#3F4832]' : 'bg-[#B7935F]'}`} 
               style={{ width: `${progressPercent}%` }} 
             />
           </div>
@@ -125,7 +125,7 @@ export function FloatingCart({ locale = 'ar', rewardRule }: { locale?: string, r
       )}
       
       <Link href={`/${locale}/checkout`} className="block w-full">
-        <div className="bg-[#3F4B32] hover:bg-[#2d3623] text-white p-3 sm:p-4 md:rounded-full shadow-[0_-8px_30px_rgba(63,75,50,.25)] md:shadow-[0_12px_40px_rgba(63,75,50,.3)] flex items-center justify-between md:justify-start gap-4 transition-all duration-300 md:hover:scale-105 border-t border-[#B7935F]/40 md:border md:border-[#B7935F]/50 relative overflow-hidden group">
+        <div className="bg-[#3F4832] hover:bg-[#2d3623] text-white p-3 sm:p-4 md:rounded-full shadow-[0_-8px_30px_rgba(63,75,50,.25)] md:shadow-[0_12px_40px_rgba(63,75,50,.3)] flex items-center justify-between md:justify-start gap-4 transition-all duration-300 md:hover:scale-105 border-t border-[#B7935F]/40 md:border md:border-[#B7935F]/50 relative overflow-hidden group">
           
           {/* Subtle background tatreez pattern */}
           <div 
@@ -179,7 +179,7 @@ export function FloatingCart({ locale = 'ar', rewardRule }: { locale?: string, r
           </div>
           
           <div className="md:hidden relative z-10 pe-2">
-            <span className="bg-white text-[#3F4B32] px-6 py-2.5 rounded-full font-bold text-sm shadow-sm">{copy.checkout}</span>
+            <span className="bg-white text-[#3F4832] px-6 py-2.5 rounded-full font-bold text-sm shadow-sm">{copy.checkout}</span>
           </div>
         </div>
       </Link>

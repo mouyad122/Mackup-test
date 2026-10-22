@@ -26,7 +26,7 @@ export function IngredientNewForm() {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm h-fit">
-      <h3 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+      <h3 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
         إضافة مكون جديد
       </h3>
       <div className="space-y-4">
@@ -59,7 +59,7 @@ export function IngredientNewForm() {
         <button 
           type="submit"
           disabled={isPending} 
-          className="w-full bg-[#3F4B32] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
+          className="w-full bg-[#3F4832] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
         >
           {isPending ? 'جاري الإضافة...' : 'إضافة'}
         </button>

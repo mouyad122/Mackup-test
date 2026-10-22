@@ -48,7 +48,7 @@ export default async function PrivacyPage({ params }: { params: Promise<{ locale
   return (
     <main className="min-h-screen bg-[#F7F3EA]">
       {/* Header */}
-      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+      <section className="bg-[#3F4832] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
         <p className="rawaq-eyebrow text-[#B7935F]">YOUR DATA</p>
         <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? cms.titleAr : cms.titleEn}</h1>
       </section>

@@ -45,7 +45,7 @@ export default async function OrderSuccessPage({
       <div className="max-w-2xl mx-auto bg-white border border-[var(--color-ivory-200)] rounded-lg p-10 shadow-sm text-center">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-emerald-600 mb-6"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         
-        <h1 className="text-3xl font-bold font-heading text-[#3F4B32] mb-4">
+        <h1 className="text-3xl font-bold font-heading text-[#3F4832] mb-4">
           {isAr ? 'تم تسجيل طلبك بنجاح!' : 'Order Placed Successfully!'}
         </h1>
         
@@ -68,7 +68,7 @@ export default async function OrderSuccessPage({
             <span>{isAr ? 'رقم الهاتف:' : 'Phone Number:'}</span>
             <span className="font-bold">{order.customerPhone}</span>
           </div>
-          <div className="flex justify-between text-lg font-bold text-[#3F4B32] pt-2">
+          <div className="flex justify-between text-lg font-bold text-[#3F4832] pt-2">
             <span>{isAr ? 'المبلغ الإجمالي:' : 'Grand Total:'}</span>
             <span>{filsToDisplay(order.totalAmount, isAr ? 'ar' : 'en')}</span>
           </div>
@@ -86,7 +86,7 @@ export default async function OrderSuccessPage({
           
           <Link 
             href={`/${locale}/shop`}
-            className="block text-center w-full bg-[var(--color-ivory-200)] hover:bg-[var(--color-ivory-300)] text-[#3F4B32] py-3 rounded font-bold transition-colors"
+            className="block text-center w-full bg-[var(--color-ivory-200)] hover:bg-[var(--color-ivory-300)] text-[#3F4832] py-3 rounded font-bold transition-colors"
           >
             {isAr ? 'العودة للتسوق' : 'Continue Shopping'}
           </Link>

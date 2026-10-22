@@ -56,7 +56,7 @@ export default async function AdminContentPage() {
       <main className="flex-1 overflow-y-auto p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4832]">
               إدارة المحتوى والموقع (CMS)
             </h1>
             <p className="text-zinc-650 mt-1">تحديث النصوص الرئيسية، شريط الإعلانات، وعناوين الصفحة الرئيسية</p>
@@ -82,7 +82,7 @@ export default async function AdminContentPage() {
         <form action={handleSaveCMS} className="max-w-3xl bg-white p-8 rounded-lg border border-[var(--color-ivory-200)] shadow-sm space-y-8">
           {/* Announcement Bar */}
           <div>
-            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">شريط الإعلانات العلوي</h2>
+            <h2 className="text-lg font-bold text-[#3F4832] border-b pb-2 mb-4">شريط الإعلانات العلوي</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">الإعلان باللغة العربية</label>
@@ -107,7 +107,7 @@ export default async function AdminContentPage() {
 
           {/* Hero Section */}
           <div>
-            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">قسم الواجهة الرئيسي (Hero)</h2>
+            <h2 className="text-lg font-bold text-[#3F4832] border-b pb-2 mb-4">قسم الواجهة الرئيسي (Hero)</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -154,7 +154,7 @@ export default async function AdminContentPage() {
             
           {/* Social Links Section */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-[var(--color-ivory-200)]">
-            <h2 className="text-lg font-bold text-[#3F4B32] border-b pb-2 mb-4">روابط التواصل (تظهر في الفوتر وصفحة التواصل)</h2>
+            <h2 className="text-lg font-bold text-[#3F4832] border-b pb-2 mb-4">روابط التواصل (تظهر في الفوتر وصفحة التواصل)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-bold text-zinc-700 mb-2">انستقرام (Instagram)</label>
@@ -195,7 +195,7 @@ export default async function AdminContentPage() {
           <div className="flex justify-end pt-4 border-t">
             <button
               type="submit"
-              className="bg-[#3F4B32] hover:bg-[#2d3623] text-white px-6 py-2.5 rounded font-bold text-sm transition-colors"
+              className="bg-[#3F4832] hover:bg-[#2d3623] text-white px-6 py-2.5 rounded font-bold text-sm transition-colors"
             >
               حفظ التعديلات
             </button>

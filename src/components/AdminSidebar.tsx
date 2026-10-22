@@ -49,7 +49,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
   return (
     <>
       {/* Mobile Top Header containing Hamburger Toggle */}
-      <div className="md:hidden flex items-center justify-between bg-[#3F4B32] text-white px-4 py-3 sticky top-0 z-40 w-full shadow-md border-b border-[#B7935F]">
+      <div className="md:hidden flex items-center justify-between bg-[#3F4832] text-white px-4 py-3 sticky top-0 z-40 w-full shadow-md border-b border-[#B7935F]">
         <span className="font-heading font-bold text-lg text-[#B7935F]">
           رَواق
         </span>
@@ -78,7 +78,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
 
       {/* Sidebar Content container */}
       <aside
-        className={`fixed md:sticky top-0 right-0 z-30 bg-[#3F4B32] text-white flex flex-col h-screen font-sans border-l-4 border-[#B7935F] transition-all duration-300 transform md:transform-none ${
+        className={`fixed md:sticky top-0 right-0 z-30 bg-[#3F4832] text-white flex flex-col h-screen font-sans border-l-4 border-[#B7935F] transition-all duration-300 transform md:transform-none ${
           isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-16' : 'md:w-64'} w-64`}
         dir="rtl"

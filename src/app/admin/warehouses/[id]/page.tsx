@@ -22,7 +22,7 @@ export default async function EditWarehousePage({ params }: { params: { id: stri
 
       <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="mb-8 border-b border-[var(--color-ivory-200)] pb-4">
-          <h1 className="text-3xl font-bold font-heading text-[#3F4B32]">
+          <h1 className="text-3xl font-bold font-heading text-[#3F4832]">
             تعديل مستودع
           </h1>
           <p className="text-zinc-650 mt-1">تحديث بيانات المستودع: {warehouse.name}</p>

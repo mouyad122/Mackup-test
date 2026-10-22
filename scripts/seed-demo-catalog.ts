@@ -155,9 +155,15 @@ async function main() {
     for (const supplier of suppliers) {
       const existing = await tx.supplier.findFirst({ where: { email: supplier.email } });
       const saved = existing
-        ? await tx.supplier.update({
+          ? await tx.supplier.update({
             where: { id: existing.id },
-            data: { name: supplier.name, phone: supplier.phone, notes: supplier.notes, isActive: true },
+            data: {
+              name: supplier.name,
+              phone: supplier.phone,
+              notes: supplier.notes,
+              profitMargin: supplier.profitShareBps / 100,
+              isActive: true,
+            },
           })
         : await tx.supplier.create({
             data: {
@@ -165,6 +171,7 @@ async function main() {
               email: supplier.email,
               phone: supplier.phone,
               notes: supplier.notes,
+              profitMargin: supplier.profitShareBps / 100,
               isActive: true,
             },
           });

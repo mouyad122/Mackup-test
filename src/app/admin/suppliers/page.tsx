@@ -28,7 +28,7 @@ export default async function SuppliersPage() {
   return <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
     <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
     <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
-      <header><h1 className="font-heading text-3xl font-bold text-[#3F4B32]">الموردون والعروض</h1><p className="mt-1 text-zinc-600">حدد حصة المورد من الربح مرة واحدة لتطبق على جميع منتجاته والطلبات الجديدة. تبقى نسب الطلبات السابقة محفوظة.</p></header>
+      <header><h1 className="font-heading text-3xl font-bold text-[#3F4832]">الموردون والعروض</h1><p className="mt-1 text-zinc-600">حدد حصة المورد من الربح مرة واحدة لتطبق على جميع منتجاته والطلبات الجديدة. تبقى نسب الطلبات السابقة محفوظة.</p></header>
 
       <section className="grid gap-5 xl:grid-cols-2">
         <form action={createSupplier} className="grid gap-3 rounded-lg border bg-white p-5 shadow-sm">
@@ -39,7 +39,7 @@ export default async function SuppliersPage() {
             <input type="email" name="email" placeholder="البريد الإلكتروني" className="rounded border px-3 py-2" />
             <input name="profitMargin" type="number" min="0" max="100" defaultValue="0" placeholder="نسبة الربح %" className="rounded border px-3 py-2 sm:col-span-2" />
           </div>
-          <button className="justify-self-start rounded bg-[#3F4B32] px-5 py-2 font-bold text-white">حفظ المورد</button>
+          <button className="justify-self-start rounded bg-[#3F4832] px-5 py-2 font-bold text-white">حفظ المورد</button>
         </form>
 
       </section>

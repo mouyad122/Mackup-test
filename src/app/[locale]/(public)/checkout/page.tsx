@@ -127,7 +127,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
 
   return (
     <div className="container mx-auto px-6 py-12 bg-[var(--color-ivory-100)] min-h-screen">
-      <h1 className="text-3xl font-bold font-heading text-[#3F4B32] mb-8">
+      <h1 className="text-3xl font-bold font-heading text-[#3F4832] mb-8">
         {isAr ? 'إتمام الشراء' : 'Checkout'}
       </h1>
       
@@ -143,15 +143,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               }
               setIsSubmittingLocal(true);
             }}
-            className="bg-white p-8 rounded-lg shadow-sm border border-[var(--color-ivory-200)]"
+            className="bg-white p-8 rounded-2xl shadow-sm border border-[#E9DDCC]"
           >
-            <h2 className="text-xl font-bold text-zinc-900 mb-6">
+            <h2 className="text-xl font-bold text-[#2B2B2B] mb-6 font-heading">
               {isAr ? 'تفاصيل التوصيل' : 'Delivery Details'}
             </h2>
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="customerName" className="block text-sm font-medium text-zinc-700 mb-1">
+                <label htmlFor="customerName" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                   {isAr ? 'الاسم الكامل' : 'Full Name'}
                 </label>
                 <input
@@ -159,12 +159,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                   id="customerName"
                   name="customerName"
                   required
-                  className="w-full border border-zinc-300 rounded px-4 py-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
+                  className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none transition-all"
                 />
               </div>
               
               <div>
-                <label htmlFor="customerPhone" className="block text-sm font-medium text-zinc-700 mb-1">
+                <label htmlFor="customerPhone" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                   {isAr ? 'رقم الهاتف (الأردن)' : 'Phone Number (Jordan)'}
                 </label>
                 <input
@@ -174,13 +174,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                   required
                   dir="ltr"
                   placeholder="07XXXXXXXX"
-                  className="w-full border border-zinc-300 rounded px-4 py-2 text-right focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
+                  className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 text-right focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="addressStreet" className="block text-sm font-medium text-zinc-700 mb-1">
+                  <label htmlFor="addressStreet" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                     {isAr ? 'الشارع' : 'Street'}
                   </label>
                   <input
@@ -189,11 +189,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                     name="addressStreet"
                     required
                     placeholder={isAr ? 'اسم الشارع' : 'Street name'}
-                    className="w-full border border-zinc-300 rounded px-4 py-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
+                    className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none transition-all"
                   />
                 </div>
                 <div>
-                  <label htmlFor="addressBuilding" className="block text-sm font-medium text-zinc-700 mb-1">
+                  <label htmlFor="addressBuilding" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                     {isAr ? 'البناية / المنزل' : 'Building / House'}
                   </label>
                   <input
@@ -202,13 +202,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                     name="addressBuilding"
                     required
                     placeholder={isAr ? 'رقم البناية أو الاسم' : 'Building number or name'}
-                    className="w-full border border-zinc-300 rounded px-4 py-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
+                    className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="addressApartment" className="block text-sm font-medium text-zinc-700 mb-1">
+                <label htmlFor="addressApartment" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                   {isAr ? 'رقم الشقة / الطابق (اختياري)' : 'Apartment / Floor (Optional)'}
                 </label>
                 <input
@@ -216,12 +216,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                   id="addressApartment"
                   name="addressApartment"
                   placeholder={isAr ? 'الشقة، الطابق، تفاصيل إضافية...' : 'Apartment, floor, extra details...'}
-                  className="w-full border border-zinc-300 rounded px-4 py-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none"
+                  className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label htmlFor="shippingZoneId" className="block text-sm font-medium text-zinc-700 mb-1">
+                <label htmlFor="shippingZoneId" className="block text-sm font-medium text-[#2B2B2B] mb-1.5">
                   {isAr ? 'منطقة التوصيل' : 'Shipping Zone'}
                 </label>
                 <select
@@ -229,7 +229,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                   name="shippingZoneId"
                   value={selectedZoneId}
                   onChange={(e) => setSelectedZoneId(e.target.value)}
-                  className="w-full border border-zinc-300 rounded px-4 py-2 focus:ring-2 focus:ring-[var(--color-champagne-600)] outline-none bg-white text-zinc-700"
+                  className="w-full border border-[#E9DDCC] rounded-xl px-4 py-2.5 focus:border-[#3F4832] focus:ring-2 focus:ring-[#3F4832]/20 outline-none bg-white text-[#2B2B2B] transition-all"
                 >
                   {zones.map((zone) => (
                     <option key={zone.id} value={zone.id}>
@@ -252,7 +252,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
             )}
 
             {hasUnverifiedItems && (
-              <div className="mt-6 p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded text-xs leading-relaxed">
+              <div className="mt-6 p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs leading-relaxed">
                 {isAr 
                   ? 'تنبيه: سلتك تحتوي على مكياج تُصنع بالطلب أو بانتظار التحقق من المخزن. قد يتواصل معك فريق العمل لتأكيد الموعد النهائي للتوصيل.'
                   : 'Notice: Your cart contains custom-blended or unverified stock items. Our team will verify availability when processing your request.'}
@@ -263,7 +263,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               <button
                 type="submit"
                 disabled={isPending || isSubmittingLocal || cartItems.length === 0}
-                className="w-full btn-rawaq-primary py-4 rounded disabled:opacity-50"
+                className="w-full btn-rawaq-primary py-4 rounded-full text-base font-bold shadow-md hover:shadow-lg disabled:opacity-50"
               >
                 {(isPending || isSubmittingLocal) ? (isAr ? 'جاري المعالجة...' : 'Processing...') : (isAr ? 'تأكيد الطلب عبر واتساب' : 'Confirm Order via WhatsApp')}
               </button>
@@ -273,9 +273,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
 
         {/* Order Summary */}
         <div>
-          <div className="bg-white p-8 rounded-lg border border-[var(--color-ivory-200)] shadow-sm">
+          <div className="bg-white p-8 rounded-2xl border border-[#E9DDCC] shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-zinc-900">
+              <h2 className="text-xl font-bold text-[#2B2B2B] font-heading">
                 {isAr ? 'ملخص الطلب' : 'Order Summary'}
               </h2>
               {cartItems.length > 0 && (
@@ -337,7 +337,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                         : (isAr ? 'شحن مجاني' : 'Free Shipping')}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xl font-bold text-[#3F4B32] pt-2 border-t">
+                  <div className="flex justify-between text-xl font-bold text-[#3F4832] pt-2 border-t">
                     <span>{isAr ? 'الإجمالي التقديري قبل القسيمة' : 'Estimated total before coupon'}</span>
                     <span>{filsToDisplay(getGrandTotal(), isAr ? 'ar' : 'en')}</span>
                   </div>

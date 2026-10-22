@@ -14,7 +14,7 @@ export async function Footer({ locale = 'ar' }: { locale?: string }) {
   const whatsappUrl = socialLinks.whatsapp || STORE_WHATSAPP_URL;
 
   return (
-    <footer className="relative overflow-hidden bg-[#3F4B32] text-white" dir={isAr ? 'rtl' : 'ltr'}>
+    <footer className="relative overflow-hidden bg-[#3F4832] text-white" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* ── Main footer body ── */}
       <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">

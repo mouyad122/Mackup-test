@@ -6,6 +6,7 @@ import { calculateInclusiveTax, calculateExclusiveTax } from '@/lib/money';
 import { cancelOrderAndReverseFinancials } from '@/lib/order-cancellation';
 import { classifyRefund, isTerminalDeliveryOrderStatus, refundableCollectedAmount } from '@/lib/business-finance';
 import { revalidatePath } from 'next/cache';
+import { getArabicStatusHistoryNote } from '@/lib/order-status';
 
 export async function confirmStorefrontOrder(orderId: string) {
   // 1. Require authorized permission
@@ -24,7 +25,13 @@ export async function confirmStorefrontOrder(orderId: string) {
         throw new Error('الطلب غير موجود');
       }
 
-      if (!['PENDING', 'AWAITING_WHATSAPP'].includes(order.status)) throw new Error('تم تأكيد الطلب أو نقله إلى مرحلة لاحقة مسبقاً');
+      if (order.status === 'CONFIRMED') {
+        return order;
+      }
+
+      if (!['PENDING', 'AWAITING_WHATSAPP'].includes(order.status)) {
+        throw new Error('تم تأكيد الطلب أو نقله إلى مرحلة لاحقة مسبقاً');
+      }
 
         // Availability is controlled manually by the administrator through isActive.
       for (const item of order.items) {
@@ -105,9 +112,10 @@ export async function confirmStorefrontOrder(orderId: string) {
         }
       });
 
-      // 7. Create Invoice with snapshots
-      await tx.invoice.create({
-        data: {
+      // 7. Upsert Invoice with snapshots
+      await tx.invoice.upsert({
+        where: { orderId: order.id },
+        create: {
           orderId: order.id,
           saleId: sale.id,
           number: `INV-ORD-${order.reference}-${Date.now()}`,
@@ -127,6 +135,19 @@ export async function confirmStorefrontOrder(orderId: string) {
           cardAppliedFils: 0,
           cashTenderedFils: 0,
           changeDueFils: 0,
+          paymentStatus: 'COD_PENDING',
+          confirmedByEmployeeId: employeeId
+        },
+        update: {
+          saleId: sale.id,
+          netSubtotalFils: calculatedSubtotal,
+          discountAmountFils: order.discountAmount,
+          shippingAmountFils: order.shippingCost,
+          taxAmountFils: taxAmount,
+          grossTotalFils: finalTotal,
+          taxRateSnapshot: taxRate,
+          taxModeSnapshot: !taxEnabled ? 'DISABLED' : (pricesIncludeTax ? 'INCLUSIVE' : 'EXCLUSIVE'),
+          pricesIncludeTaxSnapshot: pricesIncludeTax,
           paymentStatus: 'COD_PENDING',
           confirmedByEmployeeId: employeeId
         }
@@ -170,12 +191,12 @@ export async function confirmStorefrontOrder(orderId: string) {
         } });
       }
 
-      // 7. Write order status history
+      // 7. Write order status history with clear Arabic details
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
           status: 'CONFIRMED',
-          notes: `Order confirmed by employee: ${employeeId}`
+          notes: getArabicStatusHistoryNote('CONFIRMED', { employeeName: session.employee.name })
         }
       });
 
@@ -196,7 +217,7 @@ export async function confirmStorefrontOrder(orderId: string) {
     return { success: true, order: result };
   } catch (error: any) {
     console.error('Order Confirm Error:', error);
-    return { error: 'تعذر تأكيد الطلب. يرجى المحاولة لاحقاً.' };
+    return { success: false, error: error?.message || 'تعذر تأكيد الطلب. يرجى المحاولة لاحقاً.' };
   }
 }
 
@@ -438,7 +459,7 @@ export async function updateOrderStatus(orderId: string, status: string, shippin
         if (status === 'DELIVERED') await tx.captain.update({ where: { id: assignment.captainId }, data: { status: 'AVAILABLE' } });
         const orderClaim = await tx.order.updateMany({ where: { id: orderId, status: { equals: order.status, notIn: ['CANCELLED', 'REFUNDED'] } }, data: { status, shippingCost: order.shippingCost, totalAmount: order.totalAmount } });
         if (orderClaim.count !== 1) throw new Error('الطلب ملغى أو مسترد أو تغير بالتزامن.');
-        await tx.orderStatusHistory.create({ data: { orderId, status, notes: `Updated by employee ${session.employeeId}` } });
+        await tx.orderStatusHistory.create({ data: { orderId, status, notes: getArabicStatusHistoryNote(status, { employeeName: session.employee.name, captainName: assignment.captain.name }) } });
         if (status === 'DELIVERED' && assignment.captainEarning > 0) {
           await tx.financialTransaction.create({ data: {
             businessEventKey: `captain-earning:${assignment.id}`,
@@ -465,11 +486,11 @@ export async function updateOrderStatus(orderId: string, status: string, shippin
       const changed = await tx.order.updateMany({ where: { id: orderId, status: order.status }, data: dataToUpdate });
       if (changed.count !== 1) throw new Error('تم تغيير الطلب بالتزامن؛ أعد تحميل الصفحة.');
       await tx.orderStatusHistory.create({
-      data: {
-        orderId,
-        status,
-        notes: `تم تحديث الحالة إلى ${status} ورسوم التوصيل إلى ${shippingCost}`
-      }
+        data: {
+          orderId,
+          status,
+          notes: getArabicStatusHistoryNote(status, { employeeName: session.employee.name })
+        }
       });
     }, { isolationLevel: 'Serializable' });
 
@@ -484,7 +505,7 @@ export async function updateOrderStatus(orderId: string, status: string, shippin
     return { success: true };
   } catch (error: any) {
     console.error('Update Order Status Error:', error);
-    return { success: false, error: 'حدث خطأ غير معروف' };
+    return { success: false, error: error?.message || 'حدث خطأ أثناء تحديث حالة الطلب' };
   }
 }
 

@@ -41,7 +41,7 @@ export default async function FAQPage({ params }: { params: Promise<{ locale: st
   return (
     <main className="min-h-screen bg-[#F7F3EA]">
       {/* Header */}
-      <section className="bg-[#3F4B32] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
+      <section className="bg-[#3F4832] py-16 sm:py-24 relative overflow-hidden border-b border-[#B7935F]/60 text-center text-white">
         <p className="rawaq-eyebrow text-[#B7935F]">RAWAQ SUPPORT</p>
         <h1 className="mt-4 text-4xl md:text-5xl !text-white">{isAr ? 'الأسئلة الشائعة' : 'Frequently Asked Questions'}</h1>
       </section>
@@ -51,7 +51,7 @@ export default async function FAQPage({ params }: { params: Promise<{ locale: st
           <div className="space-y-8">
             {faqs.map((faq: any, idx: number) => (
               <div key={idx} className="group">
-                <h3 className="text-xl font-bold text-[#2B2B2B] mb-3 group-hover:text-[#3F4B32] transition-colors flex items-start gap-3">
+                <h3 className="text-xl font-bold text-[#2B2B2B] mb-3 group-hover:text-[#3F4832] transition-colors flex items-start gap-3">
                   <span className="text-[#B7935F] mt-1" aria-hidden="true">✦</span>
                   {isAr ? faq.qAr : faq.qEn}
                 </h3>

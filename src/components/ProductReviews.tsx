@@ -93,7 +93,7 @@ export function ProductReviews({
       </div>
 
       {success && (
-        <div className="bg-[#3F4B32]/5 border border-[#3F4B32]/20 text-[#3F4B32] font-bold p-4 rounded-xl mb-8 flex items-center gap-3">
+        <div className="bg-[#3F4832]/5 border border-[#3F4832]/20 text-[#3F4832] font-bold p-4 rounded-xl mb-8 flex items-center gap-3">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           {isAr ? 'شكراً لك! تم إضافة تقييمك بنجاح.' : 'Thank you! Your review has been submitted successfully.'}
         </div>
@@ -105,7 +105,7 @@ export function ProductReviews({
             {isAr ? 'شاركنا رأيك' : 'Share Your Thoughts'}
           </h3>
           
-          {error && <div className="text-[#3F4B32] bg-[#3F4B32]/5 p-3 rounded-lg text-sm border border-[#3F4B32]/20 font-bold">{error}</div>}
+          {error && <div className="text-[#3F4832] bg-[#3F4832]/5 p-3 rounded-lg text-sm border border-[#3F4832]/20 font-bold">{error}</div>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -160,7 +160,7 @@ export function ProductReviews({
             <button 
               type="button" 
               onClick={() => setShowForm(false)}
-              className="text-[#746A64] hover:text-[#3F4B32] font-bold text-sm transition-colors px-4 py-2"
+              className="text-[#746A64] hover:text-[#3F4832] font-bold text-sm transition-colors px-4 py-2"
             >
               {isAr ? 'إلغاء' : 'Cancel'}
             </button>
@@ -190,7 +190,7 @@ export function ProductReviews({
                       {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                     </div>
                     {review.isVerified && (
-                      <span className="text-xs text-[#3F4B32] flex items-center gap-1 font-bold">
+                      <span className="text-xs text-[#3F4832] flex items-center gap-1 font-bold">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         {isAr ? 'مشتري مؤكد' : 'Verified Buyer'}
                       </span>

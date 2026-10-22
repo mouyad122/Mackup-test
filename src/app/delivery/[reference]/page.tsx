@@ -29,8 +29,8 @@ export default async function DeliveryBatchPage({ params }: { params: Promise<{ 
   return (
     <div className="min-h-screen bg-zinc-100 p-4 font-sans text-right" dir="rtl">
       <div className="mx-auto max-w-4xl space-y-6">
-        <header className="bg-white p-6 rounded-xl shadow-sm border text-center border-t-4 border-t-[#3F4B32]">
-          <h1 className="text-2xl font-bold text-[#3F4B32]">طلبية شحن وتوصيل - رَواق | RAWAQ</h1>
+        <header className="bg-white p-6 rounded-xl shadow-sm border text-center border-t-4 border-t-[#3F4832]">
+          <h1 className="text-2xl font-bold text-[#3F4832]">طلبية شحن وتوصيل - رَواق | RAWAQ</h1>
           <p className="text-[#B7935F] mt-2 font-bold tracking-wider">رقم الطلبية: {batch.reference}</p>
           <p className="text-sm text-zinc-400 mt-1">تاريخ الإصدار: {new Date(batch.createdAt).toLocaleString('en-GB')}</p>
         </header>

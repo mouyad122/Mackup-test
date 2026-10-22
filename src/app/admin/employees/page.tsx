@@ -171,7 +171,7 @@ export default async function AdminEmployeesPage({
         {/* Header */}
         <div className="flex justify-between items-center mb-6 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold font-heading text-[#3F4B32]">
+            <h1 className="text-2xl md:text-3xl font-bold font-heading text-[#3F4832]">
               {action === 'new' ? 'إضافة موظف جديد' : action === 'edit' ? 'تعديل بيانات الموظف' : 'إدارة الموظفين والصلاحيات'}
             </h1>
             <p className="text-zinc-650 text-xs md:text-sm mt-1">التحكم بحسابات الموظفين وصلاحياتهم المباشرة</p>
@@ -179,7 +179,7 @@ export default async function AdminEmployeesPage({
           {!action && (
             <Link
               href="/admin/employees?action=new"
-              className="bg-[#2d3623] text-white text-xs md:text-sm px-4 py-2 rounded font-bold hover:bg-[#3F4B32] transition-colors"
+              className="bg-[#2d3623] text-white text-xs md:text-sm px-4 py-2 rounded font-bold hover:bg-[#3F4832] transition-colors"
             >
               + إضافة موظف
             </Link>
@@ -271,7 +271,7 @@ export default async function AdminEmployeesPage({
               </Link>
               <button
                 type="submit"
-                className="bg-[#2d3623] text-white text-xs md:text-sm px-5 py-2 rounded font-bold hover:bg-[#3F4B32] transition-colors"
+                className="bg-[#2d3623] text-white text-xs md:text-sm px-5 py-2 rounded font-bold hover:bg-[#3F4832] transition-colors"
               >
                 حفظ التغييرات
               </button>
@@ -296,7 +296,7 @@ export default async function AdminEmployeesPage({
                 </div>
 
                 <div className="flex flex-wrap gap-2 text-xs pt-1">
-                  <span className="bg-[var(--color-ivory-200)] px-2 py-0.5 rounded font-bold text-[#3F4B32]">
+                  <span className="bg-[var(--color-ivory-200)] px-2 py-0.5 rounded font-bold text-[#3F4832]">
                     الدور: {emp.role.name === 'Admin' ? 'أدمن رئيسي' : emp.role.name === 'Cashier' ? 'كاشير' : emp.role.name}
                   </span>
                   

@@ -25,7 +25,7 @@ export default async function CreatePurchaseOrderPage() {
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
       <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
         <header>
-          <h1 className="font-heading text-3xl font-bold text-[#3F4B32]">إنشاء أمر شراء</h1>
+          <h1 className="font-heading text-3xl font-bold text-[#3F4832]">إنشاء أمر شراء</h1>
           <p className="mt-1 text-zinc-600">حدد المورد والمنتجات المطلوبة</p>
         </header>
 

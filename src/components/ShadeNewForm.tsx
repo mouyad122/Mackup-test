@@ -26,7 +26,7 @@ export function ShadeNewForm() {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm h-fit">
-      <h3 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+      <h3 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
         إضافة درجة لون جديدة
       </h3>
       <div className="space-y-4">
@@ -62,13 +62,13 @@ export function ShadeNewForm() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <input type="checkbox" name="isActive" id="isActive" defaultChecked className="w-4 h-4 rounded text-[#3F4B32]" />
+          <input type="checkbox" name="isActive" id="isActive" defaultChecked className="w-4 h-4 rounded text-[#3F4832]" />
           <label htmlFor="isActive" className="text-sm font-medium text-zinc-700">نشط</label>
         </div>
         <button 
           type="submit"
           disabled={isPending} 
-          className="w-full bg-[#3F4B32] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
+          className="w-full bg-[#3F4832] text-white py-2.5 rounded font-bold text-sm hover:bg-[#2d3623] disabled:opacity-50 transition-colors"
         >
           {isPending ? 'جاري الإضافة...' : 'إضافة'}
         </button>

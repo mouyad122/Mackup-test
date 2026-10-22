@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       const payMethod = sale.payments[0]?.method || '-';
       const total = (sale.total / 1000).toFixed(2);
       const source = sale.source === 'STOREFRONT' ? 'طلب متجر' : 'POS';
-      const date = new Date(sale.createdAt).toLocaleString('ar-JO').replace(/,/g, '');
+      const date = new Date(sale.createdAt).toLocaleString('en-GB').replace(/,/g, '');
       const empName = sale.employee?.name || '-';
       
       csv += `${sale.reference},${empName},${source},${sale.customerName || '-'},${total},${payMethod},${date}\n`;

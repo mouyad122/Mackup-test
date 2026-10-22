@@ -32,7 +32,7 @@ export default async function AdminPage() {
       {/* Main Content Area */}
       <main className="flex-1 p-8">
         <div className="bg-white rounded-xl shadow-sm border border-zinc-100 p-8">
-          <h1 className="text-2xl font-bold text-[#3F4B32] mb-4 border-b border-zinc-100 pb-4">
+          <h1 className="text-2xl font-bold text-[#3F4832] mb-4 border-b border-zinc-100 pb-4">
             Dashboard / ROLES
           </h1>
           <p className="text-zinc-500 mb-6">

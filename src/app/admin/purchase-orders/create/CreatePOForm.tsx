@@ -120,7 +120,6 @@ export default function CreatePOForm({ suppliers }: { suppliers: Supplier[] }) {
                     <tr key={item.variantId}>
                       <td className="p-3">
                         {offer?.variant.product.nameAr} - {offer?.variant.name}
-                        <div className="text-xs text-zinc-500">{offer?.variant.sku}</div>
                       </td>
                       <td className="p-3">
                         <input 
@@ -153,7 +152,7 @@ export default function CreatePOForm({ suppliers }: { suppliers: Supplier[] }) {
           <button 
             type="submit" 
             disabled={loading}
-            className="rounded bg-[#3F4B32] px-6 py-2 font-bold text-white disabled:opacity-50"
+            className="rounded bg-[#3F4832] px-6 py-2 font-bold text-white disabled:opacity-50"
           >
             {loading ? 'جاري الحفظ...' : 'إنشاء أمر الشراء'}
           </button>

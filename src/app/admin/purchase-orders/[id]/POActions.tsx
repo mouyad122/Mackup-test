@@ -129,7 +129,7 @@ export function POClientActions({ poId, status, items, warehouses, hasInvoice, i
       )}
 
       {(status === 'PARTIAL' || status === 'COMPLETED') && !hasInvoice && (
-        <button onClick={handleCreateInvoice} disabled={loading} className="rounded bg-[#3F4B32] px-4 py-2 text-white font-bold disabled:opacity-50">
+        <button onClick={handleCreateInvoice} disabled={loading} className="rounded bg-[#3F4832] px-4 py-2 text-white font-bold disabled:opacity-50">
           إنشاء فاتورة مورد
         </button>
       )}

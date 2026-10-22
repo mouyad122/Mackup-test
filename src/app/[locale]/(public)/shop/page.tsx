@@ -57,7 +57,11 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
     prisma.product.count({ where })
   ]);
 
-  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  // فقط التصنيفات التي تحتوي على منتجات معروضة (Point 3)
+  const categories = await prisma.category.findMany({
+    where: { products: { some: { isVisible: true } } },
+    orderBy: { name: 'asc' }
+  });
 
   // Group filtered products by category for the mobile feed
   const categoriesMap = new Map();
@@ -78,7 +82,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
   return (
     <div className="min-h-screen bg-[#F7F3EA] pb-16 sm:pb-24">
       {/* Header Banner */}
-      <div className="relative overflow-hidden border-b border-[#B7935F]/60 bg-[#3F4B32] py-16 text-center text-white sm:py-24">
+      <div className="relative overflow-hidden border-b border-[#B7935F]/60 bg-[#3F4832] py-16 text-center text-white sm:py-24">
         <OliveBranchDecoration className="absolute -start-20 -bottom-20 w-80 text-white opacity-10 pointer-events-none scale-x-[-1]" />
         <p className="relative z-10 rawaq-eyebrow text-[#B7935F]">RAWAQ · THE COLLECTION</p>
         <h1 className="relative z-10 mt-4 text-4xl !text-white font-heading md:text-5xl">{isAr ? 'تسوّقي رَواق' : 'Shop Rawaq'}</h1>
@@ -95,11 +99,11 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
               className={`group flex flex-col items-center gap-2 sm:gap-3 w-[72px] sm:w-24 ${!categoryStr ? 'opacity-100' : 'opacity-60 hover:opacity-100 transition-opacity'}`}
             >
               <div className={`w-16 h-16 sm:w-[84px] sm:h-[84px] rounded-full border-2 p-1 transition-all duration-300 ${!categoryStr ? 'border-[#B7935F]' : 'border-transparent group-hover:border-[#D9C6A8]'}`}>
-                <div className="w-full h-full rounded-full bg-[#E9DDCC] flex items-center justify-center text-[#3F4B32] overflow-hidden shadow-inner">
+                <div className="w-full h-full rounded-full bg-[#E9DDCC] flex items-center justify-center text-[#3F4832] overflow-hidden shadow-inner">
                    <span aria-hidden="true" className="text-xl">✦</span>
                 </div>
               </div>
-              <span className={`text-[11px] sm:text-[13px] text-center leading-tight ${!categoryStr ? 'text-[#3F4B32] font-bold' : 'text-[#746A64] font-medium'}`}>
+              <span className={`text-[11px] sm:text-[13px] text-center leading-tight ${!categoryStr ? 'text-[#3F4832] font-bold' : 'text-[#746A64] font-medium'}`}>
                 {isAr ? 'الكل' : 'All'}
               </span>
             </Link>
@@ -117,7 +121,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
                        <span aria-hidden="true" className="text-[#A69A8C] text-xl">✦</span>
                     </div>
                   </div>
-                  <span className={`text-[11px] sm:text-[13px] text-center leading-tight ${isSelected ? 'text-[#3F4B32] font-bold' : 'text-[#746A64] font-medium'}`}>
+                  <span className={`text-[11px] sm:text-[13px] text-center leading-tight ${isSelected ? 'text-[#3F4832] font-bold' : 'text-[#746A64] font-medium'}`}>
                     {cat.name}
                   </span>
                 </Link>

@@ -37,7 +37,7 @@ export default function NotFound() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold font-heading text-[#3F4B32] mb-3">
+        <h1 className="text-2xl font-bold font-heading text-[#3F4832] mb-3">
           عذراً، الصفحة غير موجودة
         </h1>
         <p className="text-zinc-500 mb-8 leading-relaxed">
@@ -55,7 +55,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/ar"
-            className="px-8 py-3 border-2 border-[#3F4B32] text-[#3F4B32] font-bold rounded-lg hover:bg-[#3F4B32] hover:text-white transition-colors"
+            className="px-8 py-3 border-2 border-[#3F4832] text-[#3F4832] font-bold rounded-lg hover:bg-[#3F4832] hover:text-white transition-colors"
           >
             الصفحة الرئيسية
           </Link>

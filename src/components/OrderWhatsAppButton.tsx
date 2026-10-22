@@ -13,7 +13,7 @@ export function OrderWhatsAppButton({
 }) {
   const handleWhatsApp = () => {
     const invoiceUrl = `${window.location.origin}/ar/invoice/${orderId}`;
-    const msg = encodeURIComponent(`مرحباً بك في فيلورا بيوتي 🌟.\nتم تأكيد طلبك بنجاح! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية عبر الرابط التالي:\n${invoiceUrl}`);
+    const msg = encodeURIComponent(`مرحباً بك في رَواق 🌟.\nتم تأكيد طلبك بنجاح! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية عبر الرابط التالي:\n${invoiceUrl}`);
     const cleanPhone = phone.replace(/\D/g, '');
     window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank', 'noopener,noreferrer');
   };

@@ -10,7 +10,7 @@ import { OrderWhatsAppButton } from '@/components/OrderWhatsAppButton';
 import { AdminOrderQuickActions } from '@/components/AdminOrderQuickActions';
 import InvoiceLink from '@/components/InvoiceLink';
 import { inspectCancelledOrderReturn } from '@/actions/inventory';
-import { AdminOrderFinancials } from '@/components/AdminOrderFinancials';
+import { getOrderStatusInfo } from '@/lib/order-status';
 
 export default async function AdminOrderDetailPage({
   params
@@ -81,7 +81,7 @@ export default async function AdminOrderDetailPage({
               <span className="text-zinc-300">/</span>
               <span className="text-sm font-bold text-zinc-700">تفاصيل الطلب</span>
             </div>
-            <h1 className="text-3xl font-bold font-heading text-[#3F4B32] mt-2">
+            <h1 className="text-3xl font-bold font-heading text-[#3F4832] mt-2">
               طلب رقم: {order.reference}
             </h1>
             <InvoiceLink orderId={order.id} />
@@ -93,7 +93,7 @@ export default async function AdminOrderDetailPage({
           <div className="lg:col-span-2 space-y-6">
             {/* Customer Info */}
             <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm">
-              <h2 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+              <h2 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
                 بيانات المستلم والتوصيل
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-zinc-700">
@@ -111,7 +111,7 @@ export default async function AdminOrderDetailPage({
 
             {/* Items Table */}
             <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm">
-              <h2 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+              <h2 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
                 المكياج والمنتجات المطلوبة
               </h2>
               <div className="divide-y divide-zinc-100">
@@ -124,7 +124,7 @@ export default async function AdminOrderDetailPage({
                     <div key={item.id} className="py-4 flex justify-between items-center text-sm">
                       <div>
                         <h4 className="font-bold text-zinc-900">{item.name}</h4>
-                        <p className="text-xs text-zinc-500 mt-1">الدرجة: {item.size} | SKU: {item.sku}</p>
+                        <p className="text-xs text-zinc-500 mt-1">الدرجة: {item.size}</p>
                         <p className="text-xs text-zinc-600 mt-1">المورد: {item.supplierNameSnapshot || 'غير مسجل'} · التكلفة: {item.unitCostSnapshot === null ? 'غير مسجلة' : filsToDisplay(item.unitCostSnapshot * item.quantity, 'ar')} · حصة المورد: {item.supplierProfitShareBpsSnapshot === null ? 'غير مسجلة' : `${(item.supplierProfitShareBpsSnapshot / 100).toFixed(2)}%`} · مبلغ المورد: {item.supplierAmountSnapshot === null ? 'غير مسجل' : filsToDisplay(item.supplierAmountSnapshot, 'ar')}</p>
                         <p className="text-xs text-emerald-800 mt-1">ربح المنتج للمنصة: {item.platformProductProfitSnapshot === null ? 'غير مكتمل' : filsToDisplay(item.platformProductProfitSnapshot, 'ar')}</p>
                         <p className="text-xs text-blue-600 mt-1">
@@ -149,10 +149,9 @@ export default async function AdminOrderDetailPage({
                   <span>{filsToDisplay(order.shippingCost, 'ar')}</span>
                 </div>
                 <div className="flex justify-between text-zinc-600"><span>تكلفة شركة التوصيل:</span><span>{order.actualDeliveryCost === null ? 'غير مسجلة' : filsToDisplay(order.actualDeliveryCost, 'ar')}</span></div>
-                <div className="flex justify-between text-zinc-600"><span>المبلغ المسجل كمدفوع:</span><span>{order.invoice ? filsToDisplay(order.invoice.cashAppliedFils + order.invoice.cardAppliedFils, 'ar') : 'لم تسجل دفعة'}</span></div>
                 <div className="flex justify-between text-zinc-600"><span>التزام الموردين:</span><span>{order.items.some(item => item.unitCostSnapshot === null) ? 'بيانات غير مكتملة' : filsToDisplay(order.items.reduce((sum,item)=>sum+(item.unitCostSnapshot ?? 0)*item.quantity+(item.supplierAmountSnapshot ?? 0),0), 'ar')}</span></div>
                 <div className="flex justify-between border-t pt-2 text-lg font-bold text-emerald-800"><span>ربح المنصة بعد تكلفة التوصيل:</span><span>{netPlatformProfit === null ? 'بيانات غير مكتملة' : filsToDisplay(netPlatformProfit, 'ar')}</span></div>
-                <div className="flex justify-between text-lg font-bold text-[#3F4B32] pt-2 border-t mt-2">
+                <div className="flex justify-between text-lg font-bold text-[#3F4832] pt-2 border-t mt-2">
                   <span>المجموع الإجمالي المطلوب:</span>
                   <span>{filsToDisplay(order.totalAmount, 'ar')}</span>
                 </div>
@@ -160,19 +159,42 @@ export default async function AdminOrderDetailPage({
             </div>
             
             {/* History */}
-            <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm">
-              <h2 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+            <div className="bg-white p-6 rounded-2xl border border-[#E9DDCC] shadow-sm">
+              <h2 className="text-lg font-bold text-[#3F4832] mb-4 border-b border-[#E9DDCC] pb-2 font-heading">
                 سجل حالات الطلب
               </h2>
               <div className="space-y-4">
-                 {order.statusHistory.map(hist => (
-                    <div key={hist.id} className="border-r-2 border-[var(--color-champagne-400)] pr-4 text-sm">
-                       <p className="font-bold text-zinc-800">{hist.status}</p>
-                       <p className="text-xs text-zinc-500">{new Date(hist.createdAt).toLocaleString('en-GB')}</p>
-                       {hist.notes && <p className="text-xs text-zinc-600 mt-1 bg-zinc-50 p-2 rounded">{hist.notes}</p>}
-                    </div>
-                 ))}
-                 {order.statusHistory.length === 0 && <p className="text-sm text-zinc-500">لا يوجد سجل حالات.</p>}
+                 {order.statusHistory.map(hist => {
+                    const statusInfo = getOrderStatusInfo(hist.status);
+                    return (
+                      <div key={hist.id} className="border-r-4 border-[#B7935F] pr-4 py-1 text-sm bg-zinc-50/70 p-3 rounded-xl border border-zinc-100">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusInfo.badgeBg} ${statusInfo.badgeText}`}>
+                            {statusInfo.label}
+                          </span>
+                          <span className="text-xs text-zinc-500 font-mono" dir="ltr">
+                            {new Date(hist.createdAt).toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-700 leading-relaxed font-medium mb-1">
+                          {statusInfo.explanation}
+                        </p>
+                        {hist.notes && (
+                          <p className="text-xs text-zinc-600 mt-1.5 bg-white p-2 rounded-lg border border-zinc-200/70">
+                            {hist.notes}
+                          </p>
+                        )}
+                      </div>
+                    );
+                 })}
+                 {order.statusHistory.length === 0 && <p className="text-sm text-zinc-500">لا يوجد سجل حالات مسجل بعد.</p>}
               </div>
             </div>
           </div>
@@ -191,7 +213,7 @@ export default async function AdminOrderDetailPage({
               </form>
             </section>}
             <div className="bg-white p-6 rounded-lg border border-[var(--color-ivory-200)] shadow-sm sticky top-6">
-              <h3 className="text-lg font-bold text-[#3F4B32] mb-4 border-b pb-2">
+              <h3 className="text-lg font-bold text-[#3F4832] mb-4 border-b pb-2">
                 إدارة الطلب
               </h3>
 
@@ -209,11 +231,6 @@ export default async function AdminOrderDetailPage({
               </div>
 
             </div>
-            
-            <AdminOrderFinancials 
-              orderId={order.id} 
-              hasMissingProfits={hasMissingProfits} 
-            />
           </div>
         </div>
       </main>

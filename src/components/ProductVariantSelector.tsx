@@ -67,12 +67,12 @@ export function ProductVariantSelector({
 
   return (
     <>
-      <div className="text-2xl font-bold text-[#3F4B32] mb-4 h-10 flex items-center">
+      <div className="text-2xl font-bold text-[#3F4832] mb-4 h-10 flex items-center">
         {selectedVariant ? (
           filsToDisplay(selectedVariant.price, locale === 'ar' ? 'ar' : 'en')
         ) : (
           <span className="text-lg font-normal text-[#746A64]">
-            {isAr ? 'الرجاء تحديد الدرجة لعرض السعر' : 'Please select a shade to view price'}
+            {isAr ? 'الرجاء تحديد الخيار لعرض السعر' : 'Please select an option to view price'}
           </span>
         )}
       </div>
@@ -81,7 +81,7 @@ export function ProductVariantSelector({
       <div className="mb-8 mt-6">
         <div className="mb-4 flex items-end justify-start gap-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-[#A69A8C]">
-            {isAr ? 'الدرجة' : 'Shade / Variant'}
+            {isAr ? 'الخيارات المتاحة' : 'Options'}
           </h3>
           {selectedVariant && (
             <span className="text-sm font-bold text-[#2B2B2B]">{selectedVariant.name}</span>
@@ -93,10 +93,10 @@ export function ProductVariantSelector({
               key={variant.id}
               onClick={() => setSelectedVariant(variant)}
               title={variant.name}
-              className={`relative flex items-center justify-center p-1 rounded-full transition-all duration-300 cursor-pointer ${
+              className={`relative flex items-center justify-center p-1 rounded-xl transition-all duration-300 cursor-pointer ${
                 selectedVariant?.id === variant.id
-                  ? 'border-2 border-[#B7935F] shadow-[0_4px_12px_rgba(201,162,77,.2)] scale-110'
-                  : 'border-2 border-transparent hover:border-[#B7935F]/50 hover:scale-105'
+                  ? 'ring-2 ring-[#B7935F] shadow-[0_4px_12px_rgba(201,162,77,.2)] scale-105'
+                  : 'border border-[#E9DDCC] hover:border-[#B7935F]/50 hover:scale-[1.02]'
               }`}
             >
               {variant.colorHex ? (
@@ -105,7 +105,7 @@ export function ProductVariantSelector({
                   style={{ backgroundColor: variant.colorHex }}
                 />
               ) : (
-                <div className={`rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${selectedVariant?.id === variant.id ? 'bg-[#3F4B32] text-white' : 'border border-[#E9DDCC] bg-[#F7F3EA] text-[#2B2B2B]'}`}>
+                <div className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${selectedVariant?.id === variant.id ? 'bg-[#3F4832] text-white' : 'bg-[#F7F3EA] text-[#2B2B2B]'}`}>
                   {variant.name}
                 </div>
               )}

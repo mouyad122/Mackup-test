@@ -1,254 +1,250 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { getCMSContent } from '@/lib/cms';
+import Image from 'next/image';
 import type { Metadata } from 'next';
-import { OliveBranchDecoration, ArchFrame } from '@/components/RawaqMotifs';
+import { OliveBranchDecoration } from '@/components/RawaqMotifs';
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const { locale } = await params;
-  const isAr = locale === 'ar';
-  return {
-    title: isAr ? 'قصتنا | رَواق' : 'Our Story | Rawaq',
-    description: isAr
-      ? 'تعرّفي على حكاية رَواق — علامة تجمع الأناقة الأردنية المعاصرة بروح التراث والجمال.'
-      : 'Discover the story of Rawaq — where Jordanian contemporary elegance meets heritage and beauty.',
-  };
-}
+export const metadata: Metadata = {
+  title: 'قصتنا | رَواق — أناقة من روح الأصالة',
+  description: 'تعرّفي على قصة رَواق وروحها المستوحاة من الأردن الجميل — من التراث إلى الجمال المعاصر.',
+};
+
+export const revalidate = 86400;
 
 export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const isAr = locale === 'ar';
-
-  const cms = await getCMSContent('brand_story', {
-    titleAr: 'حكاية رَواق',
-    titleEn: 'The Rawaq Story',
-    contentAr: 'رَواق هي المساحة التي تلتقي فيها الأناقة المعاصرة مع جذور الأصالة الأردنية. استوحينا من تمايل أغصان الزيتون، ومن شموخ الجبال، ومن دفء الوجوه الأردنية، لنبتكر لكِ تجربة جمال تُشبهكِ تماماً. نؤمن في رَواق بأن الجمال الحقيقي ينبع من الداخل، ويُزهر حين تتصالحين مع ذاتكِ وتُبرزين هويتكِ بكل فخر: واثقة، أصيلة، وحاضرة في كل تفصيل.',
-    contentEn: 'Rawaq is a space where contemporary style meets the spirit of Jordan. Inspired by the swaying olive branches, the majesty of the mountains, and the warmth of Jordanian faces, we create a beauty experience that is truly yours. Beauty is a way to express who you are: confident, authentic, and present in every detail.',
-  });
-
-  const values = isAr
-    ? [
-        ['✦', 'الأصالة', 'نستلهم من روح المكان ونعبّر عنها بلغة اليوم.'],
-        ['◇', 'الأنوثة', 'مساحة لكل امرأة لتختار ما يشبهها.'],
-        ['❋', 'التفاصيل', 'عناية بالتجربة من أول اختيار إلى آخر لمسة.'],
-      ]
-    : [
-        ['✦', 'Authenticity', 'Inspired by a sense of place, expressed for today.'],
-        ['◇', 'Femininity', 'Room for every woman to choose what feels like her.'],
-        ['❋', 'Thoughtfulness', 'Care throughout the experience, down to the details.'],
-      ];
+  const isAr = locale !== 'en';
 
   return (
-    <main className="overflow-x-hidden bg-[#F7F3EA]">
+    <main dir={isAr ? 'rtl' : 'ltr'} className="overflow-x-hidden">
 
-      {/* ═══════════════════════════════════════════════
-          HERO — قصتنا
-          ═══════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-[#3F4B32] py-20 text-white sm:py-28">
-        <div className="relative mx-auto max-w-4xl px-6 text-center sm:px-10">
-          <p className="rawaq-eyebrow text-[#B7935F]">A JORDANIAN STORY · RAWAQ</p>
-          <h1 className="mt-5 text-5xl !text-white sm:text-6xl md:text-7xl">
-            {isAr ? 'قصتنا' : 'Our Story'}
+      {/* ═══════════════════════════════════════════════════
+          المشهد 01 — الاستهلال: الصورة الافتتاحية والنافذة المعمارية
+      ═══════════════════════════════════════════════════ */}
+      <section className="relative min-h-[75vh] sm:min-h-[85vh] flex items-center justify-center overflow-hidden bg-[#2D3424]">
+        {/* الخلفية الزيتونية التراثية العميقة */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 30%, #4D5A3E 0%, #3F4832 50%, #2D3424 100%)',
+          }}
+        />
+
+        {/* زخارف زيتونية معمارية خفيفة */}
+        <OliveBranchDecoration className="absolute -start-24 -top-24 w-96 text-white opacity-[0.06] pointer-events-none rotate-45" />
+        <OliveBranchDecoration className="absolute -end-24 -bottom-24 w-96 text-white opacity-[0.06] pointer-events-none -rotate-135" />
+
+        {/* قوس معماري رمزي في الخلفية */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[85vw] max-w-[680px] h-[70vh] rounded-t-[22rem] border border-[#B7935F]/20 opacity-40" />
+        </div>
+
+        {/* المحتوى التحريري الرئيسي */}
+        <div className="relative z-10 mx-auto w-full max-w-4xl px-5 sm:px-8 py-20 text-center">
+          <span className="inline-flex items-center gap-2 mb-5 px-4 py-1 rounded-full border border-[#B7935F]/40 bg-[#B7935F]/10 text-[#D9C6A8] text-xs font-bold tracking-[0.25em] uppercase">
+            ✦ {isAr ? 'هوية رَواق' : 'THE ESSENCE OF RAWAQ'} ✦
+          </span>
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.25] mb-6 font-heading">
+            {isAr ? 'رَواق...' : 'Rawaq...'}
+            <br />
+            <span className="text-[#D9C6A8]">
+              {isAr ? 'أناقة من روح الأصالة' : 'Elegance rooted in heritage'}
+            </span>
           </h1>
-          <p className="mt-6 text-lg text-[#B7935F] font-medium">
-            {isAr ? 'رَواق… حكاية جمال من أرضنا' : 'Rawaq… a story of beauty from our land'}
-          </p>
-          {/* Tatreez divider */}
-          <div
-            className="mx-auto my-8 h-5 max-w-sm opacity-70"
-            style={{ backgroundImage: "url('/brand/patterns/rawaq-tatreez-divider.svg')", backgroundRepeat: 'no-repeat', backgroundSize: 'contain', backgroundPosition: 'center' }}
-            aria-hidden="true"
-          />
-          <p className="mx-auto max-w-2xl text-base leading-8 text-white/70">
+          <p className="text-base sm:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed">
             {isAr
-              ? 'من ألوان الرمان إلى ألوان التطريز الأردني، من دفء الحجارة الأردنية إلى أناقة المرأة العصرية — رَواق حكاية تُعاش.'
-              : 'From pomegranate colors to Jordanian embroidery, from the warmth of Jordanian stone to the elegance of the contemporary woman — Rawaq is a story lived.'}
+              ? 'هناك جمال لا يرتبط بزمن، وأصالة تبقى ناضرة مهما تغيّرت تفاصيل الحياة.'
+              : 'There is a beauty untethered from time, and an authenticity that endures through every change.'}
           </p>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════
-          BRAND STORY CONTENT (CMS)
-          ═══════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-24 relative overflow-hidden">
-        {/* Decorative Olive Branch */}
-        <OliveBranchDecoration className="absolute -end-32 top-10 w-96 text-[#3F4B32] opacity-5 pointer-events-none" />
-        
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 relative z-10">
-          <div className="grid items-center gap-12 md:grid-cols-[1fr_1fr]">
-            {/* Logo / image side */}
-            <div className="relative order-2 md:order-1">
-              <ArchFrame className="max-w-md mx-auto text-[#B7935F]/40 bg-white shadow-[0_20px_60px_rgba(63,75,50,.08)]">
-                <div className="relative w-full h-80">
-                  <Image
-                    src="/brand/logo_rawaq.png"
-                    alt={isAr ? 'شعار رَواق' : 'Rawaq logo'}
-                    fill
-                    sizes="(max-width: 768px) 90vw, 450px"
-                    className="object-contain p-4"
-                  />
-                </div>
-              </ArchFrame>
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -end-4 rounded-2xl border border-[#E9DDCC] bg-[#3F4B32] text-white px-5 py-3.5 shadow-md">
-                <p className="text-xs font-bold tracking-[.14em] uppercase">{isAr ? 'جمال · تراث · أناقة' : 'BEAUTY · HERITAGE · ELEGANCE'}</p>
-              </div>
-            </div>
+      {/* ═══════════════════════════════════════════════════
+          المشهد 02 — لماذا رَواق؟ (الفلسفة والبداية)
+      ═══════════════════════════════════════════════════ */}
+      <section className="bg-[#F7F3EA] py-20 sm:py-28 relative">
+        <div className="mx-auto max-w-4xl px-5 sm:px-8 text-center">
+          <span className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'فلسفتنا' : 'OUR PHILOSOPHY'}</span>
+          <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3F4832] leading-[1.35] font-heading">
+            {isAr ? 'لماذا رَواق؟' : 'Why Rawaq?'}
+          </h2>
+          <div className="mx-auto my-7 h-px w-14 bg-[#B7935F]" />
 
-            {/* Content */}
-            <div className="order-1 md:order-2">
-              <p className="rawaq-eyebrow text-[#3F4B32] font-bold">{isAr ? 'قصة رَواق' : 'THE STORY'}</p>
-              <h2 className="mt-4 text-3xl sm:text-4xl text-[#3F4B32] font-heading leading-tight">{isAr ? cms.titleAr : cms.titleEn}</h2>
-              <div className="mt-4 h-px w-10 bg-[#B7935F]" />
-              <p className="mt-6 whitespace-pre-line text-lg leading-9 text-[#746A64]">
-                {isAr ? cms.contentAr : cms.contentEn}
-              </p>
-            </div>
+          <div className="space-y-6 text-[#3D3A37] text-base sm:text-lg leading-relaxed max-w-2xl mx-auto">
+            <p className="font-medium text-lg sm:text-xl text-[#2B2B2B]">
+              {isAr
+                ? 'نؤمن بأن الأناقة لا تحتاج إلى الصخب لتترك أثراً، وأن أجمل التفاصيل هي تلك التي تنبع من الهوية وتعبّر عنكِ بكل هدوء.'
+                : 'We believe elegance needs no noise to leave an impression; the most enduring details are those rooted in identity, expressing who you are with calm grace.'}
+            </p>
+            <p className="text-[#626262]">
+              {isAr
+                ? 'في رَواق، نستلهم من ماضينا دفئه وسكينته، ومن حاضرنا حيويته وذوقه الرفيع، لنمنحكِ تجربة تسوق أردنية راقية، يشعر فيها كل اختيار بأنه صُنع ليليق بكِ.'
+                : 'At Rawaq, we draw warmth and serenity from our heritage, and modern refinement from the present, offering an authentic Jordanian shopping experience where every detail feels crafted for you.'}
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════
-          POMEGRANATE — لماذا رَواق؟
-          ═══════════════════════════════════════════════ */}
-      <section className="bg-[#F7F3EA] py-16 sm:py-24">
+      {/* ═══════════════════════════════════════════════════
+          المشهد 03 — من أرضنا نستمد الإلهام (المعمار والتطريز)
+      ═══════════════════════════════════════════════════ */}
+      <section className="bg-white py-20 sm:py-28 border-y border-[#E9DDCC]">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="mb-12 text-center">
-            <p className="rawaq-eyebrow">{isAr ? 'لماذا رَواق؟' : 'WHY RAWAQ?'}</p>
-            <h2 className="mt-3 text-3xl sm:text-4xl">
-              {isAr ? 'رمزية الرَواق الأردنية' : 'The symbolism of the pomegranate'}
-            </h2>
-            <div className="mx-auto mt-4 h-px w-12 bg-[#B7935F]" />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {(isAr
-              ? [
-                  ['#3F4B32', 'أغصان الزيتون', 'اللون الزيتوني يعكس ارتباطنا العميق بالأرض الأردنية، حيث تجذّرت أشجار الزيتون لترمز إلى الخلود والسلام والتراث الأصيل.'],
-                  ['#D9C6A8', 'دفء الصخر', 'الرمل الدافئ يستوحي لونه من حجارة الأردن العتيقة التي تشهد على حضارات وأمجاد سُطرت في البتراء وغيرها.'],
-                  ['#B7935F', 'الجمال الداخلي', 'اللون الذهبي المعتق يمثل بريق الأنوثة وثقة المرأة التي تدرك تماماً أن الجمال ينبع من أصالتها وصدقها.'],
-                ]
-              : [
-                  ['#3F4B32', 'Olive Branches', 'Olive green reflects our deep connection to the Jordanian land, symbolizing eternity, peace, and authentic heritage.'],
-                  ['#D9C6A8', 'Warmth of Stone', 'Warm sand is inspired by the ancient stones of Jordan that witness the civilizations and glories of Petra.'],
-                  ['#B7935F', 'Inner Beauty', 'Antique gold represents the brilliance of femininity and the confidence of a woman whose beauty stems from her authenticity.'],
-                ]
-            ).map(([color, title, text]) => (
-              <div key={title} className="rounded-2xl border border-[#E9DDCC] bg-white p-7">
-                <span
-                  aria-hidden="true"
-                  style={{ backgroundColor: color }}
-                  className="block h-2 w-12 rounded-full mb-5"
-                />
-                <h3 className="text-lg font-bold text-[#2B2B2B]">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#746A64]">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════
-          HERITAGE — التراث الأردني
-          ═══════════════════════════════════════════════ */}
-      <section className="bg-[#F7F3EA] py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="grid items-center gap-10 md:grid-cols-[.9fr_1fr]">
-            {/* Tatreez visual panel */}
-            <div className="relative overflow-hidden rounded-3xl bg-[#3F4B32] p-8 min-h-56 sm:p-12 flex flex-col justify-center">
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: "url('/brand/patterns/rawaq-tatreez-strip.svg')", backgroundRepeat: 'repeat', backgroundSize: 'auto 60px' }}
-                aria-hidden="true"
-              />
-              <div className="relative text-white">
-                <p className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'التطريز الأردني' : 'JORDANIAN EMBROIDERY'}</p>
-                <h3 className="mt-3 text-2xl !text-white sm:text-3xl">
-                  {isAr ? 'الطرز… هوية وفن' : 'Embroidery… identity and art'}
-                </h3>
-                <p className="mt-4 leading-7 text-white/70 text-sm">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Text Side */}
+            <div className={isAr ? 'order-1' : 'order-2'}>
+              <span className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'جذورنا' : 'OUR ROOTS'}</span>
+              <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-[#3F4832] leading-[1.35] font-heading">
+                {isAr ? 'من أرضنا نستمد الإلهام' : 'Inspired by our land'}
+              </h2>
+              <div className="my-6 h-px w-12 bg-[#B7935F]" />
+              <div className="space-y-5 text-[#4a4643] leading-relaxed text-base sm:text-lg">
+                <p>
                   {isAr
-                    ? 'التطريز الأردني لغة بصرية تنقل الحكاية عبر الأجيال. رَواق تحمل روح هذا الفن في هويتها البصرية.'
-                    : 'Jordanian embroidery is a visual language that passes stories through generations. Rawaq carries the spirit of this art in its visual identity.'}
+                    ? 'من حجارة عمّان الدافئة، وأشجار الزيتون الممتدة عبر تلالها، ومن الأقواس الحجرية التي تحتضن بيوتنا القديمة، وفنون التطريز التي طرزتها أيدي الأمهات جيلاً بعد جيل؛ هنا تولد روح رَواق.'
+                    : 'From the warm limestone of Amman, the olive groves across our hills, the stone arches framing historic homes, and the embroidery woven with patience across generations; this is where the spirit of Rawaq is born.'}
+                </p>
+                <p className="text-sm sm:text-base text-[#626262]">
+                  {isAr
+                    ? 'الأصالة بالنسبة لنا ليست ذكرى عابرة، بل هي نبض حيّ نحمله في جودة المنتجات، ونعومة الألوان، واحترام ذوق المرأة التي تبحث عن الفخامة الحقيقية.'
+                    : 'Heritage for us is never just a memory; it is an active pulse carried through product quality, harmonious colors, and a deep appreciation for the woman seeking true refinement.'}
                 </p>
               </div>
             </div>
 
-            {/* Text */}
-            <div>
-              <p className="rawaq-eyebrow">{isAr ? 'من تراثنا' : 'FROM OUR HERITAGE'}</p>
-              <h2 className="mt-4 text-3xl sm:text-4xl">
-                {isAr ? 'جمال مستوحى من أرضنا' : 'Beauty inspired by our land'}
-              </h2>
-              <div className="mt-4 h-px w-10 bg-[#B7935F]" />
-              <p className="mt-6 leading-8 text-[#746A64]">
-                {isAr
-                  ? 'الأردن بلد يجمع الطبيعة والتاريخ والفن في لوحة واحدة. من البادية إلى المدينة، من الكوفية إلى الثوب المطرز — كل تفصيل يحكي.'
-                  : 'Jordan is a land that brings together nature, history and art in one canvas. From the desert to the city, from the keffiyeh to the embroidered thobe — every detail speaks.'}
-              </p>
-              <p className="mt-4 leading-8 text-[#746A64]">
-                {isAr
-                  ? 'رَواق تستلهم من هذا الإرث الجميل لتقدّم تجربة جمال وأزياء معاصرة تحمل دفء المكان وروحه.'
-                  : 'Rawaq draws from this beautiful heritage to offer a contemporary beauty and fashion experience that carries the warmth and soul of place.'}
-              </p>
+            {/* Visual Side — Heritage Architectural Composition */}
+            <div className={`grid grid-cols-2 gap-4 ${isAr ? 'order-2' : 'order-1'}`}>
+              <div className="flex flex-col items-center justify-center p-8 rounded-t-[4rem] rounded-b-2xl bg-[#3F4832] text-white shadow-lg text-center">
+                <span className="text-3xl text-[#D9C6A8] mb-3">⚱</span>
+                <h3 className="font-heading font-bold text-lg mb-1">{isAr ? 'معمار الحجر' : 'Stone Heritage'}</h3>
+                <p className="text-xs text-white/70 leading-relaxed">{isAr ? 'دفء الحجر الأردني وأقواسه التاريخية' : 'Warmth of Jordanian stone arches'}</p>
+              </div>
+              <div className="flex flex-col items-center justify-center p-8 mt-6 rounded-b-[4rem] rounded-t-2xl bg-[#F7F3EA] border border-[#D9C6A8] text-[#3F4832] shadow-md text-center">
+                <span className="text-3xl text-[#B7935F] mb-3">🪡</span>
+                <h3 className="font-heading font-bold text-lg mb-1">{isAr ? 'خيوط التطريز' : 'Living Embroidery'}</h3>
+                <p className="text-xs text-[#746A64] leading-relaxed">{isAr ? 'أناقة الحرفة وذاكرة المكان' : 'Craftsmanship and cultural memory'}</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════
-          VALUES
-          ═══════════════════════════════════════════════ */}
-      <section className="bg-[#F7F3EA] py-16 sm:py-20">
+      {/* ═══════════════════════════════════════════════════
+          المشهد 04 — في شعارنا حكاية (الشعار الرسمي وعناصره)
+      ═══════════════════════════════════════════════════ */}
+      <section className="bg-[#fbfaf8] py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="mb-12 text-center">
-            <p className="rawaq-eyebrow">{isAr ? 'قيم رَواق' : 'WHAT GUIDES US'}</p>
-            <h2 className="mt-3 text-3xl sm:text-4xl">
-              {isAr ? 'جمال في التفاصيل، وهوية في الحكاية' : 'Beauty in the details, identity in the story'}
-            </h2>
-            <div className="mx-auto mt-4 h-px w-12 bg-[#B7935F]" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {values.map(([icon, title, text]) => (
-              <article key={title} className="rounded-2xl border border-[#E9DDCC] bg-white p-6 sm:p-8 transition hover:border-[#B7935F]/40 hover:shadow-[0_6px_20px_rgba(139,30,45,.06)]">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#3F4B32]/[.07] text-xl text-[#3F4B32]" aria-hidden="true">
-                  {icon}
-                </div>
-                <h3 className="mt-5 text-xl">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#746A64]">{text}</p>
-              </article>
-            ))}
+          <div className="grid md:grid-cols-[auto_1fr] gap-12 lg:gap-20 items-center">
+            {/* Logo Visual Presentation */}
+            <div className="flex items-center justify-center">
+              <div className="relative flex items-center justify-center w-56 h-56 sm:w-68 sm:h-68 rounded-full bg-[#3F4832] shadow-2xl p-6">
+                <div className="absolute inset-3 rounded-full border border-[#B7935F]/30" />
+                <Image
+                  src="/brand/logo_rawaq.png"
+                  alt={isAr ? 'شعار رَواق الرسمي' : 'Official Rawaq logo'}
+                  width={220}
+                  height={220}
+                  className="relative h-32 sm:h-40 w-auto object-contain filter drop-shadow"
+                  priority
+                />
+              </div>
+            </div>
+
+            {/* Elements Description */}
+            <div>
+              <span className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'رمزية الهوية' : 'OUR IDENTITY'}</span>
+              <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-[#3F4832] leading-[1.35] font-heading">
+                {isAr ? 'في شعارنا حكاية' : 'A story in our mark'}
+              </h2>
+              <div className="my-6 h-px w-12 bg-[#B7935F]" />
+              <p className="text-[#4a4643] leading-relaxed mb-8 text-base sm:text-lg">
+                {isAr
+                  ? 'يجمع شعار رَواق الرسمي بين ثلاثة رموز أصيلة تختزل علاقتنا بالأرض والمعمار والمستقبل:'
+                  : 'The official Rawaq mark unites three enduring symbols reflecting our connection to the land, architecture, and future:'}
+              </p>
+
+              <div className="grid sm:grid-cols-3 gap-5">
+                {(isAr ? [
+                  { symbol: '⌒', title: 'القوس المعماري', desc: 'يستحضر فناء البيت الأردني ورَواقه، حيث تتلاقى التهوية والضوء والسكينة.' },
+                  { symbol: '🪔', title: 'غصن الزيتون', desc: 'رمز النقاء والبركة والوفاء للأرض، يعبّر عن استمرارية الجمال عبر العصور.' },
+                  { symbol: '✦', title: 'النجمة', desc: 'لمسة إشراق وتميز تتوّج الهوية وتعلن عن روح معاصرة فخورة بأصلها.' },
+                ] : [
+                  { symbol: '⌒', title: 'The Arch', desc: 'Recalling the traditional Jordanian portico (Rawaq) filled with light and calm.' },
+                  { symbol: '🪔', title: 'The Olive Branch', desc: 'A symbol of purity, blessed land, and enduring beauty across centuries.' },
+                  { symbol: '✦', title: 'The Star', desc: 'A radiant crown representing modern distinction proud of its heritage.' },
+                ]).map(({ symbol, title, desc }) => (
+                  <div key={title} className="flex flex-col gap-3 p-6 rounded-2xl bg-white border border-[#E9DDCC] shadow-sm hover:border-[#B7935F] transition-all duration-300">
+                    <span className="text-3xl text-[#B7935F] font-bold">{symbol}</span>
+                    <h3 className="font-heading font-bold text-[#3F4832] text-lg">{title}</h3>
+                    <p className="text-xs sm:text-sm text-[#746A64] leading-relaxed">{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════
-          CLOSING STATEMENT
-          ═══════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20">
-        <div className="mx-auto max-w-3xl px-5 text-center">
-          {/* Tatreez divider */}
-          <div
-            className="mx-auto mb-8 h-5 max-w-xs opacity-80"
-            style={{ backgroundImage: "url('/brand/patterns/rawaq-tatreez-divider.svg')", backgroundRepeat: 'no-repeat', backgroundSize: 'contain', backgroundPosition: 'center' }}
-            aria-hidden="true"
-          />
-          <p className="text-sm font-bold tracking-[.16em] text-[#3F4B32] uppercase mb-4">
-            {isAr ? 'رَواق' : 'RAWAQ'}
-          </p>
-          <blockquote className="text-2xl font-bold leading-relaxed text-[#2B2B2B] sm:text-3xl">
-            {isAr
-              ? '"تفاصيل تحمل من روح الأردن… وترافق جمالك اليوم"'
-              : '"Details that carry the spirit of Jordan… accompanying your beauty today"'}
-          </blockquote>
-          <div className="mt-4 h-px max-w-[3rem] bg-[#B7935F] mx-auto" />
-          <div className="mt-10">
-            <Link href={`/${locale}/shop`} className="btn-rawaq-primary">
-              {isAr ? 'تسوّقي رَواق' : 'Shop Rawaq'}
+      {/* ═══════════════════════════════════════════════════
+          المشهد 05 — عالم يشبه تفاصيلكِ (الثلاثية الجمالية)
+      ═══════════════════════════════════════════════════ */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-4xl px-5 sm:px-8 text-center">
+          <span className="rawaq-eyebrow text-[#B7935F]">{isAr ? 'عالمنا' : 'OUR OFFERING'}</span>
+          <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3F4832] leading-[1.35] font-heading">
+            {isAr ? 'عالم يشبه تفاصيلكِ' : 'A world that matches your details'}
+          </h2>
+          <div className="mx-auto my-7 h-px w-14 bg-[#B7935F]" />
+          <div className="space-y-5 text-[#4a4643] leading-relaxed max-w-2xl mx-auto text-base sm:text-lg">
+            <p>
+              {isAr
+                ? 'نرى الأناقة في تناغمها الكامل: في نفحة عطر ترافقكِ طوال اليوم، وفي لمسة عناية ومكياج تبرز جمالكِ الطبيعي، وفي ثوب أو عباية صُممت بذوق أردني راقٍ.'
+                : 'We perceive elegance in its complete harmony: in a fragrant note that accompanies you, in a beauty touch that elevates your natural glow, and in an embroidered dress designed with timeless grace.'}
+            </p>
+          </div>
+
+          {/* تبويبات سريعة للتصنيفات بحواف ناعمة */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+            <Link href={`/${locale}/shop`} className="btn-rawaq-filter active">
+              {isAr ? 'تصفحي جميع المجموعات' : 'Explore All Collections'}
             </Link>
           </div>
         </div>
       </section>
+
+      {/* ═══════════════════════════════════════════════════
+          المشهد 06 — الخاتمة والدعوة (لكل يوم تفاصيله... ولكِ رَواقكِ)
+      ═══════════════════════════════════════════════════ */}
+      <section className="bg-[#3F4832] py-20 sm:py-28 relative overflow-hidden text-white">
+        <OliveBranchDecoration className="absolute -end-20 -bottom-20 w-80 text-white opacity-[0.05] pointer-events-none" />
+        <OliveBranchDecoration className="absolute -start-20 -top-20 w-80 text-white opacity-[0.05] pointer-events-none rotate-180" />
+
+        <div className="relative z-10 mx-auto max-w-3xl px-5 sm:px-8 text-center">
+          <span className="inline-block mb-4 text-[#D9C6A8] text-xs font-bold tracking-[0.25em] uppercase">
+            RAWAQ
+          </span>
+          <h2 className="text-3xl sm:text-5xl font-bold text-white leading-[1.35] mb-6 font-heading">
+            {isAr ? 'لكل يوم تفاصيله...' : 'Every day has its details...'}
+            <br />
+            <span className="text-[#D9C6A8]">
+              {isAr ? 'ولكِ رَواقكِ' : 'and you have Rawaq'}
+            </span>
+          </h2>
+          <p className="text-base sm:text-lg text-white/80 max-w-xl mx-auto leading-relaxed mb-10">
+            {isAr
+              ? 'في رَواق، نحتفي بكل سيدة تختار أسلوبها بثقة وتجد جمالها في التفاصيل التي تشبهها.'
+              : 'At Rawaq, we celebrate every woman who defines her style with confidence and finds beauty in the details that feel like her.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link href={`/${locale}/shop`} className="btn-rawaq-primary bg-white !text-[#3F4832] hover:bg-[#F7F3EA] shadow-xl">
+              {isAr ? 'اكتشفي المجموعة' : 'Discover the collection'}
+            </Link>
+            <Link href={`/${locale}/contact`} className="btn-rawaq-ghost">
+              {isAr ? 'تواصلي معنا' : 'Contact us'}
+            </Link>
+          </div>
+        </div>
+      </section>
+
     </main>
   );
 }

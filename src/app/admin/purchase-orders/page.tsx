@@ -17,10 +17,10 @@ export default async function PurchaseOrdersPage() {
       <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
         <header className="flex justify-between items-center">
           <div>
-            <h1 className="font-heading text-3xl font-bold text-[#3F4B32]">أوامر الشراء</h1>
+            <h1 className="font-heading text-3xl font-bold text-[#3F4832]">أوامر الشراء</h1>
             <p className="mt-1 text-zinc-600">إدارة أوامر الشراء، استلام البضائع، وفواتير الموردين.</p>
           </div>
-          <Link href="/admin/purchase-orders/create" className="rounded bg-[#3F4B32] px-5 py-2 font-bold text-white">
+          <Link href="/admin/purchase-orders/create" className="rounded bg-[#3F4832] px-5 py-2 font-bold text-white">
             أمر شراء جديد
           </Link>
         </header>
@@ -56,7 +56,7 @@ export default async function PurchaseOrdersPage() {
                   <td className="p-4">{(po.totalAmount / 1000).toFixed(3)} د.أ</td>
                   <td className="p-4">{new Date(po.createdAt).toLocaleDateString('en-GB')}</td>
                   <td className="p-4">
-                    <Link href={`/admin/purchase-orders/${po.id}`} className="text-[#3F4B32] underline text-sm font-medium">
+                    <Link href={`/admin/purchase-orders/${po.id}`} className="text-[#3F4832] underline text-sm font-medium">
                       التفاصيل
                     </Link>
                   </td>

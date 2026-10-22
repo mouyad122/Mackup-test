@@ -195,12 +195,8 @@ export function ProductNewForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <label className="block text-sm font-bold text-zinc-700 mb-2">SKU الأساسي *</label>
-          <input type="text" name="sku" readOnly value={autoSku} required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm outline-none bg-zinc-50 cursor-not-allowed" dir="ltr" />
-          <p className="text-xs text-zinc-400 mt-1">يتم إنشاؤه تلقائياً</p>
-        </div>
+      <input type="hidden" name="sku" value={autoSku} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-bold text-zinc-700 mb-2">الفئة *</label>
           <select name="categoryId" required className="w-full border rounded p-2 text-sm outline-none bg-white focus:border-[var(--color-rose-600)]">
@@ -301,26 +297,22 @@ export function ProductNewForm({
 
         <div className="border rounded-lg divide-y divide-zinc-100 overflow-hidden">
           <div className="bg-zinc-50 grid grid-cols-12 gap-2 px-4 py-2 text-xs font-bold text-zinc-500">
-            <div className="col-span-2">الاسم (الدرجة)</div>
-            <div className="col-span-2">الدرجة (Shade)</div>
-            <div className="col-span-2">SKU</div>
-            <div className="col-span-3">السعر (د.أ)</div>
+            <div className="col-span-3">الاسم (الدرجة)</div>
+            <div className="col-span-3">الدرجة (Shade)</div>
+            <div className="col-span-4">السعر (د.أ)</div>
             <div className="col-span-2 text-center">لون / حالة التوفر</div>
             <div className="col-span-1 text-center">إجراء</div>
           </div>
           {variants.map((v, i) => (
             <div key={i} className="grid grid-cols-12 gap-2 px-4 py-3 items-center">
-              <div className="col-span-2">
+              <div className="col-span-3">
                 <input type="text" value={v.name} onChange={e => updateVariant(i, 'name', e.target.value)} required placeholder="Ruby Red" className="w-full border rounded p-1.5 text-xs outline-none focus:border-[var(--color-rose-600)]" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-3">
                 <select value={v.shadeId || ''} onChange={e => updateVariant(i, 'shadeId', e.target.value)} className="w-full border rounded p-1.5 text-xs outline-none focus:border-[var(--color-rose-600)]">
                   <option value="">بدون</option>
                   {shades?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-              </div>
-              <div className="col-span-2">
-                <input type="text" value={v.name ? `${autoSku}-${v.name.toUpperCase().replace(/\s+/g, '')}` : ''} readOnly className="w-full border rounded p-1.5 text-xs font-mono outline-none bg-zinc-50 cursor-not-allowed text-zinc-500" dir="ltr" />
               </div>
               <div className="col-span-3">
                 <input type="number" step="0.001" value={v.price} onChange={e => updateVariant(i, 'price', e.target.value)} required placeholder="25.000" className="w-full border rounded p-1.5 text-xs outline-none focus:border-[var(--color-rose-600)]" dir="ltr" />
@@ -440,7 +432,7 @@ export function ProductNewForm({
         <Link href="/admin/products" className="px-6 py-2 border rounded font-bold text-zinc-600 hover:bg-zinc-50 transition-colors text-sm">
           إلغاء
         </Link>
-        <button type="submit" disabled={pending} className="bg-[#3F4B32] text-white px-8 py-2 rounded font-bold hover:bg-[#2d3623] transition-colors text-sm shadow-sm disabled:opacity-60 flex items-center gap-2">
+        <button type="submit" disabled={pending} className="bg-[#3F4832] text-white px-8 py-2 rounded font-bold hover:bg-[#2d3623] transition-colors text-sm shadow-sm disabled:opacity-60 flex items-center gap-2">
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
           {pending ? 'جاري الحفظ...' : 'حفظ وإضافة المنتج'}
         </button>
