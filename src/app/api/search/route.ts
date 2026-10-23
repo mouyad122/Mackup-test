@@ -39,10 +39,10 @@ export async function GET(req: NextRequest) {
       }),
       prisma.category.findMany({
         where: {
+          isVisible: true,
           name: { contains: q, mode: 'insensitive' },
-          products: { some: { isVisible: true } },
         },
-        take: 3,
+        take: 4,
         select: {
           id: true,
           name: true,

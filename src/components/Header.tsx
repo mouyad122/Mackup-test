@@ -12,6 +12,8 @@ export interface HeaderCategory {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
+  children?: HeaderCategory[];
 }
 
 export interface HeaderProps {
@@ -23,6 +25,7 @@ interface NavItem {
   href: string;
   labelAr: string;
   labelEn: string;
+  category?: HeaderCategory;
 }
 
 interface SearchResult {
@@ -35,42 +38,13 @@ interface SearchResult {
   type: 'product' | 'category';
 }
 
-function buildNavLinks(categories?: HeaderCategory[], hasActiveOffers?: boolean): NavItem[] {
-  const links: NavItem[] = [
-    { href: '/', labelAr: 'الرئيسية', labelEn: 'Home' },
+function buildNavLinks(): NavItem[] {
+  return [
+    { href: '/', labelAr: 'الصفحة الرئيسية', labelEn: 'Home' },
+    { href: '/shop', labelAr: 'المتجر', labelEn: 'Shop' },
+    { href: '/about', labelAr: 'قصتنا', labelEn: 'Our Story' },
+    { href: '/contact', labelAr: 'تواصل معنا', labelEn: 'Contact Us' },
   ];
-
-  if (categories && categories.length > 0) {
-    for (const cat of categories) {
-      links.push({
-        href: `/shop?category=${cat.id}`,
-        labelAr: cat.name,
-        labelEn: cat.name,
-      });
-    }
-  } else {
-    links.push({
-      href: '/shop',
-      labelAr: 'المتجر',
-      labelEn: 'Shop',
-    });
-  }
-
-  if (hasActiveOffers) {
-    links.push({
-      href: '/offers',
-      labelAr: 'العروض',
-      labelEn: 'Offers',
-    });
-  }
-
-  links.push({
-    href: '/about',
-    labelAr: 'قصتنا',
-    labelEn: 'Our Story',
-  });
-
-  return links;
 }
 
 /* ─────────────────────────────────────────────
@@ -176,13 +150,13 @@ function SearchBar({ locale, onClose }: { locale: string; onClose?: () => void }
 /* ─────────────────────────────────────────────
    Main Header
 ───────────────────────────────────────────── */
-export function Header({ categories, hasActiveOffers }: HeaderProps = {}) {
+export function Header({}: HeaderProps = {}) {
   const pathname = usePathname() || '/ar';
   const router = useRouter();
   const locale = pathname.startsWith('/en') ? 'en' : 'ar';
   const isAr = locale === 'ar';
 
-  const navLinks = buildNavLinks(categories, hasActiveOffers);
+  const navLinks = buildNavLinks();
 
   const [cartCount, setCartCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -364,26 +338,27 @@ export function Header({ categories, hasActiveOffers }: HeaderProps = {}) {
           </div>
         </div>
 
-        {/* ── Secondary Nav (Desktop only — Category Links) ── */}
+        {/* ── Secondary Nav (Desktop only — Main Navigation Links) ── */}
         <nav
-          className={`hidden md:block border-t border-[#e8e5df]/80 bg-[#fbfaf8] transition-all duration-300 overflow-hidden ${isCompact ? 'max-h-0 opacity-0 border-t-0' : 'max-h-12 opacity-100'}`}
-          aria-label={isAr ? 'قائمة التصنيفات' : 'Category navigation'}
+          className={`hidden md:block border-t border-[#e8e5df]/80 bg-[#fbfaf8] transition-all duration-300 ${isCompact ? 'max-h-0 opacity-0 overflow-hidden border-t-0' : 'opacity-100'}`}
+          aria-label={isAr ? 'قائمة التنقل الرئيسية' : 'Main navigation'}
           dir={isAr ? 'rtl' : 'ltr'}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-8">
-            <ul className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+            <ul className="flex items-center justify-center gap-6 lg:gap-10 overflow-visible py-1">
               {navLinks.map((item) => {
                 const href = `/${locale}${item.href === '/' ? '' : item.href}`;
                 const active = isActive(item.href);
+
                 return (
-                  <li key={item.href} className="shrink-0">
+                  <li key={item.href} className="relative shrink-0">
                     <Link
                       href={href}
-                      className={`rawaq-nav-link block px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap transition-colors ${
+                      className={`rawaq-nav-link flex items-center px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
                         active
                           ? 'text-[#3F4832] active'
                           : 'text-[#626262] hover:text-[#3F4832]'
-                      } ${item.href === '/offers' ? '!text-[#B7935F] hover:!text-[#3F4832]' : ''}`}
+                      }`}
                     >
                       {l(item)}
                     </Link>
@@ -459,10 +434,11 @@ export function Header({ categories, hasActiveOffers }: HeaderProps = {}) {
             </div>
 
             {/* Nav links */}
-            <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+            <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-5">
               {navLinks.map((item) => {
                 const href = `/${locale}${item.href === '/' ? '' : item.href}`;
                 const active = isActive(item.href);
+
                 return (
                   <Link
                     key={item.href}
@@ -472,7 +448,7 @@ export function Header({ categories, hasActiveOffers }: HeaderProps = {}) {
                       active
                         ? 'bg-[#3F4832]/8 text-[#3F4832]'
                         : 'text-[#2B2B2B] hover:bg-[#EDE3D5] hover:text-[#3F4832]'
-                    } ${item.href === '/offers' ? 'text-[#B7935F]' : ''}`}
+                    }`}
                   >
                     {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#B7935F]" aria-hidden="true" />}
                     {l(item)}

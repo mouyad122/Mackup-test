@@ -15,6 +15,7 @@ type VariantInput = {
   name?: string;
   sku?: string;
   price: number;
+  compareAt?: number | null;
   isActive?: boolean;
   inventorySource?: 'INTERNAL' | 'SUPPLIER';
   supplierId?: string | null;
@@ -75,8 +76,9 @@ function parseVariants(formData: FormData, productSku: string): Array<VariantInp
     // SKU is automatically generated and guaranteed unique, non-editable by admins or customers
     const sku = item.sku && String(item.sku).trim() ? String(item.sku).trim() : generateVariantSku(productSku, index);
     const price = Number(item.price);
+    const compareAt = item.compareAt !== undefined && item.compareAt !== null && !isNaN(Number(item.compareAt)) ? Number(item.compareAt) : null;
     if (!size || !Number.isInteger(price) || price < 0) throw new Error('تحقق من المقاس والسعر لكل خيار.');
-    return { ...item, size, sku, price };
+    return { ...item, size, sku, price, compareAt };
   });
 }
 
@@ -99,10 +101,24 @@ function productFields(formData: FormData) {
     nameAr,
     nameEn: text(formData, 'nameEn', false) || nameAr,
     categoryId: text(formData, 'categoryId', true),
+    brandId: text(formData, 'brandId') || null,
     shortDescription: text(formData, 'shortDescription') || null,
     longDescription: text(formData, 'longDescription') || null,
     isVisible: formData.get('isVisible') === 'true',
     isFeatured: formData.get('isFeatured') === 'true',
+    isBestSeller: formData.get('isBestSeller') === 'true',
+    isNew: formData.get('isNew') === 'true',
+    isTrending: formData.get('isTrending') === 'true',
+    tags: text(formData, 'tags') || null,
+    barcode: text(formData, 'barcode') || null,
+    ingredients: text(formData, 'ingredients') || null,
+    howToUse: text(formData, 'howToUse') || null,
+    warnings: text(formData, 'warnings') || null,
+    finish: text(formData, 'finish') || null,
+    coverage: text(formData, 'coverage') || null,
+    skinType: text(formData, 'skinType') || null,
+    benefits: text(formData, 'benefits') || null,
+    inventoryMode: text(formData, 'inventoryMode') || 'FINISHED_PRODUCT',
     productTemplateId: text(formData, 'productTemplateId') || null,
   };
 }
@@ -262,10 +278,24 @@ export async function updateProduct(productId: string, formData: FormData) {
           nameAr: data.nameAr,
           nameEn: data.nameEn,
           categoryId: data.categoryId,
+          brandId: data.brandId,
           shortDescription: data.shortDescription,
           longDescription: data.longDescription,
           isVisible: data.isVisible,
           isFeatured: data.isFeatured,
+          isBestSeller: data.isBestSeller,
+          isNew: data.isNew,
+          isTrending: data.isTrending,
+          tags: data.tags,
+          barcode: data.barcode,
+          ingredients: data.ingredients,
+          howToUse: data.howToUse,
+          warnings: data.warnings,
+          finish: data.finish,
+          coverage: data.coverage,
+          skinType: data.skinType,
+          benefits: data.benefits,
+          inventoryMode: data.inventoryMode,
           ...(templateId !== undefined ? { productTemplateId: templateId } : {}),
         },
       });
@@ -283,6 +313,7 @@ export async function updateProduct(productId: string, formData: FormData) {
           size: variant.size,
           sku: variantSku,
           price: variant.price,
+          compareAt: variant.compareAt !== undefined ? variant.compareAt : null,
           stock: 0,
           isActive: variant.isActive ?? true,
           inventorySource: variant.inventorySource === 'SUPPLIER' ? 'SUPPLIER' : 'INTERNAL',
@@ -366,3 +397,120 @@ export async function getProductsByIds(ids: string[]) {
     return [];
   }
 }
+
+export async function duplicateProduct(productId: string) {
+  const session = await requirePermission('manage:products');
+  try {
+    const original = await prisma.product.findUniqueOrThrow({
+      where: { id: productId },
+      include: {
+        variants: {
+          include: {
+            supplierOffers: {
+              where: { isActive: true },
+            },
+          },
+        },
+        images: true,
+        attributeValues: true,
+      },
+    });
+
+    const newSku = generateUniqueSku();
+    const newSlug = `${newSku.toLowerCase()}-${Date.now()}`;
+
+    const duplicated = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          nameAr: `${original.nameAr} (نسخة)`,
+          nameEn: original.nameEn ? `${original.nameEn} (Copy)` : `${original.nameAr} (Copy)`,
+          sku: newSku,
+          slug: newSlug,
+          categoryId: original.categoryId,
+          brandId: original.brandId,
+          productTemplateId: original.productTemplateId,
+          shortDescription: original.shortDescription,
+          longDescription: original.longDescription,
+          isVisible: false, // Always draft on duplicate
+          isFeatured: false,
+          isBestSeller: false,
+          isNew: true,
+          tags: original.tags,
+          ingredients: original.ingredients,
+          howToUse: original.howToUse,
+          warnings: original.warnings,
+          finish: original.finish,
+          coverage: original.coverage,
+          skinType: original.skinType,
+          benefits: original.benefits,
+          variants: {
+            create: original.variants.map((v, idx) => ({
+              size: v.size,
+              sku: generateVariantSku(newSku, idx),
+              price: v.price,
+              compareAt: v.compareAt,
+              stock: 0,
+              isActive: v.isActive,
+              inventorySource: v.inventorySource,
+            })),
+          },
+          ...(original.images.length ? {
+            images: {
+              create: original.images.map((img) => ({
+                url: img.url,
+                alt: `${original.nameAr} (نسخة)`,
+                order: img.order,
+                isMain: img.isMain,
+              })),
+            },
+          } : {}),
+        },
+        include: { variants: true },
+      });
+
+      if (original.attributeValues.length && tx.productAttributeValue) {
+        await tx.productAttributeValue.createMany({
+          data: original.attributeValues.map((av) => ({
+            productId: created.id,
+            attributeDefinitionId: av.attributeDefinitionId,
+            valueJson: av.valueJson,
+          })),
+        });
+      }
+
+      for (let i = 0; i < original.variants.length; i++) {
+        const origVar = original.variants[i];
+        const activeOffer = origVar.supplierOffers[0];
+        if (activeOffer && activeOffer.supplierId) {
+          await tx.supplierOffer.create({
+            data: {
+              supplierId: activeOffer.supplierId,
+              variantId: created.variants[i].id,
+              unitCost: activeOffer.unitCost,
+              supplierProfitShareBps: activeOffer.supplierProfitShareBps,
+              stock: 0,
+              isActive: true,
+            },
+          });
+        }
+      }
+
+      return created;
+    }, { isolationLevel: 'Serializable' });
+
+    await logAction(session.employeeId, 'DUPLICATE_PRODUCT', 'PRODUCT', duplicated.id, {
+      originalId: productId,
+      name: duplicated.nameAr,
+      sku: duplicated.sku,
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath('/', 'layout');
+
+    return { success: true, productId: duplicated.id };
+  } catch (error: unknown) {
+    console.error('Error duplicating product:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'تعذر نسخ المنتج.' };
+  }
+}
+

@@ -21,24 +21,46 @@ export default async function PublicLayout({
     orderBy: { minimumAmount: 'asc' }
   });
 
-  // 1. التصنيفات النشطة التي تحتوي على منتجات منشورة فقط (Point 3)
-  const activeCategories = await prisma.category.findMany({
-    where: {
-      products: {
-        some: {
-          isVisible: true,
-        },
-      },
-    },
+  // 1. استرجاع الأقسام المفعلة وشجرتها الهرمية لعرضها في شريط التنقل وتسهيل التصفح
+  const allCategories = await prisma.category.findMany({
+    where: { isVisible: true },
     select: {
       id: true,
       name: true,
       slug: true,
+      parentId: true,
+      sortOrder: true,
+      children: {
+        where: { isVisible: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parentId: true,
+          children: {
+            where: { isVisible: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              parentId: true,
+            },
+            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      },
     },
-    orderBy: {
-      name: 'asc',
-    },
+    orderBy: [
+      { sortOrder: 'asc' },
+      { name: 'asc' },
+    ],
   });
+
+  // إظهار الأقسام الرئيسية في شريط التنقل العلوي مع فروعها
+  const rootHeaderCategories = allCategories.filter(c => !c.parentId);
+  const displayHeaderCategories = rootHeaderCategories.length > 0 ? rootHeaderCategories : allCategories;
+
 
   // 2. التحقق من وجود عروض نشطة فعلية (Point 4: compareAt > price)
   const promoVariant = await prisma.productVariant.findFirst({
@@ -57,7 +79,7 @@ export default async function PublicLayout({
   return (
     <div data-brand="rawaq" className="rawaq-storefront flex flex-col min-h-screen" dir={dir} lang={locale}>
       <AnnouncementBar locale={locale} />
-      <Header categories={activeCategories} hasActiveOffers={hasActiveOffers} />
+      <Header categories={displayHeaderCategories} hasActiveOffers={hasActiveOffers} />
       <div className="flex-grow flex-1 bg-[var(--surface-primary)]">
         {children}
       </div>

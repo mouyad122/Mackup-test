@@ -39,12 +39,15 @@ export default async function StoreFrontPage({ params }: { params: Promise<{ loc
         variants: { where: { isActive: true }, orderBy: { price: 'asc' }, take: 1 },
       },
     }),
-    // فقط التصنيفات التي تحتوي على منتجات فعلية
+    // الأقسام الرئيسية في رَواق
     prisma.category.findMany({
-      where: { products: { some: { isVisible: true } } },
-      take: 4,
-      orderBy: { name: 'asc' },
-      include: { _count: { select: { products: { where: { isVisible: true } } } } },
+      where: { isVisible: true, parentId: null },
+      take: 6,
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: {
+        _count: { select: { products: { where: { isVisible: true } } } },
+        children: { where: { isVisible: true }, select: { id: true, name: true } },
+      },
     }),
     getHeroSlides(),
     getHeroCarouselSettings(),
@@ -87,12 +90,12 @@ export default async function StoreFrontPage({ params }: { params: Promise<{ loc
               <div className="mx-auto mt-4 h-px w-10 bg-[#3F4832]" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-4 px-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5 px-2">
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
                   href={`/${locale}/shop?category=${encodeURIComponent(cat.id)}`}
-                  className="group relative flex flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[1.5rem] sm:rounded-tr-[3rem] sm:rounded-bl-[3rem] bg-[#F7F3EA] shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-[3px] border-white"
+                  className="group relative flex flex-col overflow-hidden rounded-[1.5rem] bg-[#F7F3EA] shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-2 border-white"
                 >
                   <div className="relative w-full aspect-[4/5] overflow-hidden bg-[#e8e5df]">
                     {cat.imagePath ? (
@@ -100,26 +103,30 @@ export default async function StoreFrontPage({ params }: { params: Promise<{ loc
                         src={cat.imagePath}
                         alt={cat.name}
                         fill
-                        sizes="(max-width: 640px) 50vw, 25vw"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 16vw"
                         className="object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-110"
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center bg-[#D9C6A8]/20">
-                        <span className="text-5xl text-[#3F4832]/20">✦</span>
+                        <span className="text-4xl text-[#3F4832]/25">✦</span>
                       </div>
                     )}
                     {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#2A3321]/85 via-[#2A3321]/15 to-transparent opacity-75 group-hover:opacity-95 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#2A3321]/90 via-[#2A3321]/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity duration-500" />
                     {/* Content */}
-                    <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 text-center z-10">
-                      <span className="block text-[9px] sm:text-[10px] font-bold tracking-[0.25em] text-[#D9C6A8] uppercase mb-2 opacity-75 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-400">
-                        {isAr ? 'اكتشفي التشكيلة' : 'DISCOVER'}
+                    <div className="absolute inset-0 flex flex-col justify-end p-4 text-center z-10">
+                      <span className="block text-[8px] sm:text-[9px] font-bold tracking-[0.2em] text-[#D9C6A8] uppercase mb-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                        {isAr ? 'تشكيلة رَواق' : 'COLLECTION'}
                       </span>
-                      <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white drop-shadow-md group-hover:scale-105 transition-transform duration-400">
+                      <h3 className="text-sm sm:text-base font-bold text-white drop-shadow-md group-hover:scale-105 transition-transform duration-400">
                         {cat.name}
                       </h3>
-                      <p className="mt-1 text-xs font-medium text-white/60">
-                        {cat._count.products} {isAr ? 'منتج' : 'products'}
+                      <p className="mt-1 text-[11px] font-medium text-white/70">
+                        {cat._count.products > 0
+                          ? `${cat._count.products} ${isAr ? 'منتج' : 'products'}`
+                          : cat.children && cat.children.length > 0
+                            ? `${cat.children.length} ${isAr ? 'أقسام فرعية' : 'subcategories'}`
+                            : (isAr ? 'تشكيلة راقية' : 'Curated collection')}
                       </p>
                     </div>
                   </div>

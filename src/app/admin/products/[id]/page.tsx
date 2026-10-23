@@ -3,10 +3,11 @@ import Link from 'next/link';
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import { ProductCatalogForm } from '@/components/ProductCatalogForm';
+import { UnifiedProductManager } from '@/components/UnifiedProductManager';
 import { getSupplierProfitMargin } from '@/lib/supplier-margin';
 import { notFound } from 'next/navigation';
 import { ensureProductTemplatesInstalled } from '@/lib/product-templates';
+import { ensureDefaultTaxonomyInstalled } from '@/lib/taxonomy-defaults';
 
 export default async function AdminProductEditPage({
   params,
@@ -21,8 +22,9 @@ export default async function AdminProductEditPage({
 
   const { id } = await params;
 
-  // Ensure default templates exist
+  // Ensure default templates & taxonomy exist
   await ensureProductTemplatesInstalled();
+  await ensureDefaultTaxonomyInstalled();
 
   const product = await prisma.product.findUnique({
     where: { id },
@@ -39,7 +41,14 @@ export default async function AdminProductEditPage({
 
   if (!product) notFound();
 
-  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  const categories = await prisma.category.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+  const brands = await prisma.brand.findMany({
+    where: { isVisible: true },
+    orderBy: { nameAr: 'asc' },
+    select: { id: true, nameAr: true, nameEn: true },
+  });
   const templates = await prisma.productTemplate.findMany({
     where: { isActive: true },
     include: {
@@ -72,6 +81,7 @@ export default async function AdminProductEditPage({
   const actionLabel: Record<string, string> = {
     CREATE_PRODUCT: 'تمت إضافة المنتج',
     UPDATE_PRODUCT: 'تم تعديل بيانات المنتج',
+    DUPLICATE_PRODUCT: 'تم تكرار المنتج',
   };
 
   const attributeMap: Record<string, string> = {};
@@ -88,12 +98,26 @@ export default async function AdminProductEditPage({
     nameAr: product.nameAr,
     nameEn: product.nameEn || '',
     categoryId: product.categoryId,
+    brandId: product.brandId,
     productTemplateId: product.productTemplateId,
     attributeValues: attributeMap,
     shortDescription: product.shortDescription,
     longDescription: product.longDescription,
     isVisible: product.isVisible,
     isFeatured: product.isFeatured,
+    isBestSeller: product.isBestSeller,
+    isNew: product.isNew,
+    isTrending: product.isTrending,
+    tags: product.tags,
+    barcode: product.barcode,
+    ingredients: product.ingredients,
+    howToUse: product.howToUse,
+    warnings: product.warnings,
+    finish: product.finish,
+    coverage: product.coverage,
+    skinType: product.skinType,
+    benefits: product.benefits,
+    inventoryMode: product.inventoryMode,
     variants: product.variants.map(v => {
       const activeOffer = v.supplierOffers.find(o => o.isActive && o.supplier.isActive);
       return {
@@ -101,6 +125,7 @@ export default async function AdminProductEditPage({
         size: v.size,
         sku: v.sku,
         price: v.price,
+        compareAt: v.compareAt,
         isActive: v.isActive,
         inventorySource: v.inventorySource as 'INTERNAL' | 'SUPPLIER',
         supplierId: activeOffer?.supplierId || '',
@@ -119,7 +144,7 @@ export default async function AdminProductEditPage({
     <div className="flex flex-col md:flex-row h-screen bg-[var(--color-ivory-100)] overflow-hidden" dir="rtl">
       <AdminSidebar employeeName={user?.name || ''} roleName={user?.role?.name || 'ADMIN'} />
 
-      <main className="flex-1 overflow-y-auto p-8 font-sans w-full max-w-full">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div className="flex items-center gap-3 mb-2">
             <Link href="/admin/products" className="text-sm text-zinc-500 hover:underline">
@@ -131,15 +156,26 @@ export default async function AdminProductEditPage({
           <h1 className="text-3xl font-bold font-heading text-[#3F4832]">
             تعديل: {product.nameAr}
           </h1>
+          <p className="text-xs text-zinc-500 mt-1">
+            الرمز التعريفي الفريد: <span className="font-mono text-zinc-700">{product.sku}</span> | الحالة: {product.isVisible ? 'منشور 🟢' : 'مسودة 🟡'}
+          </p>
         </div>
 
-        <ProductCatalogForm
+        <UnifiedProductManager
           productId={product.id}
           initialData={initialData}
-          categories={categories.map(c => ({ id: c.id, name: c.name, slug: c.slug }))}
+          categories={categories.map(c => ({
+            id: c.id,
+            name: c.name,
+            slug: c.slug,
+            parentId: c.parentId,
+            defaultTemplateId: c.defaultTemplateId,
+          }))}
+          brands={brands}
           suppliers={suppliers}
           templates={templates}
         />
+
 
         <section className="mt-8 overflow-hidden rounded-lg border bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4">

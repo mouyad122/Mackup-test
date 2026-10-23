@@ -36,27 +36,35 @@ export default async function ProductTemplatesPage() {
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row font-sans" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
       <main className="w-full flex-1 space-y-6 p-4 md:p-8">
-        <header>
-          <div className="flex items-center gap-3 mb-2">
-            <Link href="/admin/products" className="text-sm text-zinc-500 hover:underline">
-              المنتجات
-            </Link>
-            <span className="text-zinc-300">/</span>
-            <span className="text-sm font-bold text-zinc-700">القوالب والخصائص</span>
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Link href="/admin/products" className="text-sm text-zinc-500 hover:underline">
+                المنتجات
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <span className="text-sm font-bold text-zinc-700">القوالب والخصائص</span>
+            </div>
+            <h1 className="text-3xl font-bold text-[#3F4832]">إدارة خصائص وقوالب المنتجات</h1>
+            <p className="mt-1 text-sm text-zinc-600">
+              الحقول والقوالب الذكية تعمل الآن تلقائياً ومباشرة داخل شاشة إضافة وتعديل المنتجات (الموظف العادي لا يحتاج لفتح هذه الصفحة).
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-[#3F4832]">إدارة خصائص وقوالب المنتجات</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            الحقول والقوالب الذكية تعمل الآن تلقائياً ومباشرة داخل شاشة إضافة وتعديل المنتجات.
-          </p>
+          <Link
+            href="/admin/products/new"
+            className="rounded-xl bg-[#3F4832] px-5 py-2.5 font-bold text-white shadow-sm hover:bg-[#2d3623] transition-colors text-sm"
+          >
+            + إضافة منتج جديد
+          </Link>
         </header>
 
         {/* Automation notification banner */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900 flex items-start gap-3">
           <span className="text-xl">✨</span>
           <div>
-            <h3 className="font-bold">التشغيل التلقائي مفعل</h3>
+            <h3 className="font-bold">التشغيل التلقائي مفعل بالكامل</h3>
             <p className="mt-0.5 text-xs text-emerald-800 leading-relaxed">
-              لا حاجة لتجهيز أو اختيار القوالب يدوياً. بمجرد اختيارك لقسم المنتج (مثل عبايات، أثواب تراثية، فساتين، أو مكياج) أو كتابة اسم المنتج، سيقوم النظام بالتعرف على القالب وعرض الحقول المخصصة تلقائياً وحفظها.
+              جميع القوالب (32 نوعاً: عطور، أزياء، مكياج، عناية، عبايات، هدايا، وإكسسوارات) مدمجة بالكامل ومتاحة في المركز الموحد للمنتجات.
             </p>
           </div>
         </div>
@@ -65,7 +73,7 @@ export default async function ProductTemplatesPage() {
           <section className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="font-bold text-lg text-zinc-900">تهيئة قوالب رَواق الأساسية</h2>
             <p className="my-2 text-sm text-zinc-600">
-              يشمل أحمر الشفاه والسيروم والعبايات والثوب الأردني وبقية القوالب المقترحة (28 قالباً جاهزاً).
+              يشمل العطور، المكياج، السيروم، العبايات، الثوب الأردني، الهدايا، الإكسسوارات، وبقية القوالب المعتمدة (32 قالباً جاهزاً).
             </p>
             <form action={installRawaqProductTemplates}>
               <button className="rounded-lg bg-[#3F4832] px-6 py-2.5 font-bold text-white shadow-sm hover:bg-[#2d3623] transition-colors">

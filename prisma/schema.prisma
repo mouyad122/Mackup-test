@@ -214,6 +214,7 @@ model ProductTemplate {
   updatedAt   DateTime               @updatedAt
   fields      ProductTemplateField[]
   products    Product[]
+  categories  Category[]
 }
 
 model ProductAttributeDefinition {
@@ -339,13 +340,23 @@ model ProductImage {
 }
 
 model Category {
-  id          String              @id @default(uuid())
-  slug        String              @unique
-  name        String
-  description String?
-  imagePath   String?
-  products    Product[]
-  slides      HomepageHeroSlide[]
+  id                String              @id @default(uuid())
+  slug              String              @unique
+  name              String
+  description       String?
+  imagePath         String?
+  parentId          String?
+  sortOrder         Int                 @default(0)
+  isVisible         Boolean             @default(true)
+  defaultTemplateId String?
+  parent            Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children          Category[]          @relation("CategoryHierarchy")
+  defaultTemplate   ProductTemplate?    @relation(fields: [defaultTemplateId], references: [id], onDelete: SetNull)
+  products          Product[]
+  slides            HomepageHeroSlide[]
+
+  @@index([parentId, sortOrder])
+  @@index([defaultTemplateId])
 }
 
 model Order {

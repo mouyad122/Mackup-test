@@ -2,23 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const tx = {
-    product: { update: vi.fn() },
+    product: { update: vi.fn(), create: vi.fn() },
     productVariant: { count: vi.fn(), updateMany: vi.fn(), update: vi.fn(), create: vi.fn() },
     supplier: { findUnique: vi.fn() },
-    supplierOffer: { findUnique: vi.fn(), updateMany: vi.fn(), upsert: vi.fn() },
+    supplierOffer: { findUnique: vi.fn(), updateMany: vi.fn(), upsert: vi.fn(), create: vi.fn() },
     supplierInventoryMovement: { create: vi.fn() },
     productSimilar: { deleteMany: vi.fn() },
     productAttribute: { deleteMany: vi.fn() },
+    productAttributeValue: { createMany: vi.fn(), deleteMany: vi.fn() },
   };
-  return { tx, transaction: vi.fn(), permission: vi.fn() };
+  return { tx, transaction: vi.fn(), permission: vi.fn(), productFindUniqueOrThrow: vi.fn() };
 });
 
-vi.mock('@/lib/db', () => ({ prisma: { $transaction: mocks.transaction } }));
+vi.mock('@/lib/db', () => ({
+  prisma: {
+    $transaction: mocks.transaction,
+    product: { findUniqueOrThrow: mocks.productFindUniqueOrThrow },
+  },
+}));
 vi.mock('@/lib/dal', () => ({ requirePermission: mocks.permission }));
 vi.mock('@/actions/upload', () => ({ uploadMedia: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { updateProduct } from './products';
+import { updateProduct, duplicateProduct } from './products';
+
 
 const supplierId = 'c775dc22-647d-4a9b-8b4e-e9469766ee12';
 const updatedAt = new Date('2026-10-07T10:00:00.000Z');
@@ -107,3 +114,48 @@ describe('editing the store supplying a product', () => {
     expect(mocks.tx.supplierOffer.upsert).not.toHaveBeenCalled();
   });
 });
+
+describe('duplicateProduct', () => {
+  it('creates an unpublished copy with (نسخة) appended to title and new unique SKUs', async () => {
+    const mockOriginal = {
+      id: 'orig-1',
+      nameAr: 'عطر الورد الملكي',
+      nameEn: 'Royal Rose Perfume',
+      categoryId: 'cat-perfumes',
+      brandId: 'brand-1',
+      productTemplateId: 'tmpl-perfume',
+      shortDescription: 'وصف قصير',
+      longDescription: 'وصف تفصيلي',
+      variants: [
+        {
+          id: 'v-1',
+          size: '100ml',
+          price: 45000,
+          compareAt: 55000,
+          isActive: true,
+          inventorySource: 'INTERNAL',
+          supplierOffers: [],
+        },
+      ],
+      images: [{ url: '/img/rose.jpg', order: 0, isMain: true }],
+      attributeValues: [{ attributeDefinitionId: 'attr-conc', valueJson: JSON.stringify('EDP') }],
+    };
+
+    mocks.productFindUniqueOrThrow.mockResolvedValue(mockOriginal);
+    mocks.tx.product.create.mockResolvedValue({ id: 'copy-prod-id', nameAr: 'عطر الورد الملكي (نسخة)', sku: 'RWQ-COPY-1' });
+
+    const result = await duplicateProduct('orig-1');
+    expect(result.success).toBe(true);
+    expect(result.productId).toBe('copy-prod-id');
+    expect(mocks.tx.product.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        nameAr: 'عطر الورد الملكي (نسخة)',
+        nameEn: 'Royal Rose Perfume (Copy)',
+        isVisible: false, // draft
+        categoryId: 'cat-perfumes',
+        brandId: 'brand-1',
+      }),
+    }));
+  });
+});
+

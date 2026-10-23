@@ -42,57 +42,57 @@ export function generateVariantSku(productSku: string, index: number): string {
  * Ensure all RAWAQ default product templates are installed in the database automatically.
  */
 export async function ensureProductTemplatesInstalled() {
-  const count = await prisma.productTemplate.count().catch(() => 0);
-  if (count > 0) return;
+  const existing = await prisma.productTemplate.findMany({ select: { code: true } }).catch(() => []);
+  const existingCodes = new Set(existing.map(t => t.code));
+  const missingTemplates = rawaqProductTemplates.filter(t => !existingCodes.has(t.code));
+  if (missingTemplates.length === 0) return;
 
-  await prisma.$transaction(async tx => {
-    for (const template of rawaqProductTemplates) {
-      const saved = await tx.productTemplate.upsert({
-        where: { code: template.code },
-        update: { nameAr: template.nameAr, nameEn: template.nameEn, isActive: true },
-        create: { code: template.code, nameAr: template.nameAr, nameEn: template.nameEn },
+  for (const template of missingTemplates) {
+    const saved = await prisma.productTemplate.upsert({
+      where: { code: template.code },
+      update: { nameAr: template.nameAr, nameEn: template.nameEn, isActive: true },
+      create: { code: template.code, nameAr: template.nameAr, nameEn: template.nameEn },
+    });
+    for (const [index, field] of template.fields.entries()) {
+      const definition = await prisma.productAttributeDefinition.upsert({
+        where: { key: field.key },
+        update: {
+          nameAr: field.nameAr,
+          nameEn: field.nameEn || null,
+          inputType: field.inputType,
+          optionsJson: field.options ? JSON.stringify(field.options) : null,
+          isActive: true,
+        },
+        create: {
+          key: field.key,
+          nameAr: field.nameAr,
+          nameEn: field.nameEn || null,
+          inputType: field.inputType,
+          optionsJson: field.options ? JSON.stringify(field.options) : null,
+        },
       });
-      for (const [index, field] of template.fields.entries()) {
-        const definition = await tx.productAttributeDefinition.upsert({
-          where: { key: field.key },
-          update: {
-            nameAr: field.nameAr,
-            nameEn: field.nameEn || null,
-            inputType: field.inputType,
-            optionsJson: field.options ? JSON.stringify(field.options) : null,
-            isActive: true,
-          },
-          create: {
-            key: field.key,
-            nameAr: field.nameAr,
-            nameEn: field.nameEn || null,
-            inputType: field.inputType,
-            optionsJson: field.options ? JSON.stringify(field.options) : null,
-          },
-        });
-        await tx.productTemplateField.upsert({
-          where: {
-            templateId_attributeDefinitionId: {
-              templateId: saved.id,
-              attributeDefinitionId: definition.id,
-            },
-          },
-          update: {
-            isRequired: field.required ?? false,
-            isFilterable: field.filterable ?? false,
-            useAsVariant: field.useAsVariant ?? false,
-            sortOrder: index,
-          },
-          create: {
+      await prisma.productTemplateField.upsert({
+        where: {
+          templateId_attributeDefinitionId: {
             templateId: saved.id,
             attributeDefinitionId: definition.id,
-            isRequired: field.required ?? false,
-            isFilterable: field.filterable ?? false,
-            useAsVariant: field.useAsVariant ?? false,
-            sortOrder: index,
           },
-        });
-      }
+        },
+        update: {
+          isRequired: field.required ?? false,
+          isFilterable: field.filterable ?? false,
+          useAsVariant: field.useAsVariant ?? false,
+          sortOrder: index,
+        },
+        create: {
+          templateId: saved.id,
+          attributeDefinitionId: definition.id,
+          isRequired: field.required ?? false,
+          isFilterable: field.filterable ?? false,
+          useAsVariant: field.useAsVariant ?? false,
+          sortOrder: index,
+        },
+      });
     }
-  });
+  }
 }

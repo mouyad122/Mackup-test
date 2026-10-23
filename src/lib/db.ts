@@ -5,7 +5,10 @@ import { PrismaPg } from '@prisma/adapter-pg';
 declare global {
   var __prismaPool: Pool | undefined;
   var __prismaClient: PrismaClient | undefined;
+  var __prismaClientVersion: string | undefined;
 }
+
+const PRISMA_SCHEMA_VERSION = 'v2_taxonomy_2026';
 
 const connectionString = (process.env.NODE_ENV === 'test' && process.env.TEST_DATABASE_URL)
   ? process.env.TEST_DATABASE_URL
@@ -49,12 +52,13 @@ if (process.env.NODE_ENV === 'production') {
   }
   pool = global.__prismaPool;
 
-  if (!global.__prismaClient) {
+  if (!global.__prismaClient || global.__prismaClientVersion !== PRISMA_SCHEMA_VERSION) {
     const adapter = new PrismaPg(pool);
     global.__prismaClient = new PrismaClient({
       adapter,
       log: ['error', 'warn'],
     });
+    global.__prismaClientVersion = PRISMA_SCHEMA_VERSION;
   }
   prismaClient = global.__prismaClient;
 }

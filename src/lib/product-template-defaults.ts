@@ -38,4 +38,54 @@ export const rawaqProductTemplates: TemplateSeed[] = [
   { code: 'JORDANIAN_DRESS', nameAr: 'ثوب أردني مطرز', nameEn: 'Jordanian Embroidered Dress', fields: [size, color, fabric, { key: 'embroidery_type', nameAr: 'نوع التطريز', inputType: 'SELECT', options: ['يدوي', 'آلي', 'مختلط'] }, { key: 'heritage_pattern', nameAr: 'النمط التراثي', inputType: 'TEXT' }, { key: 'heritage_region', nameAr: 'المنطقة التراثية الموثقة', inputType: 'TEXT' }, { key: 'embroidery_colors', nameAr: 'ألوان التطريز', inputType: 'TEXTAREA' }, { key: 'garment_length_cm', nameAr: 'طول الثوب (cm)', inputType: 'NUMBER' }, { key: 'chest_cm', nameAr: 'محيط الصدر (cm)', inputType: 'NUMBER' }, { key: 'waist_cm', nameAr: 'محيط الخصر (cm)', inputType: 'NUMBER' }, { key: 'sleeve_length_cm', nameAr: 'طول الأكمام (cm)', inputType: 'NUMBER' }, { key: 'manufacturing_status', nameAr: 'حالة التصنيع', inputType: 'SELECT', options: ['جاهز', 'حسب الطلب'] }, { key: 'preparation_time', nameAr: 'مدة التجهيز', inputType: 'TEXT' }, { key: 'care', nameAr: 'تعليمات العناية', inputType: 'TEXTAREA' }] },
   { code: 'DRESS', nameAr: 'فستان', nameEn: 'Dress', fields: [size, color, fabric, { key: 'dress_length', nameAr: 'طول الفستان', inputType: 'SELECT', options: ['قصير', 'ميدي', 'طويل'] }, { key: 'fit', nameAr: 'نوع القصة', inputType: 'TEXT' }, { key: 'occasion', nameAr: 'المناسبة', inputType: 'SELECT', options: ['يومي', 'سهرة', 'رسمي'] }, { key: 'sleeve_type', nameAr: 'نوع الأكمام', inputType: 'SELECT', options: ['طويلة', 'قصيرة', 'بدون أكمام'] }, { key: 'care', nameAr: 'تعليمات الغسل', inputType: 'TEXTAREA' }] },
   { code: 'WOMENS_SET', nameAr: 'طقم نسائي', nameEn: 'Women Set', fields: [size, color, fabric, { key: 'piece_count', nameAr: 'عدد القطع', inputType: 'NUMBER' }, { key: 'included_pieces', nameAr: 'القطع الموجودة', inputType: 'TEXTAREA' }, { key: 'fit', nameAr: 'القصة', inputType: 'SELECT', options: ['واسعة', 'عادية', 'ضيقة'] }, { key: 'care', nameAr: 'طريقة العناية', inputType: 'TEXTAREA' }] },
+  {
+    code: 'PERFUME',
+    nameAr: 'عطور وبخور',
+    nameEn: 'Perfume & Fragrance',
+    fields: [
+      volume,
+      { key: 'concentration', nameAr: 'التركيز العطري', inputType: 'SELECT', options: ['أو دي بارفيوم (EDP)', 'أو دي تواليت (EDT)', 'إكستريت دي بارفيوم (Extrait)', 'زيت عطري مركز', 'كولونيا / بودي سبلاش'], filterable: true, required: true },
+      { key: 'olfactive_family', nameAr: 'العائلة العطرية', inputType: 'SELECT', options: ['شرقية وعود', 'خشبية', 'زهرية', 'حمضيات وفواكه', 'عنبر ومسك', 'أروماتيك وبحري'], filterable: true },
+      { key: 'gender', nameAr: 'الفئة المستهدفة', inputType: 'SELECT', options: ['للجنسين', 'نسائي', 'رجالي'], filterable: true },
+      { key: 'top_notes', nameAr: 'الافتتاحية العطرية (Top Notes)', inputType: 'TEXTAREA' },
+      { key: 'heart_notes', nameAr: 'قلب العطر (Heart Notes)', inputType: 'TEXTAREA' },
+      { key: 'base_notes', nameAr: 'قاعدة العطر (Base Notes)', inputType: 'TEXTAREA' },
+      { key: 'longevity_sillage', nameAr: 'الثبات والفوحان', inputType: 'TEXT' },
+    ],
+  },
+  {
+    code: 'GIFTS',
+    nameAr: 'هدايا وبكجات',
+    nameEn: 'Gifts & Sets',
+    fields: [
+      { key: 'box_type', nameAr: 'نوع الصندوق / التغليف', inputType: 'SELECT', options: ['صندوق مخملي فاخر', 'صندوق كرتوني هدايا', 'حقيبة قماشية أنيقة', 'تغليف سيلوفان مع شريط'], filterable: true },
+      { key: 'included_items', nameAr: 'محتويات الهدية بالتفصيل', inputType: 'TEXTAREA', required: true },
+      { key: 'occasion', nameAr: 'المناسبة المقترحة', inputType: 'MULTISELECT', options: ['أعياد ومناسبات', 'زفاف وخطوبة', 'تخرج ونجاح', 'إهداء فاخر', 'تهنئة منزل جديد'] },
+      { key: 'has_card', nameAr: 'يشمل كرت إهداء مجاني', inputType: 'BOOLEAN' },
+    ],
+  },
+  {
+    code: 'ACCESSORIES',
+    nameAr: 'إكسسوارات وحلي',
+    nameEn: 'Accessories',
+    fields: [
+      color,
+      { key: 'material', nameAr: 'الخامة والمعدن', inputType: 'SELECT', options: ['فضة عيار 925', 'ستانلس ستيل مقاوم للصدأ', 'معدن مطلي بالذهب', 'جلد طبيعي', 'لؤلؤ طبيعي / زراعي'], filterable: true, required: true },
+      { key: 'size_or_length', nameAr: 'المقاس أو الطول', inputType: 'TEXT', useAsVariant: true },
+      { key: 'gemstone', nameAr: 'نوع الحجر أو الفص', inputType: 'TEXT' },
+      { key: 'care_instructions', nameAr: 'تعليمات الحفاظ على البريق', inputType: 'TEXTAREA' },
+    ],
+  },
+  {
+    code: 'CUSTOM',
+    nameAr: 'منتج مخصص / عام',
+    nameEn: 'Custom / General Product',
+    fields: [
+      { key: 'custom_type', nameAr: 'نوع الصنف التخصصي', inputType: 'TEXT' },
+      { key: 'material', nameAr: 'الخامة الرئيسية', inputType: 'TEXT' },
+      { key: 'dimensions', nameAr: 'الأبعاد والقياسات', inputType: 'TEXT' },
+      { key: 'specifications', nameAr: 'مواصفات وتفاصيل إضافية', inputType: 'TEXTAREA' },
+    ],
+  },
 ];
+

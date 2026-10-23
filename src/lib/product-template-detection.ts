@@ -7,12 +7,19 @@ export function detectTemplateCode(categoryNameOrSlug = '', productName = ''): s
   const name = productName.toLowerCase().trim();
 
   // 1. Direct Category Matches
+  if (cat.includes('عطر') || cat.includes('عطور') || cat.includes('perfume') || cat.includes('fragrance') || cat.includes('بخور') || cat.includes('عود')) return 'PERFUME';
+  if (cat.includes('هدية') || cat.includes('هدايا') || cat.includes('بكج') || cat.includes('gift')) return 'GIFTS';
+  if (cat.includes('اكسسوار') || cat.includes('إكسسوار') || cat.includes('accessories') || cat.includes('حلي')) return 'ACCESSORIES';
   if (cat.includes('عباي') || cat.includes('abaya')) return 'ABAYA';
   if (cat.includes('تراث') || cat.includes('heritage') || cat.includes('أثواب')) return 'JORDANIAN_DRESS';
   if (cat.includes('فستان') || cat.includes('فساتين') || cat.includes('dress')) return 'DRESS';
   if (cat.includes('طقم') || cat.includes('أطقم') || cat.includes('set')) return 'WOMENS_SET';
 
-  // 2. Product Name Keyword Matching (works for Makeup, Skincare, or General)
+  // 2. Product Name Keyword Matching (works for Perfume, Makeup, Skincare, Fashion, Gifts, or Accessories)
+  if (name.includes('عطر') || name.includes('عطور') || name.includes('مسك') || name.includes('بخور') || name.includes('عود') || name.includes('perfume') || name.includes('fragrance')) return 'PERFUME';
+
+  if (name.includes('هدية') || name.includes('بكج') || name.includes('بوكس هدايا') || name.includes('gift set')) return 'GIFTS';
+  if (name.includes('سوار') || name.includes('خاتم') || name.includes('سلسال') || name.includes('حلق') || name.includes('قلادة') || name.includes('إكسسوار') || name.includes('اكسسوار')) return 'ACCESSORIES';
   if (name.includes('ملمع') || name.includes('قلوس') || name.includes('gloss')) return 'LIP_GLOSS';
   if (name.includes('محدد') || (name.includes('liner') && name.includes('شفاه'))) return 'LIP_LINER';
   if (name.includes('تنت') || name.includes('tint')) return 'LIP_TINT';

@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
@@ -95,7 +96,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         orderBy: { price: 'asc' },
       },
       images: { orderBy: { order: 'asc' } },
-      category: true,
+      category: {
+        include: {
+          parent: {
+            include: {
+              parent: true,
+            },
+          },
+        },
+      },
     }
   });
 
@@ -173,13 +182,31 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     })),
   };
 
+  const categoryTrail: Array<{ id: string; name: string }> = [];
+  let currCategory: any = product.category;
+  while (currCategory) {
+    categoryTrail.unshift({ id: currCategory.id, name: currCategory.name });
+    currCategory = currCategory.parent;
+  }
+
   const breadcrumbSchema = BASE_URL ? {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: isAr ? 'الرئيسية' : 'Home', item: `${BASE_URL}/${locale}` },
       { '@type': 'ListItem', position: 2, name: isAr ? 'المتجر' : 'Shop', item: `${BASE_URL}/${locale}/shop` },
-      { '@type': 'ListItem', position: 3, name: productName, item: `${BASE_URL}/${locale}/products/${product.slug}` },
+      ...categoryTrail.map((cat, idx) => ({
+        '@type': 'ListItem',
+        position: 3 + idx,
+        name: cat.name,
+        item: `${BASE_URL}/${locale}/shop?category=${cat.id}`,
+      })),
+      {
+        '@type': 'ListItem',
+        position: 3 + categoryTrail.length,
+        name: productName,
+        item: `${BASE_URL}/${locale}/products/${product.slug}`,
+      },
     ],
   } : null;
 
@@ -195,16 +222,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <div className="mb-8 flex items-center justify-between">
           <BackButton text={isAr ? 'الرجوع للخلف' : 'Go Back'} />
 
-          <div className="hidden sm:flex text-xs font-bold tracking-wider text-[#A69A8C] uppercase items-center gap-2">
+          <div className="hidden sm:flex text-xs font-bold tracking-wider text-[#A69A8C] uppercase items-center gap-2 flex-wrap">
             <Link href={`/${locale}`} className="hover:text-[#B7935F] transition-colors">{isAr ? 'الرئيسية' : 'Home'}</Link>
             <span className="text-[#E9DDCC]">/</span>
             <Link href={`/${locale}/shop`} className="hover:text-[#B7935F] transition-colors">{isAr ? 'المتجر' : 'Shop'}</Link>
-            {product.category && (
-              <>
+            {categoryTrail.map((cat) => (
+              <React.Fragment key={cat.id}>
                 <span className="text-[#E9DDCC]">/</span>
-                <Link href={`/${locale}/shop?category=${product.category.id}`} className="hover:text-[#B7935F] transition-colors">{product.category.name}</Link>
-              </>
-            )}
+                <Link href={`/${locale}/shop?category=${cat.id}`} className="hover:text-[#B7935F] transition-colors">{cat.name}</Link>
+              </React.Fragment>
+            ))}
             <span className="text-[#E9DDCC]">/</span>
             <span className="text-[#2B2B2B]">{productName}</span>
           </div>
