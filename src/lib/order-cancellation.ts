@@ -15,7 +15,7 @@ export async function cancelOrderAndReverseFinancials(orderId: string, employeeI
       throw new Error('للطلب دفعة مسجلة. سجّل الاسترداد المالي قبل إلغاء الطلب.');
     }
     if (order.deliveryAssignment?.status === 'DELIVERED' || order.status === 'DELIVERED') {
-      throw new Error('تم تسليم الطلب؛ استخدم مسار الاسترداد ولا تعِد المخزون تلقائياً.');
+      throw new Error('تم تسليم الطلب؛ استخدم مسار الاسترداد المالي المعتمد.');
     }
 
     const wasDispatched = ['PICKED_UP', 'OUT_FOR_DELIVERY', 'FAILED'].includes(order.deliveryAssignment?.status || '')

@@ -8,8 +8,11 @@ import { getSupplierProfitMargin, setSupplierProfitMargin } from '@/lib/supplier
 
 const supplierSchema = z.object({
   name: z.string().trim().min(2).max(120),
+  ownerName: z.string().trim().max(120).optional(),
   phone: z.string().trim().max(40).optional(),
   email: z.union([z.string().trim().email(), z.literal('')]).optional(),
+  address: z.string().trim().max(255).optional(),
+  mapLocationUrl: z.string().trim().optional(),
   profitMargin: z.coerce.number().int().min(0).max(100).default(0),
 });
 
@@ -29,6 +32,22 @@ export async function createSupplier(formData: FormData) {
   await prisma.$transaction(async tx => {
     const supplier = await tx.supplier.create({ data: supplierData });
     await setSupplierProfitMargin(tx, supplier.id, profitMargin);
+
+    // إنشاء موقع استلام افتراضي للمحل (SupplierLocation)
+    await tx.supplierLocation.create({
+      data: {
+        supplierId: supplier.id,
+        label: supplier.name,
+        contactPerson: supplier.ownerName || supplier.name,
+        contactPhone: supplier.phone || '',
+        city: 'عمان',
+        area: 'المحل الرئيسي',
+        addressDetails: supplier.address || 'موقع المحل الرئيسي',
+        mapLocationUrl: supplier.mapLocationUrl || null,
+        isDefault: true,
+        isActive: true,
+      },
+    });
   });
   revalidatePath('/admin/suppliers');
 }
@@ -81,13 +100,44 @@ export async function setSupplierOfferActive(offerId: string, isActive: boolean)
 export async function updateSupplier(id: string, formData: FormData) {
   const session = await requirePermission('manage:settings');
   const input = supplierSchema.safeParse(Object.fromEntries(formData));
-  if (!input.success) throw new Error('بيانات المورد أو نسبة الربح غير صالحة.');
+  if (!input.success) throw new Error('بيانات المحل أو نسبة الربح غير صالحة.');
   await prisma.$transaction(async tx => {
     const previous = await tx.supplier.findUniqueOrThrow({ where: { id } });
     const { profitMargin, ...supplierData } = input.data;
     await tx.supplier.update({ where: { id }, data: supplierData });
     await setSupplierProfitMargin(tx, id, profitMargin);
     await tx.supplierOffer.updateMany({ where: { supplierId: id }, data: { supplierProfitShareBps: input.data.profitMargin * 100 } });
+
+    // مزامنة موقع المحل الافتراضي
+    const defaultLoc = await tx.supplierLocation.findFirst({ where: { supplierId: id, isDefault: true } });
+    if (defaultLoc) {
+      await tx.supplierLocation.update({
+        where: { id: defaultLoc.id },
+        data: {
+          label: supplierData.name,
+          contactPerson: supplierData.ownerName || supplierData.name,
+          contactPhone: supplierData.phone || defaultLoc.contactPhone,
+          addressDetails: supplierData.address || defaultLoc.addressDetails,
+          mapLocationUrl: supplierData.mapLocationUrl || defaultLoc.mapLocationUrl,
+        },
+      });
+    } else {
+      await tx.supplierLocation.create({
+        data: {
+          supplierId: id,
+          label: supplierData.name,
+          contactPerson: supplierData.ownerName || supplierData.name,
+          contactPhone: supplierData.phone || '',
+          city: 'عمان',
+          area: 'المحل الرئيسي',
+          addressDetails: supplierData.address || 'موقع المحل الرئيسي',
+          mapLocationUrl: supplierData.mapLocationUrl || null,
+          isDefault: true,
+          isActive: true,
+        },
+      });
+    }
+
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'SUPPLIER_UPDATED', entityType: 'Supplier', entityId: id, details: JSON.stringify({ previous, current: input.data }) } });
   }, { isolationLevel: 'Serializable' });
   revalidatePath('/admin/suppliers');
@@ -99,15 +149,42 @@ export async function deleteSupplier(id: string) {
   await prisma.$transaction(async tx => {
     const supplier = await tx.supplier.findUnique({
       where: { id },
-      include: { offers: { include: { inventoryMovements: { take: 1 } } }, settlements: { take: 1 } },
+      include: {
+        offers: { include: { inventoryMovements: { take: 1 } } },
+        settlements: { take: 1 },
+        locations: {
+          include: {
+            fulfillmentOrders: { take: 1 },
+            pickupBatches: { take: 1 },
+          },
+        },
+      },
     });
     if (!supplier) return;
     if (supplier.settlements.length || supplier.offers.some(offer => offer.inventoryMovements.length)) {
       throw new Error('لا يمكن حذف المورد لأنه مرتبط بسجل مالي أو حركة سابقة. أوقفه بدلاً من ذلك للحفاظ على التاريخ المحاسبي.');
     }
+
+    const hasLocationUsage = supplier.locations?.some(
+      loc => loc.fulfillmentOrders.length > 0 || loc.pickupBatches.length > 0
+    );
+    if (hasLocationUsage) {
+      throw new Error('لا يمكن حذف المورد لوجود طرود أو مهام تجهيز مرتبطة بموقعه. يرجى إيقاف تفعيله بدلاً من حذفه.');
+    }
+
+    // حذف مواقع الاستلام غير المستخدمة أولاً لتجنب قيد RESTRICT
+    await tx.supplierLocation.deleteMany({ where: { supplierId: id } });
     await tx.supplierOffer.deleteMany({ where: { supplierId: id } });
     await tx.supplier.delete({ where: { id } });
-    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'SUPPLIER_DELETED', entityType: 'Supplier', entityId: id, details: JSON.stringify({ name: supplier.name }) } });
+    await tx.auditLog.create({
+      data: {
+        employeeId: session.employeeId,
+        action: 'SUPPLIER_DELETED',
+        entityType: 'Supplier',
+        entityId: id,
+        details: JSON.stringify({ name: supplier.name }),
+      },
+    });
   }, { isolationLevel: 'Serializable' });
   revalidatePath('/admin/suppliers');
   revalidatePath('/admin/products', 'layout');

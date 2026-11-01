@@ -43,6 +43,8 @@ model Employee {
   shifts                                                                     Shift[]
   pendingMfaChallenge                                                        PendingMfaChallenge?
   importJobs                                                                 ImportJob[]
+  payAgreements                                                              EmployeePayAgreement[]  @relation("EmployeeAgreements")
+  payrollPeriods                                                             PayrollPeriod[]         @relation("EmployeePayrollPeriods")
 }
 
 model EmployeePermission {
@@ -275,8 +277,11 @@ model ProductVariantAttributeValue {
 model Supplier {
   id               String               @id @default(uuid())
   name             String
+  ownerName        String?
   phone            String?
   email            String?
+  address          String?
+  mapLocationUrl   String?
   notes            String?
   profitMargin     Float                @default(0)
   isActive         Boolean              @default(true)
@@ -286,6 +291,10 @@ model Supplier {
   settlements      SupplierSettlement[]
   purchaseOrders   PurchaseOrder[]
   supplierInvoices SupplierInvoice[]
+  locations        SupplierLocation[]
+  fulfillmentOrders FulfillmentOrder[]
+  accessSessions   SupplierAccessSession[]
+  pickupBatches    PickupBatch[]
 
   @@index([isActive, name])
 }
@@ -392,8 +401,20 @@ model Order {
   customer                 Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
   deliveryBatch            DeliveryBatch?         @relation(fields: [deliveryBatchId], references: [id], onDelete: SetNull)
 
+  // Multi-vendor Fulfillment Layer
+  fulfillmentStrategy      String?                @default("DIRECT_PICKUP")
+  fulfillmentStatus        String?                @default("UNFULFILLED")
+  customerWhatsAppSentAt   DateTime?
+  hasAdjustment            Boolean                @default(false)
+  previousTotalAmount      Int?
+  adjustmentNotes          String?
+  fulfillmentOrders        FulfillmentOrder[]
+  deliveryJob              DeliveryJob?
+  fulfillmentOutboxTasks   FulfillmentOutbox[]
+
   @@index([customerId])
   @@index([deliveryBatchId])
+  @@index([fulfillmentStatus])
 }
 
 model OrderItem {
@@ -415,8 +436,12 @@ model OrderItem {
   supplierAmountSnapshot         Int?
   platformProductProfitSnapshot  Int?
   discountAmountSnapshot         Int     @default(0)
+  isRemoved                      Boolean @default(false)
+  removalReason                  String?
+  missingQuantity                Int     @default(0)
   order                          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product                        Product @relation(fields: [productId], references: [id])
+  fulfillmentItems               FulfillmentItem[]
 }
 
 model OrderStatusHistory {
@@ -501,6 +526,7 @@ model Invoice {
   id                       String   @id @default(uuid())
   saleId                   String?  @unique
   number                   String   @unique
+  secureToken              String?  @unique
   taxId                    String?
   printed                  Int      @default(0)
   createdAt                DateTime @default(now())
@@ -573,15 +599,38 @@ model StockAdjustment {
 }
 
 model AuditLog {
-  id         String    @id @default(uuid())
-  employeeId String?
-  action     String
-  entityType String
-  entityId   String
-  details    String?
-  ipAddress  String?
-  createdAt  DateTime  @default(now())
-  employee   Employee? @relation(fields: [employeeId], references: [id])
+  id                String    @id @default(uuid())
+  employeeId        String?
+  action            String
+  entityType        String
+  entityId          String
+  details           String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+
+  // حقول مركز رَواق للتدقيق والرقابة (RAWAQ Audit & Security Center)
+  actorType         String?   @default("SYSTEM") // ADMIN, SUPPLIER, COURIER, SYSTEM, ANONYMOUS
+  actorId           String?
+  actorNameSnapshot String?
+  category          String?   @default("SECURITY") // ORDERS, SUPPLIERS, DELIVERY, ACCOUNTING, REPORTS, PRODUCTS, SECURITY
+  severity          String?   @default("NORMAL")   // NORMAL, HIGH, CRITICAL
+  outcome           String?   @default("SUCCESS")  // SUCCESS, FAILED, DENIED
+  eventKey          String?
+  requestId         String?
+  correlationId     String?   // رقم الطلب، الفاتورة، أو التسوية لربط سلسلة الأحداث
+  changes           String?   // JSON موحد ومنقى من الحقول الحساسة
+  reason            String?
+
+  employee          Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([createdAt])
+  @@index([category])
+  @@index([severity])
+  @@index([outcome])
+  @@index([correlationId])
+  @@index([entityId])
+  @@index([actorId])
+  @@index([action])
 }
 
 model SiteSettings {
@@ -1216,12 +1265,17 @@ model StockTransfer {
 }
 
 model DeliveryBatch {
-  id        String   @id @default(uuid())
-  reference String   @unique
-  status    String   @default("NOT_DELIVERED")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id             String   @id @default(uuid())
+  reference      String   @unique
+  status         String   @default("NOT_DELIVERED")
+  courierCompany String?
+  courierName    String?
+  courierPhone   String?
+  secureToken    String?  @unique
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
 }
 
 model PurchaseOrder {
@@ -1318,3 +1372,513 @@ model AdminNotification {
   link      String?
   createdAt DateTime @default(now())
 }
+
+// =========================================================================
+// Multi-Vendor Distributed Fulfillment & Delivery Engine (RAWAQ Fulfillment)
+// =========================================================================
+
+model SupplierLocation {
+  id                  String             @id @default(uuid())
+  supplierId          String
+  supplier            Supplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  label               String             // مثل: المستودع الرئيسي، فرع الجبيهة
+  contactPerson       String
+  contactPhone        String
+  city                String
+  area                String
+  addressDetails      String
+  latitude            Float?
+  longitude           Float?
+  mapLocationUrl      String?
+  pickupInstructions  String?
+  isDefault           Boolean            @default(false)
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  fulfillmentOrders   FulfillmentOrder[]
+  pickupBatches       PickupBatch[]
+
+  @@index([supplierId, isActive])
+}
+
+model FulfillmentOrder {
+  id                    String            @id @default(uuid())
+  orderId               String
+  order                 Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  
+  supplierId            String
+  supplier              Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  
+  locationId            String
+  location              SupplierLocation  @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  // Snapshots frozen at approval
+  supplierNameSnapshot  String
+  pickupAddressSnapshot String
+  contactPhoneSnapshot  String
+
+  status                String            @default("DRAFT") // DRAFT, NOTIFIED, IN_PREPARATION, READY_FOR_PICKUP, PICKED_UP, ISSUE_REPORTED, CANCELLED
+  packagesCount         Int               @default(0)
+  supplierNotes         String?
+  internalAdminNotes    String?
+  issueReason           String?
+
+  readyAt               DateTime?
+  pickedUpAt            DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  items                 FulfillmentItem[]
+  packages              Package[]
+
+  @@unique([orderId, supplierId, locationId])
+  @@index([orderId])
+  @@index([supplierId, status])
+  @@index([status])
+}
+
+model FulfillmentItem {
+  id                  String            @id @default(uuid())
+  fulfillmentOrderId  String
+  fulfillmentOrder    FulfillmentOrder  @relation(fields: [fulfillmentOrderId], references: [id], onDelete: Restrict)
+
+  orderItemId         String
+  orderItem           OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  productId           String
+  variantId           String?
+  productTitle        String
+  variantTitle        String?
+  sku                 String?
+
+  quantity            Int               // Total required quantity
+  preparedQuantity    Int               @default(0)
+  isOutOfStock        Boolean           @default(false)
+  outOfStockQuantity  Int               @default(0)
+  outOfStockReason    String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  packageItems        PackageItem[]
+
+  @@index([fulfillmentOrderId])
+  @@index([orderItemId])
+}
+
+model Package {
+  id                  String            @id @default(uuid())
+  fulfillmentOrderId  String
+  fulfillmentOrder    FulfillmentOrder  @relation(fields: [fulfillmentOrderId], references: [id], onDelete: Restrict)
+
+  packageCode         String            @unique // e.g. PKG-1048-A-1
+  status              String            @default("PACKED") // PACKED, READY_FOR_PICKUP, PICKED_UP, RECEIVED_AT_HUB, OUT_FOR_DELIVERY, DELIVERED, RETURNED
+  weightKg            Float?
+  dimensionsCm        String?
+  qrPayload           String
+
+  pickupBatchId       String?
+  pickupBatch         PickupBatch?      @relation(fields: [pickupBatchId], references: [id], onDelete: SetNull)
+
+  pickedUpByCourier   String?
+  pickedUpAt          DateTime?
+  handoverMethod      String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  items               PackageItem[]
+
+  @@index([fulfillmentOrderId])
+  @@index([pickupBatchId])
+  @@index([packageCode])
+  @@index([status])
+}
+
+model PackageItem {
+  id                  String            @id @default(uuid())
+  packageId           String
+  package             Package           @relation(fields: [packageId], references: [id], onDelete: Restrict)
+
+  fulfillmentItemId   String
+  fulfillmentItem     FulfillmentItem   @relation(fields: [fulfillmentItemId], references: [id], onDelete: Restrict)
+
+  quantity            Int
+
+  createdAt           DateTime          @default(now())
+
+  @@index([packageId])
+  @@index([fulfillmentItemId])
+}
+
+model SupplierAccessSession {
+  id                     String    @id @default(uuid())
+  supplierId             String
+  supplier               Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  tokenHash              String    @unique
+  assignedFulfillmentIds String?   // JSON string array e.g. ["id1", "id2"]
+  
+  expiresAt              DateTime
+  isRevoked              Boolean   @default(false)
+  lastAccessedAt         DateTime?
+  accessCount            Int       @default(0)
+
+  createdByEmployeeId    String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([tokenHash])
+  @@index([supplierId, isRevoked, expiresAt])
+}
+
+model PickupBatch {
+  id                  String            @id @default(uuid())
+  batchCode           String            @unique // BATCH-SUP1-20261030-01
+  supplierId          String
+  supplier            Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  locationId          String
+  location            SupplierLocation  @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  status              String            @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  courierName         String?
+  courierPhone        String?
+  scheduledDate       DateTime
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  packages            Package[]
+  deliveryStops       DeliveryStop[]
+
+  @@index([supplierId, locationId])
+  @@index([status])
+}
+
+model DeliveryRun {
+  id                  String            @id @default(uuid())
+  runCode             String            @unique // RUN-20261030-01
+  courierName         String
+  courierPhone        String?
+  scheduledDate       DateTime
+  status              String            @default("DRAFT") // DRAFT, DISPATCHED, IN_PROGRESS, COMPLETED, CANCELLED
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  stops               DeliveryStop[]
+
+  @@index([status, scheduledDate])
+}
+
+model DeliveryStop {
+  id                  String            @id @default(uuid())
+  deliveryRunId       String
+  deliveryRun         DeliveryRun       @relation(fields: [deliveryRunId], references: [id], onDelete: Restrict)
+
+  sequenceOrder       Int
+  stopType            String            // "PICKUP" or "DROPOFF"
+
+  pickupBatchId       String?
+  pickupBatch         PickupBatch?      @relation(fields: [pickupBatchId], references: [id], onDelete: Restrict)
+
+  deliveryJobId       String?
+  deliveryJob         DeliveryJob?      @relation(fields: [deliveryJobId], references: [id], onDelete: Restrict)
+
+  status              String            @default("PENDING") // PENDING, ARRIVED, COMPLETED, FAILED
+  arrivalEstimatedAt  DateTime?
+  completedAt         DateTime?
+  failureReason       String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([deliveryRunId, sequenceOrder])
+}
+
+model DeliveryJob {
+  id                  String            @id @default(uuid())
+  orderId             String            @unique
+  order               Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  recipientName       String
+  recipientPhone      String
+  city                String
+  area                String
+  addressDetails      String
+  mapLocationUrl      String?
+
+  status              String            @default("PENDING") // PENDING, ASSIGNED, OUT_FOR_DELIVERY, DELIVERED, FAILED
+  codAmountToCollect  Int               @default(0) // Fils
+  isCodCollected      Boolean           @default(false)
+  collectedAmount     Int?              // Fils actual collected
+  courierReceiptRef   String?           // Waybill / receipt number proof of collection
+  codStatus           String            @default("PENDING") // PENDING, COLLECTED_BY_COURIER, SETTLED_TO_RAWAQ, NOT_APPLICABLE
+  collectedAt         DateTime?
+  collectedByCourier  String?
+  codSettledAt        DateTime?
+  codSettledByEmployeeId String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  stops               DeliveryStop[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([codStatus])
+}
+
+model FulfillmentOutbox {
+  id                  String            @id @default(uuid())
+  orderId             String
+  order               Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  eventType           String            // e.g. "ORDER_CONFIRMED_SPLIT"
+  payload             String            // JSON string
+  status              String            @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  attempts            Int               @default(0)
+  maxAttempts         Int               @default(5)
+  lastError           String?
+  nextRunAt           DateTime          @default(now())
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([orderId])
+}
+
+model FulfillmentAuditLog {
+  id                  String            @id @default(uuid())
+  entityType          String            // ORDER, FULFILLMENT, PACKAGE, SESSION, RUN
+  entityId            String
+  fromStatus          String?
+  toStatus            String
+  actorType           String            // ADMIN, SUPPLIER, COURIER, SYSTEM
+  actorId             String?
+  notes               String?
+  ipAddress           String?
+  createdAt           DateTime          @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model ReconciliationDifference {
+  id                   String            @id @default(uuid())
+  reference            String            @unique
+  entityType           String            // DELIVERY_BATCH, SUPPLIER, CAPTAIN
+  entityId             String
+  entityName           String?
+  expectedAmount       Int               // Fils
+  actualAmount         Int               // Fils
+  differenceAmount     Int               // Fils (positive = shortage, negative = surplus)
+  reasonCategory       String            // REMITTANCE_SHORTAGE, UNAUTHORIZED_FEE, PRICE_MISMATCH, RETURN_FAILED_DELIVERY, INPUT_ERROR, OTHER
+  notes                String?
+  status               String            @default("OPEN") // OPEN, RESOLVED, WRITTEN_OFF
+  resolutionNotes      String?
+  createdByEmployeeId  String?
+  resolvedByEmployeeId String?
+  resolvedAt           DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([entityType, status])
+  @@index([createdAt])
+}
+
+model OfficialReport {
+  id                     String    @id @default(uuid())
+  reference              String    @unique
+  department             String    // DELIVERY, SUPPLIER, EXPENSES, DIFFERENCES, SETTLEMENTS, FINANCIAL_SUMMARY
+  reportTitle            String
+  targetEntityName       String?
+  periodFrom             DateTime?
+  periodTo               DateTime?
+  isDetailed             Boolean   @default(true)
+  status                 String    @default("ISSUED") // ISSUED, APPROVED, SUPERSEDED
+  summaryPayload         Json
+  dataPayload            Json
+  filterPayload          Json?
+  sealUrlSnapshot        String?
+  issuedByEmployeeId     String?
+  issuedByEmployeeName   String
+  issuedByEmployeeRole   String
+  approvedByEmployeeId   String?
+  approvedByEmployeeName String?
+  approvedAt             DateTime?
+  supersededByRef        String?
+  verificationToken      String    @unique @default(uuid())
+  sha256Hash             String?
+  fileUrl                String?   // External PDF storage URL
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([department, createdAt])
+  @@index([reference])
+}
+
+// =========================================================================
+// 8. مركز أرباح رَواق، رواتب الموظفين، وتوزيع أرباح الشركاء (RAWAQ Profits & Payroll)
+// =========================================================================
+
+model EmployeePayAgreement {
+  id                  String           @id @default(uuid())
+  employeeId          String
+  payCycle            String           @default("WEEKLY") // WEEKLY, MONTHLY
+  baseRateFils        Int              // e.g. 50,000 fils = 50.000 JOD
+  currency            String           @default("JOD")
+  contractType        String           @default("PART_TIME") // PART_TIME, HOURLY, FULL_TIME
+  weeklyAgreedHours   Int?             // الساعات التعاقدية المتفق عليها
+  notes               String?
+  isActive            Boolean          @default(true)
+  effectiveFrom       DateTime         @default(now())
+  effectiveTo         DateTime?
+  createdByEmployeeId String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  employee            Employee         @relation("EmployeeAgreements", fields: [employeeId], references: [id], onDelete: Restrict)
+  payrollPeriods      PayrollPeriod[]
+
+  @@index([employeeId, isActive])
+}
+
+model PayrollPeriod {
+  id                  String           @id @default(uuid())
+  reference           String           @unique // e.g. PAYROLL-2026-W44-EMP01
+  employeeId          String
+  agreementId         String
+  periodFrom          DateTime
+  periodTo            DateTime
+  grossAmountFils     Int              // الأجر الإجمالي للفترة
+  deductionsFils      Int              @default(0) // خصومات (غياب، سلف)
+  allowancesFils      Int              @default(0) // مكافآت أو بدلات
+  netPayableFils      Int              // الصافي المستحق للسداد
+  status              String           @default("ACCRUED") // ACCRUED, PAID, CANCELLED
+  accruedAt           DateTime         @default(now())
+  accruedByEmployeeId String?
+  notes               String?
+  financialTxId       String?          @unique
+
+  agreement           EmployeePayAgreement @relation(fields: [agreementId], references: [id])
+  employee            Employee             @relation("EmployeePayrollPeriods", fields: [employeeId], references: [id])
+  payment             PayrollPayment?
+
+  @@index([employeeId, status])
+  @@index([periodFrom, periodTo])
+}
+
+model PayrollPayment {
+  id                  String         @id @default(uuid())
+  reference           String         @unique // e.g. PAY-PAYROLL-2026-001
+  payrollPeriodId     String         @unique
+  amountFils          Int
+  paymentMethod       String         @default("CASH") // CASH, BANK_TRANSFER, CLIK
+  paymentReference    String?        // رقم الحوالة أو سند القبض
+  paidAt              DateTime       @default(now())
+  paidByEmployeeId    String
+  idempotencyKey      String         @unique // منع تكرار الصرف برمجياً
+  notes               String?
+  financialTxId       String?        @unique
+
+  payrollPeriod       PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id])
+
+  @@index([paidAt])
+}
+
+model ProfitClose {
+  id                             String               @id @default(uuid())
+  reference                      String               @unique // e.g. PCLOSE-2026-M10
+  periodFrom                     DateTime
+  periodTo                       DateTime
+  grossRevenueFils               Int                  // إيراد الطلبات المسلمة
+  supplierObligationsFils        Int                  // حصة الموردين
+  platformGrossMarginFils        Int                  // هامش المنصة
+  courierCostsFils               Int                  // تكاليف التوصيل
+  operatingExpensesFils          Int                  // مصاريف التشغيل
+  staffSalariesFils              Int                  // رواتب الموظفين المثبتة للفترة
+  taxContingencyFils             Int                  @default(0)
+  netProfitFils                  Int                  // صافي الربح
+  reservePercentage              Int                  @default(20) // نسبة الاحتياطي
+  internalReserveFils            Int                  // قيمة الاحتياطي 20%
+  distributableProfitFils        Int                  // الربح القابل للتوزيع دفترياً
+  safeLiquidCashFils             Int                  // السيولة النقدية الحرة الآمنة
+  actualApprovedDistributionFils Int                  // المبلغ المعتمد فعلياً للصرف
+  status                         String               @default("DRAFT") // DRAFT, REVIEWED, APPROVED, CLOSED
+  closedAt                       DateTime?
+  closedByEmployeeId             String?
+
+  partner1Approved               Boolean              @default(false)
+  partner1ApprovedAt             DateTime?
+  partner1EmployeeId             String?
+  partner2Approved               Boolean              @default(false)
+  partner2ApprovedAt             DateTime?
+  partner2EmployeeId             String?
+
+  notes                          String?
+  distributions                  ProfitDistribution[]
+  createdAt                      DateTime             @default(now())
+  updatedAt                      DateTime             @updatedAt
+
+  @@index([periodFrom, periodTo])
+  @@index([status])
+}
+
+model PartnerShareRule {
+  id                  String          @id @default(uuid())
+  partnerName         String          // الشريك الأول / الشريك الثاني
+  partnerEmployeeId   String?         // ربطه بحساب النظام إن وجد
+  sharePercentage     Int             @default(50) // 50%
+  bankDetails         String?         // IBAN أو حساب المحفظة
+  effectiveFrom       DateTime        @default(now())
+  effectiveTo         DateTime?
+  isActive            Boolean         @default(true)
+  notes               String?
+  createdAt           DateTime        @default(now())
+
+  payouts             PartnerPayout[]
+
+  @@index([partnerName, isActive])
+}
+
+model ProfitDistribution {
+  id                   String          @id @default(uuid())
+  reference            String          @unique // e.g. DISTRIB-2026-M10
+  profitCloseId        String
+  totalDistributedFils Int
+  partner1AmountFils   Int             // 50%
+  partner2AmountFils   Int             // 50%
+  status               String          @default("PENDING_PAYOUT") // PENDING_PAYOUT, PARTIALLY_PAID, COMPLETED
+  createdAt            DateTime        @default(now())
+
+  profitClose          ProfitClose     @relation(fields: [profitCloseId], references: [id])
+  payouts              PartnerPayout[]
+
+  @@index([profitCloseId])
+}
+
+model PartnerPayout {
+  id                  String              @id @default(uuid())
+  reference           String              @unique // e.g. POUT-PARTNER-001
+  partnerRuleId       String
+  distributionId      String?             // إذا كان التوزيع من أرباح معتمدة
+  payoutType          String              // PROFIT_DISTRIBUTION, DRAWING_ON_ACCOUNT, ADMINISTRATIVE_WAGE
+  amountFils          Int
+  paymentMethod       String              @default("BANK_TRANSFER")
+  paymentReference    String?             // رقم الحوالة البنكية
+  paidAt              DateTime            @default(now())
+  authorizedByAdmin   String
+  idempotencyKey      String              @unique // منع الازدواجية
+  notes               String?
+  financialTxId       String?             @unique
+
+  partnerRule         PartnerShareRule    @relation(fields: [partnerRuleId], references: [id])
+  distribution        ProfitDistribution? @relation(fields: [distributionId], references: [id])
+
+  @@index([partnerRuleId, payoutType])
+  @@index([paidAt])
+}
+
+

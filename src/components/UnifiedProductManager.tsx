@@ -1264,7 +1264,6 @@ export function UnifiedProductManager({
                   <th className="p-3 min-w-[140px]">المقاس / الدرجة <span className="text-red-500">*</span></th>
                   <th className="p-3 min-w-[120px]">سعر البيع (د.أ) <span className="text-red-500">*</span></th>
                   <th className="p-3 min-w-[120px]">السعر قبل الخصم (د.أ)</th>
-                  <th className="p-3 min-w-[110px]">رمز التتبع (SKU)</th>
                   <th className="p-3 min-w-[140px]">مصدر التوريد</th>
                   <th className="p-3 min-w-[100px]">الكلفة التقديرية</th>
                   <th className="p-3 w-16 text-center">الحالة</th>
@@ -1317,9 +1316,6 @@ export function UnifiedProductManager({
                           className="w-full rounded-lg border border-zinc-200 p-2 text-xs focus:border-[#3F4832] outline-none font-mono"
                           dir="ltr"
                         />
-                      </td>
-                      <td className="p-3 text-zinc-500 font-mono text-[11px]" dir="ltr">
-                        {v.sku || <span className="text-zinc-400 italic">تلقائي فريد</span>}
                       </td>
                       <td className="p-3">
                         <select

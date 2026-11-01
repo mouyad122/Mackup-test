@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { cancelOrderAndReverseFinancials } from '@/lib/order-cancellation';
+import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
 
 function parseOrders(formData: FormData) {
   const values = formData.getAll('orderIds').flatMap(value => String(value).split(',')).filter(Boolean);
@@ -42,12 +43,22 @@ export async function createDeliveryBatch(formData: FormData) {
     const nextNum = Math.max(count, maxRefNum) + 1;
     const newRef = `BATCH-${nextNum}`;
     
-    const eligible = await tx.order.count({ where: { id: { in: orderIds }, status: 'PREPARED', deliveryBatchId: null, deliveryAssignment: null } });
+    const eligible = await tx.order.count({
+      where: {
+        id: { in: orderIds },
+        deliveryBatchId: null,
+        deliveryAssignment: null,
+        OR: [
+          { status: 'PREPARED' },
+          { status: 'CONFIRMED' },
+        ],
+      },
+    });
     if (eligible !== orderIds.length) throw new Error('تغيرت حالة بعض الطلبات أو أُضيفت إلى طلبية أخرى. حدّث الصفحة.');
     const batch = await tx.deliveryBatch.create({ data: { reference: newRef, status: 'NOT_DELIVERED' } });
     const updated = await tx.order.updateMany({
-      where: { id: { in: orderIds }, status: 'PREPARED', deliveryBatchId: null },
-      data: { deliveryBatchId: batch.id, status: 'SHIPPED' },
+      where: { id: { in: orderIds }, deliveryBatchId: null },
+      data: { deliveryBatchId: batch.id, status: 'SHIPPED', fulfillmentStatus: 'OUT_FOR_DELIVERY' },
     });
     if (updated.count !== orderIds.length) throw new Error('تغيرت الطلبات أثناء التجميع. أعد المحاولة.');
     await tx.orderStatusHistory.createMany({ data: orderIds.map(orderId => ({
@@ -141,8 +152,15 @@ export async function updateDeliveryBatchStatus(batchId: string, formData: FormD
         if (invalidOrders.length) throw new Error(`لا يمكن إنهاء الطلبية قبل معالجة هذه الطلبات: ${invalidOrders.map(order => order.reference).join('، ')}.`);
         const deliveredIds = unfinished.map(order => order.id);
         if (deliveredIds.length) {
-          await tx.order.updateMany({ where: { id: { in: deliveredIds }, status: { in: ['PREPARED', 'SHIPPED'] } }, data: { status: 'DELIVERED' } });
-          await tx.orderStatusHistory.createMany({ data: deliveredIds.map(orderId => ({ orderId, status: 'DELIVERED', notes: `تم إنهاء طلبية شركة التوصيل ${current.reference}` })) });
+          for (const orderId of deliveredIds) {
+            await OrderLifecycleService.completeOrderDelivery({
+              orderId,
+              source: 'DELIVERY_BATCH',
+              actorId: session.employeeId,
+              actorName: session.employee?.name || 'مدير النظام',
+              notes: `تم إنهاء طلبية شركة التوصيل ${current.reference}`,
+            }, tx);
+          }
         }
       }
       await tx.deliveryBatch.update({ where: { id: batchId }, data: { status: nextStatus } });
@@ -152,5 +170,175 @@ export async function updateDeliveryBatchStatus(batchId: string, formData: FormD
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'تعذر تحديث حالة الطلبية.' };
+  }
+}
+
+/**
+ * تأكيد استلام الطرود وبدء رحلة التوصيل مباشرة من كشف التوصيل الميداني (دون الحاجة لدخول الأدمن)
+ */
+export async function confirmBatchPickupFromManifestAction(batchReference: string) {
+  try {
+    const batch = await prisma.deliveryBatch.findUnique({
+      where: { reference: batchReference },
+      include: {
+        orders: {
+          include: {
+            deliveryJob: true,
+            fulfillmentOrders: {
+              include: {
+                packages: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!batch) {
+      return { success: false, error: 'كشف التوصيل غير موجود.' };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. تحديث حالة الكشف إلى قيد التوصيل
+      await tx.deliveryBatch.update({
+        where: { id: batch.id },
+        data: { status: 'IN_DELIVERY' },
+      });
+
+      // 2. تحديث الطلبات غير المنتهية لتصبح في طريقها للتوصيل النهائي OUT_FOR_DELIVERY
+      const activeOrders = batch.orders.filter(
+        (o) => !['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(o.status)
+      );
+
+      const activeOrderIds = activeOrders.map(o => o.id);
+
+      // 3. تحديث أوامر التجهيز للمحلات لتصبح مستلمة فعلياً
+      await tx.fulfillmentOrder.updateMany({
+        where: {
+          orderId: { in: activeOrderIds },
+          status: { notIn: ['PICKED_UP', 'DELIVERED', 'CANCELLED'] },
+        },
+        data: { status: 'PICKED_UP' },
+      });
+
+      // 4. تحديث الطرود لتصبح في عهدة الناقل قيد التوصيل
+      const packageIds = activeOrders.flatMap(o =>
+        o.fulfillmentOrders?.flatMap(f => f.packages.map(p => p.id)) || []
+      );
+
+      if (packageIds.length > 0) {
+        await tx.package.updateMany({
+          where: {
+            id: { in: packageIds },
+            status: { notIn: ['PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'] },
+          },
+          data: { status: 'OUT_FOR_DELIVERY' },
+        });
+      }
+
+      for (const order of activeOrders) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'SHIPPED',
+            fulfillmentStatus: 'OUT_FOR_DELIVERY',
+          },
+        });
+
+        if (order.deliveryJob) {
+          await tx.deliveryJob.update({
+            where: { id: order.deliveryJob.id },
+            data: { status: 'OUT_FOR_DELIVERY' },
+          });
+        }
+
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            status: 'OUT_FOR_DELIVERY',
+            notes: `تم تأكيد استلام الشحنة من المحلات وبدء رحلة التوصيل عبر كشف ${batchReference}`,
+          },
+        });
+      }
+    });
+
+    refreshBatch(batchReference);
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in confirmBatchPickupFromManifestAction:', err);
+    return { success: false, error: err?.message || 'تعذر تأكيد استلام الشحنات.' };
+  }
+}
+
+/**
+ * تأكيد تسليم طلب للزبونة وتحصيل المبلغ مباشرة من كشف التوصيل الميداني (بواسطة المندوب/السائق)
+ */
+export async function confirmOrderDeliveryFromManifestAction(
+  batchReference: string,
+  orderId: string,
+  notes?: string
+) {
+  try {
+    const batch = await prisma.deliveryBatch.findUnique({
+      where: { reference: batchReference },
+      include: {
+        orders: {
+          include: {
+            deliveryJob: true,
+          },
+        },
+      },
+    });
+
+    if (!batch) {
+      return { success: false, error: 'كشف التوصيل غير موجود.' };
+    }
+
+    const order = batch.orders.find((o) => o.id === orderId);
+    if (!order) {
+      return { success: false, error: 'الطلب غير مسجل ضمن هذا الكشف.' };
+    }
+
+    const isPrepaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'PREPAID';
+    const codAmountToCollect = isPrepaid ? 0 : (order.deliveryJob?.codAmountToCollect ?? order.totalAmount);
+
+    // تأكيد التسليم والتحصيل ذرّياً عبر الخدمة المركزية الموحدة
+    const deliveryResult = await OrderLifecycleService.completeOrderDelivery({
+      orderId,
+      source: 'DELIVERY_BATCH',
+      actorName: `مندوب كشف التوصيل (${batchReference})`,
+      collectedCodAmount: codAmountToCollect,
+      notes: notes || `تم تأكيد التسليم والتحصيل مباشرة من كشف التوصيل الميداني (${batchReference})`,
+    });
+
+    // فحص ما إذا كانت كافة طلبات الكشف قد اكتمل تسليمها لإغلاق الكشف آلياً
+    const updatedOrders = await prisma.order.findMany({
+      where: { deliveryBatchId: batch.id },
+      select: { status: true },
+    });
+
+    const allFinished =
+      updatedOrders.length > 0 &&
+      updatedOrders.every((o) => ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(o.status));
+
+    if (allFinished) {
+      await prisma.deliveryBatch.update({
+        where: { id: batch.id },
+        data: { status: 'COMPLETED' },
+      });
+    }
+
+    refreshBatch(batchReference);
+    revalidatePath(`/invoice/view/${order.reference}`);
+
+    return {
+      success: true,
+      orderId,
+      alreadyDelivered: deliveryResult.alreadyDelivered,
+      allBatchCompleted: allFinished,
+    };
+  } catch (err: any) {
+    console.error('Error in confirmOrderDeliveryFromManifestAction:', err);
+    return { success: false, error: err?.message || 'تعذر تأكيد تسليم الطلب.' };
   }
 }

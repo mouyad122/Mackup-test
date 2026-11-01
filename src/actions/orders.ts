@@ -7,6 +7,8 @@ import { cancelOrderAndReverseFinancials } from '@/lib/order-cancellation';
 import { classifyRefund, isTerminalDeliveryOrderStatus, refundableCollectedAmount } from '@/lib/business-finance';
 import { revalidatePath } from 'next/cache';
 import { getArabicStatusHistoryNote } from '@/lib/order-status';
+import { enqueueOrderFulfillmentSplit, executeOrderFulfillmentSplit } from '@/lib/fulfillment/order-splitter';
+import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
 
 export async function confirmStorefrontOrder(orderId: string) {
   // 1. Require authorized permission
@@ -211,7 +213,15 @@ export async function confirmStorefrontOrder(orderId: string) {
         }
       });
 
+      // 9. Enqueue Multi-Vendor Fulfillment Split into Outbox within the same transaction
+      await enqueueOrderFulfillmentSplit(order.id, tx);
+
       return updatedOrder;
+    });
+
+    // Execute background worker asynchronously without holding the confirm request
+    executeOrderFulfillmentSplit(orderId).catch(err => {
+      console.error('[Fulfillment] Async split trigger error:', err);
     });
 
     return { success: true, order: result };
@@ -444,30 +454,32 @@ export async function updateOrderStatus(orderId: string, status: string, shippin
     }
 
     if (!['PREPARING', 'PREPARED', 'SHIPPED', 'DELIVERED'].includes(status)) throw new Error('حالة الطلب غير صالحة');
-    if (status === 'SHIPPED' || status === 'DELIVERED') {
-      if ((status === 'SHIPPED' && order.status !== 'PREPARED') || (status === 'DELIVERED' && order.status !== 'SHIPPED')) {
+    if (status === 'DELIVERED') {
+      await OrderLifecycleService.completeOrderDelivery({
+        orderId,
+        source: 'ADMIN',
+        actorId: session.employeeId,
+        actorName: session.employee.name,
+      });
+      revalidatePath(`/admin/orders/${orderId}`);
+      revalidatePath('/admin/orders');
+      return { success: true };
+    }
+    if (status === 'SHIPPED') {
+      if (order.status !== 'PREPARED') {
         throw new Error('لا يمكن نقل الطلب إلى هذه الحالة من وضعه الحالي');
       }
       const assignment = await prisma.deliveryAssignment.findUnique({ where: { orderId }, include: { captain: true } });
       if (!assignment) throw new Error('عيّن مندوباً للطلب قبل بدء التوصيل.');
-      const nextDeliveryStatus = status === 'SHIPPED' ? 'OUT_FOR_DELIVERY' : 'DELIVERED';
+      const nextDeliveryStatus = 'OUT_FOR_DELIVERY';
       if (assignment.status === 'DELIVERED') throw new Error('تم تسليم الطلب مسبقاً');
       await prisma.$transaction(async tx => {
         if (isTerminalDeliveryOrderStatus(order.status)) throw new Error('الطلب ملغى أو مسترد أو مكتمل؛ لا يمكن متابعة التوصيل.');
-        const assignmentClaim = await tx.deliveryAssignment.updateMany({ where: { id: assignment.id, status: { equals: assignment.status, notIn: ['CANCELLED', 'DELIVERED'] } }, data: { status: nextDeliveryStatus, deliveredAt: status === 'DELIVERED' ? new Date() : undefined } });
+        const assignmentClaim = await tx.deliveryAssignment.updateMany({ where: { id: assignment.id, status: { equals: assignment.status, notIn: ['CANCELLED', 'DELIVERED'] } }, data: { status: nextDeliveryStatus } });
         if (assignmentClaim.count !== 1) throw new Error('تم تحديث التوصيل بالتزامن؛ أعد تحميل الطلب.');
-        if (status === 'DELIVERED') await tx.captain.update({ where: { id: assignment.captainId }, data: { status: 'AVAILABLE' } });
         const orderClaim = await tx.order.updateMany({ where: { id: orderId, status: { equals: order.status, notIn: ['CANCELLED', 'REFUNDED'] } }, data: { status, shippingCost: order.shippingCost, totalAmount: order.totalAmount } });
         if (orderClaim.count !== 1) throw new Error('الطلب ملغى أو مسترد أو تغير بالتزامن.');
         await tx.orderStatusHistory.create({ data: { orderId, status, notes: getArabicStatusHistoryNote(status, { employeeName: session.employee.name, captainName: assignment.captain.name }) } });
-        if (status === 'DELIVERED' && assignment.captainEarning > 0) {
-          await tx.financialTransaction.create({ data: {
-            businessEventKey: `captain-earning:${assignment.id}`,
-            type: 'CAPTAIN_EARNING', direction: 'OUT', amount: assignment.captainEarning,
-            orderId, captainId: assignment.captainId, deliveryAssignmentId: assignment.id,
-            description: `Captain earning for ${order.reference}`, createdByEmployeeId: session.employeeId,
-          } });
-        }
       }, { isolationLevel: 'Serializable' });
       revalidatePath(`/admin/orders/${orderId}`);
       revalidatePath('/admin/orders');

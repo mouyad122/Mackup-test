@@ -7,11 +7,30 @@ export default async function DeliveryBatchSettingsPage() {
   const session = await requirePermission('manage:orders');
   const [preparedOrders, batches] = await Promise.all([
     prisma.order.findMany({
-      where: { status: 'PREPARED', deliveryBatchId: null, deliveryAssignment: null },
+      where: {
+        deliveryBatchId: null,
+        deliveryAssignment: null,
+        OR: [
+          { status: 'PREPARED' },
+          { status: 'CONFIRMED', fulfillmentStatus: { in: ['READY_FOR_PICKUP', 'ALL_PICKED_UP', 'PARTIALLY_READY'] } },
+        ],
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true, reference: true, customerName: true, customerPhone: true,
         shippingZoneNameSnapshot: true, totalAmount: true, shippingCost: true, createdAt: true,
+        status: true, fulfillmentStatus: true,
+        fulfillmentOrders: {
+          select: {
+            id: true,
+            supplierId: true,
+            locationId: true,
+            status: true,
+            supplier: { select: { name: true } },
+            location: { select: { label: true, city: true } },
+            packages: { select: { id: true, packageCode: true } },
+          },
+        },
       },
     }),
     prisma.deliveryBatch.findMany({
@@ -23,8 +42,19 @@ export default async function DeliveryBatchSettingsPage() {
           select: {
             id: true, reference: true, customerName: true, customerPhone: true,
             shippingZoneNameSnapshot: true, totalAmount: true, shippingCost: true, createdAt: true,
-            status: true,
+            status: true, fulfillmentStatus: true,
             deliveryAssignment: { select: { id: true } },
+            fulfillmentOrders: {
+              select: {
+                id: true,
+                supplierId: true,
+                locationId: true,
+                status: true,
+                supplier: { select: { name: true } },
+                location: { select: { label: true } },
+                packages: { select: { id: true, packageCode: true } },
+              },
+            },
           },
         },
       },

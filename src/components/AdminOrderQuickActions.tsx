@@ -53,7 +53,7 @@ export function AdminOrderQuickActions({
           const res = await confirmAction(orderId);
           if (!res || !res.success) {
             whatsappPopup?.close();
-            setMessage(res?.error || 'حدث خطأ أثناء التأكيد وخصم المخزون');
+            setMessage(res?.error || 'حدث خطأ أثناء تأكيد الطلب');
             return;
           }
         }
@@ -132,7 +132,7 @@ export function AdminOrderQuickActions({
           disabled={isPending}
           className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 disabled:opacity-50 font-bold py-2.5 px-4 rounded shadow-sm text-sm w-full transition-colors"
         >
-          إلغاء الطلب ومعالجة المخزون
+          إلغاء الطلب
         </button>
       )}
       {showCancellation && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm">

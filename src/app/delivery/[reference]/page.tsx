@@ -1,96 +1,268 @@
 import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { filsToDisplay } from '@/lib/money';
+import DeliveryManifestClient from './DeliveryManifestClient';
 
-export default async function DeliveryBatchPage({ params }: { params: Promise<{ reference: string }> }) {
+export default async function DeliveryBatchPage({
+  params,
+}: {
+  params: Promise<{ reference: string }>;
+}) {
   const { reference } = await params;
-  
+
   const batch = await prisma.deliveryBatch.findUnique({
     where: { reference },
     include: {
       orders: {
         orderBy: { createdAt: 'desc' },
-        include: { items: true }
-      }
-    }
+        include: {
+          items: true,
+          deliveryJob: true,
+          fulfillmentOrders: {
+            include: {
+              supplier: {
+                include: {
+                  locations: true,
+                },
+              },
+              location: true,
+              packages: {
+                include: {
+                  items: {
+                    include: {
+                      fulfillmentItem: true,
+                    },
+                  },
+                },
+              },
+              items: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!batch) {
     return notFound();
   }
 
-  // Shared delivery links expire after 60 days; records remain available to administrators.
+  // Shared delivery links expire after 60 days
   const sixtyDaysAgo = new Date();
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
   if (batch.createdAt < sixtyDaysAgo) {
     return notFound();
   }
 
+  // 1. تجميع محطات الاستلام حسب المحل / موقع المحل (Stop Aggregation)
+  const pickupStopsMap = new Map<string, any>();
+  let totalParcelsCount = 0;
+  let totalCodFils = 0;
+
+  for (const order of batch.orders) {
+    const isCodPending = order.paymentStatus === 'COD_PENDING' || order.paymentStatus === 'UNPAID';
+    if (isCodPending) {
+      totalCodFils += order.totalAmount;
+    }
+
+    if (order.fulfillmentOrders && order.fulfillmentOrders.length > 0) {
+      for (const fo of order.fulfillmentOrders) {
+        const stopKey = fo.locationId || fo.supplierId || `supplier-${fo.supplier?.id}`;
+        const supplierName = fo.supplier?.name || 'محل رَواق';
+        const locationLabel = fo.location?.label || 'المقر الرئيسي';
+        const contactPerson = fo.supplier?.ownerName || fo.location?.contactPerson || supplierName;
+        const contactPhone = fo.location?.contactPhone || fo.supplier?.phone || '';
+        const address =
+          fo.pickupAddressSnapshot ||
+          fo.location?.addressDetails ||
+          fo.supplier?.address ||
+          `${fo.location?.city || 'عمان'}`;
+        const city = fo.location?.city || 'عمان';
+
+        const lat = fo.location?.latitude;
+        const lng = fo.location?.longitude;
+        const googleMapsUrl =
+          fo.supplier?.mapLocationUrl ||
+          fo.location?.mapLocationUrl ||
+          (lat && lng
+            ? `https://maps.google.com/?q=${lat},${lng}`
+            : `https://maps.google.com/?q=${encodeURIComponent(`${address}, ${city}, الأردن`)}`);
+
+        if (!pickupStopsMap.has(stopKey)) {
+          pickupStopsMap.set(stopKey, {
+            shopKey: stopKey,
+            supplierName,
+            locationLabel,
+            contactPerson,
+            contactPhone,
+            address,
+            city,
+            googleMapsUrl,
+            pickupInstructions: fo.location?.pickupInstructions,
+            parcels: [],
+          });
+        }
+
+        const stop = pickupStopsMap.get(stopKey);
+
+        // إضافة الطرود
+        if (fo.packages && fo.packages.length > 0) {
+          for (const pkg of fo.packages) {
+            totalParcelsCount += 1;
+            stop.parcels.push({
+              packageCode: pkg.packageCode,
+              orderReference: order.reference,
+              items: pkg.items.map((pi) => ({
+                name: pi.fulfillmentItem?.productTitle || 'منتج',
+                variantTitle: pi.fulfillmentItem?.variantTitle,
+                quantity: pi.quantity,
+              })),
+            });
+          }
+        } else {
+          // في حال لم تُنشأ طرود بعد، نضع طرداً افتراضياً
+          totalParcelsCount += 1;
+          stop.parcels.push({
+            packageCode: `PKG-${order.reference}-${supplierName.slice(0, 3)}`,
+            orderReference: order.reference,
+            items: fo.items.map((it) => ({
+              name: it.productTitle,
+              variantTitle: it.variantTitle,
+              quantity: it.quantity,
+            })),
+          });
+        }
+      }
+    } else {
+      // طلب ليس له تقسيم محلات بعد (طلب مباشر من المتجر)
+      const stopKey = 'rawaq-central-hub';
+      if (!pickupStopsMap.has(stopKey)) {
+        pickupStopsMap.set(stopKey, {
+          shopKey: stopKey,
+          supplierName: 'مستودع رَواق المركزي',
+          locationLabel: 'المقر الرئيسي',
+          contactPerson: 'إدارة العمليات',
+          contactPhone: '0790924636',
+          address: 'عمان، الأردن',
+          city: 'عمان',
+          googleMapsUrl: 'https://maps.google.com/?q=Amman,Jordan',
+          parcels: [],
+        });
+      }
+      totalParcelsCount += 1;
+      pickupStopsMap.get(stopKey).parcels.push({
+        packageCode: `PKG-${order.reference}-1`,
+        orderReference: order.reference,
+        items: order.items.map((it) => ({
+          name: it.name,
+          variantTitle: it.size,
+          quantity: it.quantity,
+        })),
+      });
+    }
+  }
+
+  const pickupStops = Array.from(pickupStopsMap.values());
+
+  // 2. تجميع محطات التسليم للعملاء
+  const dropoffStops = batch.orders.map((order) => {
+    const isPaid = order.paymentStatus === 'PAID';
+    const city = order.deliveryJob?.city || order.shippingZoneNameSnapshot || 'عمان';
+    const address = order.deliveryJob?.addressDetails || order.notes || 'عمان';
+    const googleMapsUrl =
+      order.deliveryJob?.mapLocationUrl ||
+      `https://maps.google.com/?q=${encodeURIComponent(`${address}, ${city}, الأردن`)}`;
+
+    const packageCodes = order.fulfillmentOrders?.flatMap((fo) =>
+      fo.packages.map((p) => p.packageCode)
+    ) || [`PKG-${order.reference}`];
+
+    const isDelivered = order.status === 'DELIVERED' || order.fulfillmentStatus === 'DELIVERED';
+
+    return {
+      orderId: order.id,
+      orderReference: order.reference,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      city,
+      address,
+      googleMapsUrl,
+      notes: order.notes,
+      codAmountFils: isPaid ? 0 : order.totalAmount,
+      isPaid,
+      status: order.status,
+      fulfillmentStatus: order.fulfillmentStatus,
+      isDelivered,
+      deliveredAt: order.deliveryJob?.collectedAt ? order.deliveryJob.collectedAt.toISOString() : null,
+      packageCodes: packageCodes.length > 0 ? packageCodes : [`PKG-${order.reference}`],
+    };
+  });
+
+  // 3. بناء نص رسالة واتساب الشاملة لسائقي شركة التوصيل
+  let baseUrl = (process.env.PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://rawaq.jo').replace(/\/+$/, '');
+  try {
+    const headerList = await headers();
+    const host = headerList.get('x-forwarded-host') || headerList.get('host');
+    const proto =
+      headerList.get('x-forwarded-proto') ||
+      (host && (host.startsWith('localhost') || host.startsWith('127.0.0.1')) ? 'http' : 'https');
+    if (host) baseUrl = `${proto}://${host}`;
+  } catch {}
+  const manifestUrl = `${baseUrl}/delivery/${batch.reference}`;
+
+  let formattedWhatsAppText =
+    `📋 *كشف إرسالية شركة التوصيل - رَواق (RAWAQ)*\n` +
+    `رقم الإرسالية: *${batch.reference}*\n` +
+    `📦 عدد الطلبات: ${batch.orders.length} طلبات\n` +
+    `🏪 المحلات المطلوب زيارتها: *${pickupStops.length} محلات*\n` +
+    `🏷️ إجمالي الطرود: ${totalParcelsCount} طرد\n` +
+    `💰 إجمالي مبالغ التحصيل COD: *${filsToDisplay(totalCodFils)}*\n` +
+    `🔗 رابط الكشف المباشر والخرائط: ${manifestUrl}\n\n` +
+    `═══════════════════════\n` +
+    `📍 *المرحلة الأولى: محطات الاستلام من المحلات:*\n`;
+
+  pickupStops.forEach((stop, idx) => {
+    formattedWhatsAppText +=
+      `\n*${idx + 1}. ${stop.supplierName} (${stop.locationLabel})*\n` +
+      `👤 المسؤول: ${stop.contactPerson}\n` +
+      `📞 هاتف: ${stop.contactPhone || '—'}\n` +
+      `📌 العنوان: ${stop.address}\n` +
+      `🗺️ الخريطة: ${stop.googleMapsUrl}\n` +
+      `📦 الطرود المطلوبة (${stop.parcels.length}): ${stop.parcels.map((p: any) => p.packageCode).join('، ')}\n`;
+  });
+
+  formattedWhatsAppText +=
+    `\n═══════════════════════\n` +
+    `🚚 *المرحلة الثانية: محطات التسليم للزبونات والتحصيل:*\n`;
+
+  dropoffStops.forEach((drop, idx) => {
+    formattedWhatsAppText +=
+      `\n*${idx + 1}. طلب #${drop.orderReference} - ${drop.customerName}*\n` +
+      `📞 هاتف: ${drop.customerPhone}\n` +
+      `📍 العنوان: ${drop.city} - ${drop.address}\n` +
+      `💰 التحصيل المطلوب: *${drop.isPaid ? '0.00 د.أ (مدفوع)' : filsToDisplay(drop.codAmountFils)}*\n` +
+      `🏷️ الطرود: ${drop.packageCodes.join('، ')}\n`;
+  });
+
+  formattedWhatsAppText += `\n✨ بالتوفيق في التوصيل - فريق رَواق اللوجستي`;
+
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 font-sans text-right" dir="rtl">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <header className="bg-white p-6 rounded-xl shadow-sm border text-center border-t-4 border-t-[#3F4832]">
-          <h1 className="text-2xl font-bold text-[#3F4832]">طلبية شحن وتوصيل - رَواق | RAWAQ</h1>
-          <p className="text-[#B7935F] mt-2 font-bold tracking-wider">رقم الطلبية: {batch.reference}</p>
-          <p className="text-sm text-zinc-400 mt-1">تاريخ الإصدار: {new Date(batch.createdAt).toLocaleString('en-GB')}</p>
-        </header>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {batch.orders.map(order => (
-            <article key={order.id} className="bg-white p-5 rounded-xl shadow-sm border space-y-3">
-              <div className="flex justify-between items-start border-b pb-3">
-                <div>
-                  <h2 className="font-bold text-lg">{order.reference}</h2>
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-bold mt-1 ${
-                    order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' :
-                    order.status === 'CANCELLED' || order.status === 'REFUNDED' ? 'bg-red-100 text-red-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {order.status === 'DELIVERED' ? 'تم التوصيل' :
-                     order.status === 'CANCELLED' ? 'ملغى' :
-                     order.status === 'REFUNDED' ? 'مسترد' :
-                     order.status === 'PREPARED' ? 'جاهز للتسليم لشركة التوصيل' : 'قيد التوصيل'}
-                  </span>
-                </div>
-                <div className="text-left">
-                  <p className="text-xs text-zinc-500">مطلوب تحصيل</p>
-                  <p className="font-black text-xl text-zinc-900">
-                    {order.paymentStatus === 'COD_PENDING' ? filsToDisplay(order.totalAmount) : '0 د.ا (مدفوع)'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-sm text-zinc-700">
-                <p><span className="font-bold text-zinc-500 w-16 inline-block">العميل:</span> {order.customerName}</p>
-                <p><span className="font-bold text-zinc-500 w-16 inline-block">الهاتف:</span> <a href={`tel:${order.customerPhone}`} className="text-blue-600 underline" dir="ltr">{order.customerPhone}</a></p>
-                {order.shippingZoneNameSnapshot && (
-                  <p><span className="font-bold text-zinc-500 w-16 inline-block">المنطقة:</span> {order.shippingZoneNameSnapshot}</p>
-                )}
-                {order.notes && (
-                  <p className="bg-yellow-50 p-2 rounded text-yellow-800 text-xs mt-2 border border-yellow-200">
-                    <strong>ملاحظات:</strong> {order.notes}
-                  </p>
-                )}
-              </div>
-
-              <details className="text-xs mt-3 border-t pt-3">
-                <summary className="cursor-pointer text-zinc-500 font-bold mb-2">تفاصيل المنتجات ({order.items.length})</summary>
-                <ul className="space-y-1 pl-4 list-disc text-zinc-600">
-                  {order.items.map(item => (
-                    <li key={item.id}>{item.quantity}x {item.name} {item.size ? ` - ${item.size}` : ''}</li>
-                  ))}
-                </ul>
-              </details>
-            </article>
-          ))}
-        </div>
-
-        {batch.orders.length === 0 && (
-          <div className="bg-white p-10 text-center rounded-xl text-zinc-500 border">
-            لا توجد طلبات في هذه الطلبية.
-          </div>
-        )}
-      </div>
-    </div>
+    <DeliveryManifestClient
+      batch={{
+        reference: batch.reference,
+        createdAt: batch.createdAt,
+        status: batch.status,
+      }}
+      metrics={{
+        ordersCount: batch.orders.length,
+        uniqueShopsCount: pickupStops.length,
+        totalParcelsCount,
+        totalCodFils,
+      }}
+      pickupStops={pickupStops}
+      dropoffStops={dropoffStops}
+      formattedWhatsAppText={formattedWhatsAppText}
+    />
   );
 }

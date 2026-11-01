@@ -473,7 +473,6 @@ export function ProductEditForm({
                 {product.imageUrl && <div className="w-10 h-10 rounded-md bg-zinc-100 flex-shrink-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${product.imageUrl.startsWith('local://') ? product.imageUrl.replace('local://', '/') : product.imageUrl}")` }} />}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-zinc-800 truncate">{product.nameAr}</p>
-                  <p className="text-xs text-zinc-400">{product.sku}</p>
                 </div>
               </label>
             );

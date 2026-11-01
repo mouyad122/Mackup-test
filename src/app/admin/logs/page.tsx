@@ -1,28 +1,167 @@
-import Link from 'next/link';
+import React from 'react';
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
+import { AuditLogsClient, AuditLogItem } from './AuditLogsClient';
+import { inferCategory, inferSeverity } from '@/lib/audit';
 
-const actionLabels: Record<string, string> = { CREATE_PRODUCT: 'إضافة منتج', UPDATE_PRODUCT: 'تعديل منتج', DELETE_PRODUCT: 'حذف منتج', INVENTORY_ADJUSTED: 'تعديل مخزون', UPDATE_ORDER_STATUS: 'تغيير حالة طلب', ORDER_DELIVERY_COST_UPDATED: 'تعديل تكلفة شركة التوصيل', RETURN_INSPECTED: 'فحص مرتجع', DELIVERY_BATCH_CREATED: 'إنشاء طلبية شركة توصيل', DELIVERY_BATCH_UPDATED: 'تعديل طلبية شركة توصيل', DELIVERY_BATCH_CANCELLED: 'إلغاء طلبية شركة توصيل', DELIVERY_BATCH_STATUS_UPDATED: 'تحديث حالة طلبية التوصيل', SHIPPING_ZONE_UPDATED: 'تعديل رسوم أو إعدادات التوصيل', TAX_SETTINGS_UPDATED: 'تعديل إعدادات الضريبة', UPDATE_SETTINGS: 'تعديل إعدادات المتجر', CREATE_EMPLOYEE: 'إضافة موظف', EMPLOYEE_CREATED: 'إضافة موظف', UPDATE_EMPLOYEE: 'تعديل موظف', EMPLOYEE_UPDATED: 'تعديل موظف', EMPLOYEE_STATUS_TOGGLED: 'تفعيل أو تعطيل موظف', CREATE_ROLE: 'إنشاء دور وصلاحيات', UPDATE_ROLE: 'تعديل صلاحيات', DELETE_ROLE: 'حذف دور وصلاحيات', CREATE_SUPPLIER: 'إضافة مورد', SUPPLIER_UPDATED: 'تعديل مورد', SUPPLIER_DELETED: 'حذف مورد', CMS_UPDATE: 'تحديث محتوى المتجر', SESSION_CREATED: 'تسجيل دخول ناجح', PASSWORD_RESET: 'إعادة تعيين كلمة مرور', POS_CHECKOUT: 'إتمام بيع نقطة البيع', POS_REFUND: 'استرداد بيع نقطة البيع' };
-const labels: Record<string, string> = { nameAr: 'الاسم العربي', nameEn: 'الاسم الإنجليزي', sku: 'رمز المنتج', categoryId: 'القسم', shortDescription: 'الوصف المختصر', longDescription: 'الوصف التفصيلي', isVisible: 'ظهور المنتج', isFeatured: 'منتج مميز', variants: 'الخيارات والأسعار', images: 'الصور', status: 'الحالة', previousStatus: 'الحالة السابقة', newStatus: 'الحالة الجديدة', actualDeliveryCost: 'تكلفة شركة التوصيل', previousActualDeliveryCost: 'تكلفة شركة التوصيل السابقة', reference: 'المرجع', reason: 'السبب', quantityBefore: 'المخزون السابق', quantityAfter: 'المخزون الجديد', quantityDelta: 'تغير الكمية' };
-const hiddenKeys = new Set(['id', 'employeeId', 'captainId', 'orderId', 'ipAddress', 'phone', 'email', 'password', 'token', 'paymentMethod']);
-const importantActions = new Set(['UPDATE_PRODUCT', 'INVENTORY_ADJUSTED', 'UPDATE_ORDER_STATUS', 'ORDER_DELIVERY_COST_UPDATED', 'RETURN_INSPECTED', 'SHIPPING_ZONE_UPDATED', 'TAX_SETTINGS_UPDATED', 'UPDATE_ROLE', 'POS_REFUND']);
-function parseDetails(value: string | null): Record<string, unknown> | null { try { const parsed = value ? JSON.parse(value) : null; return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null; } catch { return null; } }
-function display(value: unknown) { if (value === null || value === undefined || value === '') return '—'; if (typeof value === 'boolean') return value ? 'مفعل' : 'معطل'; if (Array.isArray(value)) return `${value.length} عنصر`; if (typeof value === 'object') return 'تم التحديث'; return String(value); }
-function changes(details: Record<string, unknown> | null) { const before = details?.before && typeof details.before === 'object' ? details.before as Record<string, unknown> : details?.previous && typeof details.previous === 'object' ? details.previous as Record<string, unknown> : null; const after = details?.after && typeof details.after === 'object' ? details.after as Record<string, unknown> : details?.current && typeof details.current === 'object' ? details.current as Record<string, unknown> : null; if (!before || !after) return [] as Array<{ label: string; before: unknown; after: unknown }>; return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(key => !hiddenKeys.has(key) && JSON.stringify(before[key]) !== JSON.stringify(after[key])).map(key => ({ label: labels[key] || key, before: before[key], after: after[key] })); }
-function isImportant(action: string, detail: Record<string, unknown> | null) { return importantActions.has(action) || Boolean(detail && ('actualDeliveryCost' in detail || 'quantityDelta' in detail)); }
+export default async function AdminLogsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const session = await requirePermission('manage:settings');
+  const params = await searchParams;
 
-export default async function AdminLogsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const session = await requirePermission('manage:settings'); const p = await searchParams;
-  const type = typeof p.type === 'string' ? p.type : ''; const q = typeof p.q === 'string' ? p.q.trim() : ''; const employeeId = typeof p.employeeId === 'string' ? p.employeeId : ''; const entityId = typeof p.entityId === 'string' ? p.entityId : ''; const priority = typeof p.priority === 'string' ? p.priority : '';
-  const types: Record<string, string[]> = { products: ['PRODUCT', 'Product', 'ProductVariant'], inventory: ['ProductVariant', 'InventoryMovement'], orders: ['ORDER', 'Order', 'DeliveryBatch', 'DeliveryAssignment'], customers: ['Customer'], offers: ['Coupon', 'RewardRule'], content: ['HomepageHeroSlide', 'SiteSettings', 'Content'], settings: ['ShippingZone', 'GlobalPricingSettings', 'SiteSettings'], employees: ['Employee', 'Role', 'Session'] };
-  const where: any = {}; if (type && types[type]) where.entityType = { in: types[type] }; if (employeeId) where.employeeId = employeeId; if (entityId) where.entityId = entityId; if (q) where.OR = [{ action: { contains: q, mode: 'insensitive' } }, { entityId: { contains: q, mode: 'insensitive' } }, { employee: { name: { contains: q, mode: 'insensitive' } } }];
-  const [logs, employees, total, today] = await Promise.all([prisma.auditLog.findMany({ where, include: { employee: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 300 }), prisma.employee.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }), prisma.auditLog.count({ where }), prisma.auditLog.count({ where: { ...where, createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } })]);
-  const visibleLogs = priority === 'important' ? logs.filter(log => isImportant(log.action, parseDetails(log.details))) : logs; const importantCount = logs.filter(log => isImportant(log.action, parseDetails(log.details))).length;
-  return <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl"><AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} /><main className="w-full flex-1 space-y-6 p-4 md:p-8">
-    <header><h1 className="text-3xl font-bold">سجل النشاط والمراجعة</h1><p className="mt-1 text-sm text-zinc-600">سجل قراءة فقط: كل عملية تبقى محفوظة، ويظهر التراجع كسجل جديد.</p></header>
-    <section className="grid gap-3 sm:grid-cols-3"><div className="rounded-lg border bg-white p-4"><p className="text-xs text-zinc-500">العمليات المطابقة</p><b className="text-2xl">{total}</b></div><div className="rounded-lg border bg-white p-4"><p className="text-xs text-zinc-500">عمليات اليوم</p><b className="text-2xl">{today}</b></div><div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="text-xs text-amber-800">عمليات مهمة ضمن المعروض</p><b className="text-2xl text-amber-900">{importantCount}</b></div></section>
-    <form className="grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-2 xl:grid-cols-5"><label className="grid gap-1 text-sm">بحث<input name="q" defaultValue={q} placeholder="عملية، موظف أو مرجع" className="rounded border p-2" /></label><label className="grid gap-1 text-sm">القسم<select name="type" defaultValue={type} className="rounded border p-2"><option value="">كل الأقسام</option><option value="products">المنتجات</option><option value="inventory">الأسعار والمخزون</option><option value="orders">الطلبات والتوصيل</option><option value="customers">العملاء</option><option value="offers">العروض والكوبونات</option><option value="content">محتوى المتجر</option><option value="settings">الإعدادات</option><option value="employees">الموظفون والصلاحيات</option></select></label><label className="grid gap-1 text-sm">المسؤول<select name="employeeId" defaultValue={employeeId} className="rounded border p-2"><option value="">الكل</option>{employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label><label className="grid gap-1 text-sm">الأهمية<select name="priority" defaultValue={priority} className="rounded border p-2"><option value="">كل العمليات</option><option value="important">المهمة فقط</option></select></label>{entityId && <input type="hidden" name="entityId" value={entityId} />}<div className="flex items-end gap-3"><button className="rounded bg-[#3F4832] px-5 py-2 font-bold text-white">تصفية</button><Link href="/admin/logs" className="p-2 text-sm underline">مسح</Link></div></form>
-    <section className="space-y-3">{visibleLogs.map(log => { const detail = parseDetails(log.details); const diff = changes(detail); const important = isImportant(log.action, detail); return <article key={log.id} className={`rounded-lg border bg-white p-4 ${important ? 'border-amber-300' : ''}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{actionLabels[log.action] || log.action}</h2>{important && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">عملية مهمة</span>}</div><p className="mt-1 text-sm text-zinc-600">بواسطة {log.employee?.name || 'النظام'} · <span dir="ltr">{new Date(log.createdAt).toLocaleString('en-GB')}</span></p></div><span className="text-xs text-zinc-400">مرجع: {log.entityId.slice(0, 12)}</span></div>{diff.length > 0 && <details className="mt-3 rounded border bg-zinc-50 p-3"><summary className="cursor-pointer text-sm font-semibold">عرض التغييرات قبل وبعد ({diff.length})</summary><div className="mt-3 space-y-2">{diff.map(change => <div key={change.label} className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr_1fr]"><b>{change.label}</b><span className="rounded bg-red-50 p-2 text-red-900">قبل: {display(change.before)}</span><span className="rounded bg-emerald-50 p-2 text-emerald-900">بعد: {display(change.after)}</span></div>)}</div></details>}{detail && !diff.length && <p className="mt-3 rounded bg-zinc-50 p-3 text-sm text-zinc-700">{detail.reference ? `المرجع: ${display(detail.reference)}.` : detail.reason ? `السبب: ${display(detail.reason)}.` : 'تم حفظ تفاصيل العملية بأمان.'}</p>}</article>; })}{!visibleLogs.length && <p className="rounded-lg border bg-white p-10 text-center text-zinc-500">لا توجد عمليات مطابقة للفلاتر.</p>}</section>
-  </main></div>;
+  const q = typeof params.q === 'string' ? params.q.trim() : '';
+  const category = typeof params.category === 'string' ? params.category : '';
+  const severity = typeof params.severity === 'string' ? params.severity : '';
+  const outcome = typeof params.outcome === 'string' ? params.outcome : '';
+  const employeeId = typeof params.employeeId === 'string' ? params.employeeId : '';
+  const page = Math.max(1, parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
+  const limit = 30;
+
+  // توقيت بداية اليوم في الأردن (UTC+3)
+  const now = new Date();
+  const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+
+  // استعلام السجلات الأساسية من قاعدة البيانات
+  const baseWhere: any = {};
+  if (employeeId) baseWhere.employeeId = employeeId;
+  if (q) {
+    baseWhere.OR = [
+      { action: { contains: q, mode: 'insensitive' } },
+      { entityId: { contains: q, mode: 'insensitive' } },
+      { employee: { name: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [employees, rawLogs] = await Promise.all([
+    prisma.employee.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    prisma.auditLog.findMany({
+      where: baseWhere,
+      include: { employee: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    }),
+  ]);
+
+  // تصنيف وتجهيز السجلات بالكامل وتحديد الأقسام والدرجات
+  const resolvedLogs = rawLogs.map(log => {
+    let parsedChanges = null;
+    let parsedDetails = null;
+
+    if (log.changes) {
+      try {
+        parsedChanges = JSON.parse(log.changes);
+      } catch {
+        parsedChanges = log.changes;
+      }
+    }
+
+    if (log.details) {
+      try {
+        parsedDetails = JSON.parse(log.details);
+      } catch {
+        parsedDetails = log.details;
+      }
+    }
+
+    const resolvedCategory = log.category || inferCategory(log.action, log.entityType);
+    const resolvedSeverity = log.severity || inferSeverity(log.action, (log.outcome as any) || 'SUCCESS');
+    const resolvedOutcome = log.outcome || 'SUCCESS';
+    const resolvedActorType = log.actorType || (log.employeeId ? 'ADMIN' : 'SYSTEM');
+    const resolvedActorName = log.actorNameSnapshot || log.employee?.name || (resolvedActorType === 'ADMIN' ? 'مدير النظام' : 'النظام الآلي');
+
+    return {
+      id: log.id,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      employeeId: log.employeeId,
+      employeeName: log.employee?.name || null,
+      actorType: resolvedActorType,
+      actorId: log.actorId,
+      actorNameSnapshot: resolvedActorName,
+      category: resolvedCategory,
+      severity: resolvedSeverity,
+      outcome: resolvedOutcome,
+      eventKey: log.eventKey,
+      requestId: log.requestId,
+      correlationId: log.correlationId,
+      reason: log.reason,
+      changes: parsedChanges,
+      details: parsedDetails,
+      ipAddress: log.ipAddress,
+      createdAt: log.createdAt.toISOString(),
+      rawCreatedAt: log.createdAt,
+    };
+  });
+
+  // حساب مؤشرات اليوم بدقة
+  const todayLogs = resolvedLogs.filter(l => l.rawCreatedAt >= startOfToday);
+  const todayTotal = todayLogs.length;
+  const todayCritical = todayLogs.filter(l => l.severity === 'CRITICAL' || l.severity === 'HIGH').length;
+  const todayDenied = todayLogs.filter(l => l.outcome === 'DENIED').length;
+
+  // تطبيق الفلترة الصارمة على السجلات
+  const filteredLogs = resolvedLogs.filter(l => {
+    // 1. فلتر القسم التشغيلي
+    if (category && l.category !== category) return false;
+
+    // 2. فلتر درجة الأهمية
+    if (severity) {
+      if (severity === 'CRITICAL' && l.severity !== 'CRITICAL') return false;
+      if (severity === 'HIGH' && l.severity !== 'HIGH' && l.severity !== 'CRITICAL') return false;
+      if (severity === 'NORMAL' && l.severity !== 'NORMAL') return false;
+    }
+
+    // 3. فلتر نتيجة العملية
+    if (outcome && l.outcome !== outcome) return false;
+
+    // 4. فلتر البحث النصي الإضافي (يشمل المرجع والسبب واسم المنفذ)
+    if (q) {
+      const qLower = q.toLowerCase();
+      const match =
+        l.action.toLowerCase().includes(qLower) ||
+        l.entityId.toLowerCase().includes(qLower) ||
+        (l.correlationId && l.correlationId.toLowerCase().includes(qLower)) ||
+        (l.reason && l.reason.toLowerCase().includes(qLower)) ||
+        (l.actorNameSnapshot && l.actorNameSnapshot.toLowerCase().includes(qLower)) ||
+        (l.employeeName && l.employeeName.toLowerCase().includes(qLower));
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  const totalMatching = filteredLogs.length;
+  const totalPages = Math.ceil(totalMatching / limit) || 1;
+  const paginatedLogs: AuditLogItem[] = filteredLogs
+    .slice((page - 1) * limit, page * limit)
+    .map(({ rawCreatedAt, ...item }) => item);
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
+      <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
+
+      <main className="w-full flex-1 p-4 md:p-8 font-sans max-w-7xl mx-auto space-y-6">
+        <AuditLogsClient
+          logs={paginatedLogs}
+          employees={employees}
+          stats={{
+            todayTotal,
+            todayCritical,
+            todayDenied,
+            totalMatching,
+          }}
+          pagination={{
+            page,
+            totalPages,
+            limit,
+          }}
+        />
+      </main>
+    </div>
+  );
 }

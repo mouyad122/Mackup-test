@@ -9,7 +9,7 @@ import Link from 'next/link';
 export default async function AdminEmployeesPage({
   searchParams
 }: {
-  searchParams: Promise<{ action?: string; id?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; error?: string; message?: string }>;
 }) {
   const session = await requireAuth();
   const activePermissions = await getEmployeePermissions(session.employeeId);
@@ -18,6 +18,8 @@ export default async function AdminEmployeesPage({
   const resolvedParams = await searchParams;
   const action = resolvedParams.action;
   const editId = resolvedParams.id;
+  const errorMsg = resolvedParams.error;
+  const successMsg = resolvedParams.message;
 
   const allRoles = await prisma.role.findMany();
   const allowedRoles = ['أدمن رئيسي', 'أدمن تشغيلي'];
@@ -105,7 +107,7 @@ export default async function AdminEmployeesPage({
         adminId: session.employeeId
       });
       if (!res.success) {
-        throw new Error(res.error);
+        redirect(`/admin/employees?action=edit&id=${empId}&error=${encodeURIComponent(res.error || 'فشل تحديث بيانات الموظف')}`);
       }
     } else {
       // Create
@@ -119,38 +121,45 @@ export default async function AdminEmployeesPage({
         bootstrapAdminId: session.employeeId
       });
       if (!res.success) {
-        throw new Error(res.error);
+        redirect(`/admin/employees?action=new&error=${encodeURIComponent(res.error || 'فشل إنشاء الموظف')}`);
       }
     }
 
-    redirect('/admin/employees');
+    redirect('/admin/employees?message=' + encodeURIComponent('تم حفظ بيانات الموظف بنجاح'));
   }
 
   async function handleRevoke(formData: FormData) {
     'use server';
     const targetId = formData.get('targetId') as string;
-    await prisma.session.deleteMany({
-      where: { employeeId: targetId }
-    });
-    
-    await prisma.auditLog.create({
-      data: {
-        employeeId: session.employeeId,
-        action: 'SESSIONS_REVOKED',
-        entityType: 'Employee',
-        entityId: targetId,
-        details: JSON.stringify({ reason: 'Manual session revocation by Admin' })
-      }
-    });
+    try {
+      await prisma.session.deleteMany({
+        where: { employeeId: targetId }
+      });
+      
+      await prisma.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'SESSIONS_REVOKED',
+          entityType: 'Employee',
+          entityId: targetId,
+          details: JSON.stringify({ reason: 'Manual session revocation by Admin' })
+        }
+      });
 
-    redirect('/admin/employees');
+      redirect('/admin/employees?message=' + encodeURIComponent('تم إنهاء وإلغاء كافة جلسات الموظف بنجاح'));
+    } catch {
+      redirect('/admin/employees?error=' + encodeURIComponent('فشل إلغاء جلسات الموظف'));
+    }
   }
 
   async function handleToggleStatus(formData: FormData) {
     'use server';
     const targetId = formData.get('targetId') as string;
-    await toggleEmployeeStatus(targetId, session.employeeId);
-    redirect('/admin/employees');
+    const res = await toggleEmployeeStatus(targetId, session.employeeId);
+    if (!res.success) {
+      redirect(`/admin/employees?error=${encodeURIComponent(res.error || 'فشل تعديل حالة الموظف')}`);
+    }
+    redirect('/admin/employees?message=' + encodeURIComponent('تم تعديل حالة الموظف بنجاح'));
   }
 
   async function handleDelete(formData: FormData) {
@@ -158,9 +167,10 @@ export default async function AdminEmployeesPage({
     const targetId = formData.get('targetId') as string;
     const res = await deleteEmployee(targetId, session.employeeId);
     if (!res.success) {
-      throw new Error(res.error);
+      redirect(`/admin/employees?error=${encodeURIComponent(res.error || 'فشل حذف الموظف')}`);
     }
-    redirect('/admin/employees');
+    const msg = res.message || 'تم حذف الموظف بنجاح';
+    redirect(`/admin/employees?message=${encodeURIComponent(msg)}`);
   }
 
   return (
@@ -168,6 +178,30 @@ export default async function AdminEmployeesPage({
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
       <main className="flex-1 p-4 md:p-8 font-sans w-full max-w-4xl mx-auto">
+        {/* Feedback Alerts */}
+        {errorMsg && (
+          <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-sm font-semibold flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <span>{errorMsg}</span>
+            </div>
+            <Link href="/admin/employees" className="text-xs text-red-700 hover:text-red-900 underline font-bold">
+              إغلاق
+            </Link>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✅</span>
+              <span>{successMsg}</span>
+            </div>
+            <Link href="/admin/employees" className="text-xs text-emerald-700 hover:text-emerald-900 underline font-bold">
+              إغلاق
+            </Link>
+          </div>
+        )}
         {/* Header */}
         <div className="flex justify-between items-center mb-6 border-b border-[var(--color-ivory-200)] pb-4">
           <div>

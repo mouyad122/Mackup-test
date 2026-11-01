@@ -200,9 +200,30 @@ export default function CartPage({ params }: { params: Promise<{ locale: string 
                 </div>
               </div>
 
-              <Link href={`/${locale}/checkout`} className="btn-rawaq-primary w-full justify-center text-center">
-                {isAr ? 'إتمام الطلب بأمان' : 'Secure Checkout'}
-              </Link>
+              {subtotal < 5000 ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                    <p className="text-xs font-bold text-amber-900">
+                      {isAr ? 'الحد الأدنى للطلب هو 5 د.أ' : 'Minimum order is 5 JOD'}
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      {isAr 
+                        ? `أضيفي منتجات بقيمة ${filsToDisplay(5000 - subtotal, 'ar')} لتتمكني من إتمام الطلب`
+                        : `Add ${filsToDisplay(5000 - subtotal, 'en')} more to complete your order`}
+                    </p>
+                  </div>
+                  <Link 
+                    href={`/${locale}/shop`} 
+                    className="btn-rawaq-primary w-full justify-center text-center block"
+                  >
+                    {isAr ? 'متابعة التسوق' : 'Continue Shopping'}
+                  </Link>
+                </div>
+              ) : (
+                <Link href={`/${locale}/checkout`} className="btn-rawaq-primary w-full justify-center text-center block">
+                  {isAr ? 'إتمام الطلب بأمان' : 'Secure Checkout'}
+                </Link>
+              )}
             </div>
 
           </div>

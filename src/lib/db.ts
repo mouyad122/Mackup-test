@@ -8,7 +8,7 @@ declare global {
   var __prismaClientVersion: string | undefined;
 }
 
-const PRISMA_SCHEMA_VERSION = 'v2_taxonomy_2026';
+const PRISMA_SCHEMA_VERSION = 'v5_profits_payroll_2026';
 
 const connectionString = (process.env.NODE_ENV === 'test' && process.env.TEST_DATABASE_URL)
   ? process.env.TEST_DATABASE_URL
@@ -35,15 +35,20 @@ console.log('[DB Pool] poolConfig ssl:', poolConfig.ssl);
 let pool: Pool;
 let prismaClient: PrismaClient;
 
-if (process.env.NODE_ENV === 'production') {
-  pool = new Pool(poolConfig);
-  pool.on('error', (err) => {
-    console.error('[DB Pool] Unexpected error on idle client:', err.message);
-  });
-  const adapter = new PrismaPg(pool);
-  prismaClient = new PrismaClient({ adapter });
-} else {
-  // In development, strictly cache the client and pool
+function getClient(): PrismaClient {
+  if (process.env.NODE_ENV === 'production') {
+    if (!prismaClient) {
+      pool = new Pool(poolConfig);
+      pool.on('error', (err) => {
+        console.error('[DB Pool] Unexpected error on idle client:', err.message);
+      });
+      const adapter = new PrismaPg(pool);
+      prismaClient = new PrismaClient({ adapter });
+    }
+    return prismaClient;
+  }
+
+  // In development, ensure pool and fresh client
   if (!global.__prismaPool) {
     global.__prismaPool = new Pool(poolConfig);
     global.__prismaPool.on('error', (err) => {
@@ -52,17 +57,59 @@ if (process.env.NODE_ENV === 'production') {
   }
   pool = global.__prismaPool;
 
-  if (!global.__prismaClient || global.__prismaClientVersion !== PRISMA_SCHEMA_VERSION) {
-    const adapter = new PrismaPg(pool);
-    global.__prismaClient = new PrismaClient({
-      adapter,
-      log: ['error', 'warn'],
-    });
+  const currentClient = global.__prismaClient as any;
+  const isStale =
+    !currentClient ||
+    global.__prismaClientVersion !== PRISMA_SCHEMA_VERSION ||
+    !currentClient.partnerShareRule;
+
+  if (isStale) {
+    try {
+      if (typeof require !== 'undefined' && require.cache) {
+        Object.keys(require.cache).forEach((key) => {
+          if (key.includes('@prisma') || key.includes('.prisma')) {
+            delete require.cache[key];
+          }
+        });
+        const { PrismaClient: FreshPrismaClient } = require('@prisma/client');
+        const adapter = new PrismaPg(pool);
+        global.__prismaClient = new FreshPrismaClient({
+          adapter,
+          log: ['error', 'warn'],
+        });
+      } else {
+        const adapter = new PrismaPg(pool);
+        global.__prismaClient = new PrismaClient({
+          adapter,
+          log: ['error', 'warn'],
+        });
+      }
+    } catch {
+      const adapter = new PrismaPg(pool);
+      global.__prismaClient = new PrismaClient({
+        adapter,
+        log: ['error', 'warn'],
+      });
+    }
     global.__prismaClientVersion = PRISMA_SCHEMA_VERSION;
   }
-  prismaClient = global.__prismaClient;
+  if (!global.__prismaClient) {
+    const adapter = new PrismaPg(pool);
+    global.__prismaClient = new PrismaClient({ adapter, log: ['error', 'warn'] });
+  }
+  return global.__prismaClient;
 }
 
-export const prisma = prismaClient;
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getClient();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
+});
+
 export { pool };
 

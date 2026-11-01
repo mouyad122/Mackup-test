@@ -17,8 +17,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
   const [rewardRules, setRewardRules] = useState<{ name: string; minimumAmount: number; rewardType: string; rewardValue: number }[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
+  const [cooldown, setCooldown] = useState<number>(0);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>('');
+  const isSubmittingRef = React.useRef(false);
 
   useEffect(() => {
+    // Generate unique idempotency key on mount
+    setIdempotencyKey(`rq-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+
     const loadCart = () => {
       try {
         const saved = localStorage.getItem('makeup_cart');
@@ -60,13 +67,35 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
     };
   }, []);
 
+  // Cooldown countdown interval
   useEffect(() => {
-    if (state?.success && state.whatsappUrl) {
-      // Clear cart on success
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(c => Math.max(0, c - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (state && 'success' in state && state.success && state.whatsappUrl) {
+      // Clear cart on success immediately
       localStorage.removeItem('makeup_cart');
-      window.location.href = state.whatsappUrl;
-    } else if (state?.error) {
+      window.dispatchEvent(new CustomEvent('cart_updated'));
+      setIsOrderConfirmed(true);
+      // Brief feedback before navigating
+      const t = setTimeout(() => {
+        if ('whatsappUrl' in state && state.whatsappUrl) {
+          window.location.href = state.whatsappUrl;
+        }
+      }, 350);
+      return () => clearTimeout(t);
+    } else if (state && 'error' in state && state.error) {
       setIsSubmittingLocal(false);
+      isSubmittingRef.current = false;
+      // Impose a 10-second cooldown lock before customer can click confirm again
+      setCooldown(10);
+      // Re-generate fresh idempotency key for deliberate next attempt
+      setIdempotencyKey(`rq-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
     }
   }, [state]);
 
@@ -121,7 +150,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
     return Math.max(0, getSubtotal() - getRewardDiscount()) + getShippingFee();
   };
 
-  const hasUnverifiedItems = cartItems.some(item => item.stockStatus === 'UNVERIFIED');
+  const isBelowMinimum = getSubtotal() < 5000;
 
   if (!mounted) return null;
 
@@ -137,10 +166,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
           <form 
             action={formAction} 
             onSubmit={(e) => {
-              if (isSubmittingLocal || isPending) {
+              if (isSubmittingRef.current || isPending || isSubmittingLocal || isOrderConfirmed || cooldown > 0) {
                 e.preventDefault();
                 return;
               }
+              isSubmittingRef.current = true;
               setIsSubmittingLocal(true);
             }}
             className="bg-white p-8 rounded-2xl shadow-sm border border-[#E9DDCC]"
@@ -243,30 +273,55 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
 
               {/* Hidden payload inputs */}
               <input type="hidden" name="items" value={JSON.stringify(cartItems)} />
+              <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
             </div>
 
-            {state?.error && (
+            {state && 'error' in state && state.error && (
               <div className="mt-6 p-4 bg-red-50 text-red-600 rounded text-sm font-bold">
                 {state.error}
               </div>
             )}
 
-            {hasUnverifiedItems && (
-              <div className="mt-6 p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs leading-relaxed">
-                {isAr 
-                  ? 'تنبيه: سلتك تحتوي على مكياج تُصنع بالطلب أو بانتظار التحقق من المخزن. قد يتواصل معك فريق العمل لتأكيد الموعد النهائي للتوصيل.'
-                  : 'Notice: Your cart contains custom-blended or unverified stock items. Our team will verify availability when processing your request.'}
+            {isBelowMinimum && (
+              <div className="mt-6 p-4 bg-amber-50 text-amber-900 border border-amber-200 rounded-xl text-sm leading-relaxed text-center font-bold">
+                <p>
+                  {isAr 
+                    ? `الحد الأدنى للطلب هو 5 د.أ (مجموع طلبك الحالي: ${filsToDisplay(getSubtotal(), 'ar')})`
+                    : `Minimum order amount is 5 JOD (Your current total: ${filsToDisplay(getSubtotal(), 'en')})`}
+                </p>
+                <Link href={`/${locale}/shop`} className="text-amber-700 underline text-xs block mt-1">
+                  {isAr ? 'اضغطي هنا لإضافة منتجات إلى سلتك ←' : 'Click here to add more items to your cart ←'}
+                </Link>
               </div>
             )}
 
-            <div className="mt-8">
+            <div className="mt-8 space-y-3">
               <button
                 type="submit"
-                disabled={isPending || isSubmittingLocal || cartItems.length === 0}
-                className="w-full btn-rawaq-primary py-4 rounded-full text-base font-bold shadow-md hover:shadow-lg disabled:opacity-50"
+                disabled={isPending || isSubmittingLocal || isOrderConfirmed || cooldown > 0 || cartItems.length === 0 || isBelowMinimum}
+                className="w-full btn-rawaq-primary py-4 rounded-full text-base font-bold shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
-                {(isPending || isSubmittingLocal) ? (isAr ? 'جاري المعالجة...' : 'Processing...') : (isAr ? 'تأكيد الطلب عبر واتساب' : 'Confirm Order via WhatsApp')}
+                {isOrderConfirmed ? (
+                  <>
+                    <span className="inline-block animate-pulse">✓</span>
+                    <span>{isAr ? 'تم تأكيد طلبك بنجاح! جاري التحويل لواتساب...' : 'Order Confirmed! Redirecting to WhatsApp...'}</span>
+                  </>
+                ) : (isPending || isSubmittingLocal) ? (
+                  <>
+                    <span className="inline-block animate-spin">⏳</span>
+                    <span>{isAr ? 'جاري تأكيد وتجهيز الطلب... يرجى الانتظار' : 'Processing your order... Please wait'}</span>
+                  </>
+                ) : cooldown > 0 ? (
+                  <span>{isAr ? `يرجى الانتظار (${cooldown} ثوانٍ) قبل إعادة المحاولة` : `Please wait (${cooldown}s) before retrying`}</span>
+                ) : (
+                  <span>{isAr ? 'تأكيد الطلب عبر واتساب' : 'Confirm Order via WhatsApp'}</span>
+                )}
               </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-xs text-zinc-500 font-medium text-center">
+                <span>🛡️</span>
+                <span>{isAr ? 'نظام حماية الطلب المزدوج مفعّل: لن يتم تسجيل أو تكرار طلبك أكثر من مرة.' : 'Double-order protection active: Your order will never be duplicated.'}</span>
+              </div>
             </div>
           </form>
         </div>
@@ -303,9 +358,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                       <h4 className="font-bold text-zinc-900">{item.name}</h4>
                       <p className="text-xs text-zinc-500">
                         {item.size} × {item.quantity}
-                        {item.stockStatus === 'UNVERIFIED' && (
-                          <span className="text-amber-600 font-bold ml-2">({isAr ? 'بانتظار تأكيد المخزن' : 'Pending verification'})</span>
-                        )}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">

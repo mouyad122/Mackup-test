@@ -74,8 +74,8 @@ export function calculateDeliveryProfit(revenue: number, carrierCost: number, ca
   return Money.fromFils(revenue).subtract(Money.fromFils(carrierCost)).subtract(Money.fromFils(captainEarning)).getAmount();
 }
 
-export function selectSupplierOffer<T extends { isActive: boolean; supplier: { isActive: boolean }; stock: number }>(offers: T[], quantity: number) {
-  return offers.find(offer => offer.isActive && offer.supplier.isActive && offer.stock >= quantity) ?? null;
+export function selectSupplierOffer<T extends { isActive: boolean; supplier: { isActive: boolean } }>(offers: T[], quantity?: number) {
+  return offers.find(offer => offer.isActive && offer.supplier.isActive && (quantity === undefined || (offer as any).stock === undefined || (offer as any).stock >= quantity)) ?? null;
 }
 
 export function isTerminalDeliveryOrderStatus(status: string) {

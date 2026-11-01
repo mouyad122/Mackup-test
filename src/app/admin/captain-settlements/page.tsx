@@ -20,7 +20,7 @@ export default async function CaptainSettlementsPage() {
       include: { captain: { select: { name: true } } }
     }),
     prisma.financialTransaction.findMany({
-      where: { type: { in: ['CAPTAIN_EARNING', 'CAPTAIN_PAYMENT'] } },
+      where: { type: { in: ['CAPTAIN_EARNING', 'CAPTAIN_EARNING_REVERSAL', 'CAPTAIN_PAYMENT', 'CAPTAIN_PAYMENT_REVERSAL'] } },
       select: { captainId: true, type: true, amount: true }
     })
   ]);
@@ -31,7 +31,9 @@ export default async function CaptainSettlementsPage() {
     const txs = allTransactions.filter(tx => tx.captainId === c.id);
     for (const tx of txs) {
       if (tx.type === 'CAPTAIN_EARNING') earned += tx.amount;
+      if (tx.type === 'CAPTAIN_EARNING_REVERSAL') earned -= tx.amount;
       if (tx.type === 'CAPTAIN_PAYMENT') paid += tx.amount;
+      if (tx.type === 'CAPTAIN_PAYMENT_REVERSAL') paid -= tx.amount;
     }
     return { ...c, balance: earned - paid };
   });

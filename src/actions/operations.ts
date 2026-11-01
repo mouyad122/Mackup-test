@@ -5,6 +5,7 @@ import { requirePermission } from '@/lib/dal';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { isTerminalDeliveryOrderStatus } from '@/lib/business-finance';
+import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
 
 const paymentSchema = z.object({
   amount: z.coerce.number().finite().positive().max(100000),
@@ -57,6 +58,7 @@ export async function assignCaptain(formData: FormData) {
     } });
     await tx.captain.update({ where: { id: captainId }, data: { status: 'BUSY' } });
     await tx.order.update({ where: { id: orderId }, data: { status: 'ASSIGNED' } });
+    await tx.deliveryJob.updateMany({ where: { orderId }, data: { status: 'ASSIGNED' } });
     await tx.orderStatusHistory.create({ data: { orderId, status: 'ASSIGNED', notes: `Delivery assigned to ${captain.name}` } });
     await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'DELIVERY_ASSIGNED', entityType: 'DeliveryAssignment', entityId: assignment.id, details: JSON.stringify({ orderId, captainId }) } });
   });
@@ -85,120 +87,308 @@ export async function updateDeliveryStatus(assignmentId: string, status: string,
   const session = await requirePermission('manage:settings');
   const allowed = ['PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED'];
   if (!allowed.includes(status)) throw new Error('حالة التوصيل غير صالحة');
+
+  const assignment = await prisma.deliveryAssignment.findUnique({
+    where: { id: assignmentId },
+    include: { order: true, captain: true }
+  });
+  if (!assignment) throw new Error('التعيين غير موجود');
+  if (isTerminalDeliveryOrderStatus(assignment.order.status)) {
+    throw new Error('الطلب ملغى أو مسترد أو مكتمل؛ لا يمكن متابعة التوصيل.');
+  }
+  if (assignment.status === 'DELIVERED' || assignment.status === 'CANCELLED') {
+    throw new Error('لا يمكن تغيير حالة توصيل منتهية');
+  }
+
+  const transitions: Record<string, string[]> = {
+    ASSIGNED: ['PICKED_UP', 'FAILED'],
+    PICKED_UP: ['OUT_FOR_DELIVERY', 'FAILED'],
+    OUT_FOR_DELIVERY: ['DELIVERED', 'FAILED'],
+    FAILED: ['PICKED_UP'],
+  };
+  if (!transitions[assignment.status]?.includes(status)) {
+    throw new Error('انتقال حالة التوصيل غير صالح');
+  }
+
+  if (status === 'DELIVERED') {
+    await OrderLifecycleService.completeOrderDelivery({
+      orderId: assignment.orderId,
+      source: 'CAPTAIN',
+      actorId: session.employeeId,
+      actorName: assignment.captain.name,
+      notes,
+    });
+    revalidatePath('/admin/orders');
+    revalidatePath('/admin/deliveries');
+    return { success: true };
+  }
+
+  if (status === 'FAILED') {
+    await OrderLifecycleService.failOrderDelivery({
+      orderId: assignment.orderId,
+      reason: notes || 'تعذر تسليم الطلب من قِبل المندوب',
+      actorId: session.employeeId,
+    });
+    revalidatePath('/admin/orders');
+    revalidatePath('/admin/deliveries');
+    return { success: true };
+  }
+
+  if (status === 'OUT_FOR_DELIVERY') {
+    await OrderLifecycleService.dispatchOrderFinalDelivery({
+      orderId: assignment.orderId,
+      courierName: assignment.captain.name,
+      actorEmployeeId: session.employeeId,
+    });
+    revalidatePath('/admin/orders');
+    revalidatePath('/admin/deliveries');
+    return { success: true };
+  }
+
+  // حالة PICKED_UP
   await prisma.$transaction(async tx => {
-    const assignment = await tx.deliveryAssignment.findUnique({ where: { id: assignmentId }, include: { order: true, captain: true } });
-    if (!assignment) throw new Error('التعيين غير موجود');
-    if (isTerminalDeliveryOrderStatus(assignment.order.status)) throw new Error('الطلب ملغى أو مسترد أو مكتمل؛ لا يمكن متابعة التوصيل.');
-    if (assignment.status === 'DELIVERED' || assignment.status === 'CANCELLED') throw new Error('لا يمكن تغيير حالة توصيل منتهية');
-    const transitions: Record<string, string[]> = {
-      ASSIGNED: ['PICKED_UP', 'FAILED'],
-      PICKED_UP: ['OUT_FOR_DELIVERY', 'FAILED'],
-      OUT_FOR_DELIVERY: ['DELIVERED', 'FAILED'],
-      FAILED: ['PICKED_UP'],
-    };
-    if (!transitions[assignment.status]?.includes(status)) throw new Error('انتقال حالة التوصيل غير صالح');
-    const assignmentClaim = await tx.deliveryAssignment.updateMany({ where: { id: assignmentId, status: assignment.status }, data: { status, notes, deliveredAt: status === 'DELIVERED' ? new Date() : undefined } });
-    if (assignmentClaim.count !== 1) throw new Error('تم تحديث حالة التوصيل بالتزامن؛ أعد المحاولة.');
-    if (status === 'DELIVERED' || status === 'FAILED') {
-      await tx.captain.update({ where: { id: assignment.captainId }, data: { status: 'AVAILABLE' } });
-    }
-    const nextOrderStatus = status === 'DELIVERED' ? 'DELIVERED' : status === 'FAILED' ? 'FAILED_DELIVERY' : status === 'OUT_FOR_DELIVERY' ? 'OUT_FOR_DELIVERY' : 'ASSIGNED';
-    const orderClaim = await tx.order.updateMany({ where: { id: assignment.orderId, status: { notIn: ['CANCELLED', 'REFUNDED', 'DELIVERED'] } }, data: { status: nextOrderStatus } });
-    if (orderClaim.count !== 1) throw new Error('الطلب ملغى أو مسترد أو مكتمل؛ لا يمكن تحديث التوصيل.');
-    await tx.orderStatusHistory.create({ data: { orderId: assignment.orderId, status: status === 'DELIVERED' ? 'DELIVERED' : status, notes: notes || `Delivery status: ${status}` } });
-    if (status === 'DELIVERED' && assignment.captainEarning > 0) {
-      await tx.financialTransaction.create({ data: {
-        businessEventKey: `captain-earning:${assignment.id}`,
-        type: 'CAPTAIN_EARNING', direction: 'OUT', amount: assignment.captainEarning,
-        orderId: assignment.orderId, captainId: assignment.captainId, deliveryAssignmentId: assignment.id,
-        description: `Captain earning for ${assignment.order.reference}`, createdByEmployeeId: session.employeeId,
-      } });
-    }
-    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'DELIVERY_STATUS_UPDATED', entityType: 'DeliveryAssignment', entityId: assignment.id, details: JSON.stringify({ status, notes }) } });
-  }, { isolationLevel: 'Serializable' });
+    const claim = await tx.deliveryAssignment.updateMany({
+      where: { id: assignmentId, status: assignment.status },
+      data: { status: 'PICKED_UP', notes }
+    });
+    if (claim.count !== 1) throw new Error('تم تحديث حالة التوصيل بالتزامن؛ أعد المحاولة.');
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: assignment.orderId,
+        status: 'SHIPPED',
+        notes: notes || `استلم المندوب (${assignment.captain.name}) الشحنة وبدأ المسار.`
+      }
+    });
+  });
+
   revalidatePath('/admin/orders');
+  revalidatePath('/admin/deliveries');
+  return { success: true };
 }
 
 export async function settleSupplier(supplierId: string, formData: FormData) {
   const session = await requirePermission('manage:settings');
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) return { success: false, error: 'بيانات التسوية غير صالحة' };
   const data = parsed.data;
   const amount = Math.round(data.amount * 1000);
-  await prisma.$transaction(async tx => {
-    const [obligations, reversals, payments] = await Promise.all([
-      tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_OBLIGATION' }, _sum: { amount: true } }),
-      tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_OBLIGATION_REVERSAL' }, _sum: { amount: true } }),
-      tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_PAYMENT' }, _sum: { amount: true } }),
-    ]);
-    const outstanding = (obligations._sum.amount ?? 0) - (reversals._sum.amount ?? 0) - (payments._sum.amount ?? 0);
-    if (amount > outstanding) throw new Error('قيمة التسوية تتجاوز رصيد المورد المستحق');
-    const settlement = await tx.supplierSettlement.create({ data: { supplierId, amount, paymentMethod: data.paymentMethod, reference: data.reference || null, notes: data.notes || null, createdByEmployeeId: session.employeeId } });
-    await tx.financialTransaction.create({ data: { businessEventKey: `supplier-settlement:${data.idempotencyKey}`, type: 'SUPPLIER_PAYMENT', direction: 'OUT', amount, supplierId, description: data.notes || 'Supplier settlement', createdByEmployeeId: session.employeeId } });
-    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'SUPPLIER_SETTLEMENT_CREATED', entityType: 'SupplierSettlement', entityId: settlement.id, details: JSON.stringify({ amount, paymentMethod: data.paymentMethod }) } });
-  }, { isolationLevel: 'Serializable' });
-  revalidatePath('/admin/supplier-settlements');
-  revalidatePath('/admin/suppliers');
-  revalidatePath('/admin/reconciliation');
+  try {
+    await prisma.$transaction(async tx => {
+      const [obligations, reversals, payments, paymentReversals] = await Promise.all([
+        tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_OBLIGATION' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_OBLIGATION_REVERSAL' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_PAYMENT' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { supplierId, type: 'SUPPLIER_PAYMENT_REVERSAL' }, _sum: { amount: true } }),
+      ]);
+      const netObligations = (obligations._sum.amount ?? 0) - (reversals._sum.amount ?? 0);
+      const netPayments = (payments._sum.amount ?? 0) - (paymentReversals._sum.amount ?? 0);
+      const outstanding = netObligations - netPayments;
+      if (amount > outstanding) throw new Error('قيمة التسوية تتجاوز رصيد المورد المستحق');
+
+      const settlement = await tx.supplierSettlement.create({
+        data: {
+          supplierId,
+          amount,
+          paymentMethod: data.paymentMethod,
+          reference: data.reference || null,
+          notes: data.notes || null,
+          createdByEmployeeId: session.employeeId,
+        }
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          businessEventKey: `supplier-settlement:${data.idempotencyKey}`,
+          type: 'SUPPLIER_PAYMENT',
+          direction: 'OUT',
+          amount,
+          supplierId,
+          description: data.notes ? `دفعة مورد: ${data.notes}` : `تسوية دفعة مورد (${data.paymentMethod})`,
+          createdByEmployeeId: session.employeeId,
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'SUPPLIER_SETTLEMENT_CREATED',
+          entityType: 'SupplierSettlement',
+          entityId: settlement.id,
+          details: JSON.stringify({ amount, paymentMethod: data.paymentMethod, outstandingBefore: outstanding }),
+        }
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    revalidatePath('/admin/suppliers');
+    revalidatePath('/admin/reconciliation');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'تعذر تسجيل تسوية المورد.' };
+  }
+}
+
+export async function reverseSupplierSettlement(settlementId: string, reason: string): Promise<{ success: boolean; error?: string }> {
+  const session = await requirePermission('manage:settings');
+  if (!reason || reason.trim().length < 3) {
+    return { success: false, error: 'يجب تحديد سبب واضح وموثق لعكس التسوية.' };
+  }
+
+  try {
+    await prisma.$transaction(async tx => {
+      const settlement = await tx.supplierSettlement.findUnique({ where: { id: settlementId } });
+      if (!settlement) throw new Error('سجل التسوية غير موجود.');
+
+      const reversalEventKey = `reverse-supplier-settlement:${settlement.id}`;
+      const alreadyReversed = await tx.financialTransaction.findUnique({
+        where: { businessEventKey: reversalEventKey }
+      });
+      if (alreadyReversed) throw new Error('تم إجراء تسوية عكسية لهذه الدفعة مسبقاً.');
+
+      await tx.financialTransaction.create({
+        data: {
+          businessEventKey: reversalEventKey,
+          type: 'SUPPLIER_PAYMENT_REVERSAL',
+          direction: 'IN',
+          amount: settlement.amount,
+          supplierId: settlement.supplierId,
+          description: `تسوية عكسية معتمدة للدفعة #${settlement.id} — السبب: ${reason.trim()}`,
+          createdByEmployeeId: session.employeeId,
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'SUPPLIER_SETTLEMENT_REVERSED',
+          entityType: 'SupplierSettlement',
+          entityId: settlementId,
+          details: JSON.stringify({ amount: settlement.amount, reason: reason.trim() }),
+        }
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    revalidatePath('/admin/suppliers');
+    revalidatePath('/admin/reconciliation');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'تعذر إجراء التسوية العكسية للمورد.' };
+  }
 }
 
 export async function settleCaptain(captainId: string, formData: FormData) {
   const session = await requirePermission('manage:settings');
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) return { success: false, error: 'بيانات التسوية غير صالحة' };
   const data = parsed.data;
   const amount = Math.round(data.amount * 1000);
-  await prisma.$transaction(async tx => {
-    const [earnings, payments] = await Promise.all([
-      tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_EARNING' }, _sum: { amount: true } }),
-      tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_PAYMENT' }, _sum: { amount: true } }),
-    ]);
-    const outstanding = (earnings._sum.amount ?? 0) - (payments._sum.amount ?? 0);
-    if (amount > outstanding) throw new Error('قيمة التسوية تتجاوز رصيد المندوب المستحق');
-    const settlement = await tx.captainSettlement.create({ data: { captainId, amount, paymentMethod: data.paymentMethod, reference: data.reference || null, notes: data.notes || null, createdByEmployeeId: session.employeeId } });
-    const captain = await tx.captain.findUnique({ where: { id: captainId } });
-    await tx.financialTransaction.create({ data: { businessEventKey: `captain-settlement:${data.idempotencyKey}`, type: 'CAPTAIN_PAYMENT', direction: 'OUT', amount, captainId, description: data.notes || 'Captain settlement', createdByEmployeeId: session.employeeId } });
-    
-    // Auto-create an expense for this payment to the delivery company
-    const expenseDesc = `أجور توصيل (دفعة لـ ${captain?.name || 'شركة التوصيل'})`;
-    const expenseTx = await tx.financialTransaction.create({ data: { businessEventKey: `captain-settlement-expense:${data.idempotencyKey}`, type: 'EXPENSE', direction: 'OUT', amount, description: expenseDesc, createdByEmployeeId: session.employeeId } });
-    await tx.expense.create({ data: { category: 'OPERATIONS', amount, description: expenseDesc, reference: data.reference || null, expenseDate: new Date(), createdByEmployeeId: session.employeeId, financialTransactionId: expenseTx.id } });
+  try {
+    await prisma.$transaction(async tx => {
+      const [earnings, earningReversals, payments, paymentReversals] = await Promise.all([
+        tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_EARNING' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_EARNING_REVERSAL' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_PAYMENT' }, _sum: { amount: true } }),
+        tx.financialTransaction.aggregate({ where: { captainId, type: 'CAPTAIN_PAYMENT_REVERSAL' }, _sum: { amount: true } }),
+      ]);
+      const netEarnings = (earnings._sum.amount ?? 0) - (earningReversals._sum.amount ?? 0);
+      const netPayments = (payments._sum.amount ?? 0) - (paymentReversals._sum.amount ?? 0);
+      const outstanding = netEarnings - netPayments;
+      if (amount > outstanding) throw new Error('قيمة التسوية تتجاوز رصيد المندوب المستحق');
 
-    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_CREATED', entityType: 'CaptainSettlement', entityId: settlement.id, details: JSON.stringify({ amount, paymentMethod: data.paymentMethod }) } });
-  }, { isolationLevel: 'Serializable' });
-  revalidatePath('/admin/captain-settlements');
-  revalidatePath('/admin/reconciliation');
+      const settlement = await tx.captainSettlement.create({
+        data: {
+          captainId,
+          amount,
+          paymentMethod: data.paymentMethod,
+          reference: data.reference || null,
+          notes: data.notes || null,
+          createdByEmployeeId: session.employeeId,
+        }
+      });
+
+      // إصدار قيد سداد التزام المندوب فقط. لا ننشئ قيد EXPENSE حتى لا تتضاعف تكلفة التوصيل في الأرباح.
+      await tx.financialTransaction.create({
+        data: {
+          businessEventKey: `captain-settlement:${data.idempotencyKey}`,
+          type: 'CAPTAIN_PAYMENT',
+          direction: 'OUT',
+          amount,
+          captainId,
+          description: data.notes ? `سداد أجر مندوب: ${data.notes}` : `تسوية أجر مندوب / شركة توصيل (${data.paymentMethod})`,
+          createdByEmployeeId: session.employeeId,
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'CAPTAIN_SETTLEMENT_CREATED',
+          entityType: 'CaptainSettlement',
+          entityId: settlement.id,
+          details: JSON.stringify({ amount, paymentMethod: data.paymentMethod, outstandingBefore: outstanding }),
+        }
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    revalidatePath('/admin/captain-settlements');
+    revalidatePath('/admin/reconciliation');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'تعذر تسجيل تسوية المندوب.' };
+  }
 }
 
-export async function deleteCaptainSettlement(settlementId: string) {
+export async function reverseCaptainSettlement(settlementId: string, reason: string): Promise<{ success: boolean; error?: string }> {
   const session = await requirePermission('manage:settings');
-  await prisma.$transaction(async tx => {
-    const settlement = await tx.captainSettlement.findUnique({ where: { id: settlementId } });
-    if (!settlement) return;
+  if (!reason || reason.trim().length < 3) {
+    return { success: false, error: 'يجب تحديد سبب موثق لعكس التسوية.' };
+  }
 
-    // Find the associated CAPTAIN_PAYMENT financial transaction using businessEventKey
-    const txMatch = await tx.financialTransaction.findFirst({
-      where: { captainId: settlement.captainId, type: 'CAPTAIN_PAYMENT', amount: settlement.amount, createdAt: { gte: settlement.createdAt, lte: new Date(settlement.createdAt.getTime() + 5000) } }
-    });
+  try {
+    await prisma.$transaction(async tx => {
+      const settlement = await tx.captainSettlement.findUnique({ where: { id: settlementId } });
+      if (!settlement) throw new Error('سجل التسوية غير موجود.');
 
-    if (txMatch) {
-      await tx.financialTransaction.delete({ where: { id: txMatch.id } });
-      
-      // Attempt to find and delete the associated expense
-      const expenseKey = txMatch.businessEventKey?.replace('captain-settlement:', 'captain-settlement-expense:');
-      if (expenseKey) {
-        const expenseTx = await tx.financialTransaction.findUnique({ where: { businessEventKey: expenseKey }, include: { expense: true } });
-        if (expenseTx) {
-          if (expenseTx.expense) await tx.expense.delete({ where: { id: expenseTx.expense.id } });
-          await tx.financialTransaction.delete({ where: { id: expenseTx.id } });
+      const reversalEventKey = `reverse-captain-settlement:${settlement.id}`;
+      const alreadyReversed = await tx.financialTransaction.findUnique({
+        where: { businessEventKey: reversalEventKey }
+      });
+      if (alreadyReversed) throw new Error('تم إجراء تسوية عكسية لهذه الدفعة مسبقاً.');
+
+      // قيد عكسي موثق بدلاً من الحذف
+      await tx.financialTransaction.create({
+        data: {
+          businessEventKey: reversalEventKey,
+          type: 'CAPTAIN_PAYMENT_REVERSAL',
+          direction: 'IN',
+          amount: settlement.amount,
+          captainId: settlement.captainId,
+          description: `تسوية عكسية معتمدة لدفعة المندوب #${settlement.id} — السبب: ${reason.trim()}`,
+          createdByEmployeeId: session.employeeId,
         }
-      }
-    }
+      });
 
-    await tx.captainSettlement.delete({ where: { id: settlementId } });
-    await tx.auditLog.create({ data: { employeeId: session.employeeId, action: 'CAPTAIN_SETTLEMENT_DELETED', entityType: 'CaptainSettlement', entityId: settlementId, details: JSON.stringify({ amount: settlement.amount }) } });
-  });
-  revalidatePath('/admin/captain-settlements');
+      await tx.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'CAPTAIN_SETTLEMENT_REVERSED',
+          entityType: 'CaptainSettlement',
+          entityId: settlementId,
+          details: JSON.stringify({ amount: settlement.amount, reason: reason.trim() }),
+        }
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    revalidatePath('/admin/captain-settlements');
+    revalidatePath('/admin/reconciliation');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'تعذر إجراء التسوية العكسية للكابتن.' };
+  }
+}
+
+// دالة توافقية توجه أي طلبات قديمة إلى العكس المالي الموثق
+export async function deleteCaptainSettlement(settlementId: string) {
+  return reverseCaptainSettlement(settlementId, 'إلغاء وعكس تسوية بطلب من الإدارة');
 }
 
 export async function createExpense(formData: FormData) {
@@ -215,3 +405,67 @@ export async function createExpense(formData: FormData) {
   revalidatePath('/admin/financials');
   revalidatePath('/admin/reconciliation');
 }
+
+export async function confirmCourierCodCollectionAction(
+  orderId: string,
+  courierName: string,
+  amountFils: number,
+  notes?: string
+) {
+  await requirePermission('manage:orders');
+  try {
+    const result = await OrderLifecycleService.confirmCourierCodCollection({
+      orderId,
+      courierName,
+      amountFils,
+      notes,
+    });
+    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath('/admin/fulfillment');
+    return { success: true, codStatus: result.codStatus };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'تعذر تأكيد استلام النقد.' };
+  }
+}
+
+export async function settleCourierCodToRawaqAction(
+  orderId: string,
+  amountFils: number,
+  paymentMethod: 'CASH' | 'CARD',
+  idempotencyKey: string,
+  reference?: string
+) {
+  const session = await requirePermission('manage:orders');
+  try {
+    const result = await OrderLifecycleService.settleCourierCodToRawaq({
+      orderId,
+      employeeId: session.employeeId,
+      amountFils,
+      paymentMethod,
+      idempotencyKey,
+      reference,
+    });
+    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath('/admin/fulfillment');
+    revalidatePath('/admin/reconciliation');
+    return { success: true, codStatus: result.codStatus };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'تعذر تسوية المبلغ وتوريده إلى خزينة رَواق.' };
+  }
+}
+
+export async function checkinCrossDockPackageAtHubAction(packageCode: string) {
+  const session = await requirePermission('manage:orders');
+  try {
+    const result = await OrderLifecycleService.checkinCrossDockPackageAtHub({
+      packageCode,
+      actorEmployeeId: session.employeeId,
+      employeeName: session.employee?.name,
+    });
+    revalidatePath('/admin/fulfillment');
+    return { success: true, allPackagesAtHub: result.allPackagesAtHub };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'تعذر تسجيل وصول الطرد في المركز.' };
+  }
+}
+

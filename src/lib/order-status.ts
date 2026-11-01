@@ -28,7 +28,7 @@ export const ORDER_STATUS_MAP: Record<string, OrderStatusInfo> = {
   },
   CONFIRMED: {
     label: 'تم تأكيد الطلب',
-    explanation: 'تم تأكيد طلبك بنجاح وحجز المنتجات وإصدار الفاتورة الرسمية.',
+    explanation: 'تم تأكيد طلبك بنجاح وبدء التنسيق مع الموردين للتجهيز وإصدار الفاتورة الرسمية.',
     badgeBg: 'bg-emerald-100',
     badgeText: 'text-emerald-900',
     borderClass: 'border-emerald-500'
@@ -84,7 +84,7 @@ export const ORDER_STATUS_MAP: Record<string, OrderStatusInfo> = {
   },
   CANCELLED: {
     label: 'ملغي',
-    explanation: 'تم إلغاء هذا الطلب وإعادة الأصناف إلى المخزن وفق الإجراءات المعتمدة.',
+    explanation: 'تم إلغاء هذا الطلب وإخطار الموردين بالتوقف عن التجهيز.',
     badgeBg: 'bg-red-100',
     badgeText: 'text-red-900',
     borderClass: 'border-red-500'
@@ -127,7 +127,7 @@ export function getArabicStatusHistoryNote(
     case 'PENDING':
       return 'تم إنشاء الطلب ووضعه قيد الانتظار والمراجعة.';
     case 'CONFIRMED':
-      return `تم تأكيد الطلب وحجز المخزون وإصدار الفاتورة الرسمية بنجاح${actor}.`;
+      return `تم تأكيد الطلب وإرسال تفاصيل التجهيز للموردين وإصدار الفاتورة الرسمية بنجاح${actor}.`;
     case 'PREPARING':
       return `تم البدء في تجهيز وتغليف محتويات الطلب بعناية${actor}.`;
     case 'PREPARED':
@@ -145,7 +145,7 @@ export function getArabicStatusHistoryNote(
     case 'FAILED_DELIVERY':
       return options?.extraNote || 'تعذر تسليم الطلب في هذه المحاولة وسيتم إعادة الجدولة.';
     case 'CANCELLED':
-      return options?.extraNote || `تم إلغاء الطلب ومعالجة المخزون المرتبط به${actor}.`;
+      return options?.extraNote || `تم إلغاء الطلب وإخطار الموردين بإلغاء التجهيز${actor}.`;
     case 'REFUNDED':
       return options?.extraNote || `تم استرداد قيمة الطلب وإقفال السجل المالي${actor}.`;
     default:

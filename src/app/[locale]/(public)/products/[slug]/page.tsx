@@ -173,7 +173,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       '@type': 'Offer',
       price: (v.price / 1000).toFixed(3),
       priceCurrency: 'JOD',
-      availability: v.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      availability: 'https://schema.org/InStock',
       name: v.name,
       seller: {
         '@type': 'Organization',

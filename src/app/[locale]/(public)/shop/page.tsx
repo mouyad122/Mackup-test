@@ -49,7 +49,6 @@ export default async function ShopPage({
   const selectedBrands = getParamArray(sp.brand);
   const selectedSizes = getParamArray(sp.size);
   const selectedColors = getParamArray(sp.color);
-  const inStock = sp.inStock === 'true';
   const minPrice = sp.minPrice ? Number(sp.minPrice) : null;
   const maxPrice = sp.maxPrice ? Number(sp.maxPrice) : null;
 
@@ -193,10 +192,6 @@ export default async function ShopPage({
   }
   if (selectedColors.length > 0) {
     variantConditions.colorName = { in: selectedColors };
-    hasVariantFilter = true;
-  }
-  if (inStock) {
-    variantConditions.stock = { gt: 0 };
     hasVariantFilter = true;
   }
   if (minPrice !== null || maxPrice !== null) {

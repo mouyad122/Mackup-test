@@ -13,6 +13,51 @@ import { checkoutSchema, cartItemsSchema } from '@/lib/schemas';
 // the admin area without a deployment.
 const FALLBACK_WHATSAPP_NUMBER = STORE_WHATSAPP_NUMBER;
 
+async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[]) {
+  const setting = await prisma.siteSettings.findUnique({ where: { key: 'whatsapp_number' } });
+  let number = '';
+  if (setting) {
+    try {
+      const config = JSON.parse(setting.value);
+      number = config.number || '';
+    } catch (e) {}
+  }
+  if (!number) number = FALLBACK_WHATSAPP_NUMBER;
+
+  let msg = `مرحباً رَواق،\nأود تأكيد طلبي الجديد رقم: ${order.reference}\n\n`;
+  msg += `الاسم: ${order.customerName}\n`;
+  msg += `رقم الهاتف: ${order.customerPhone}\n`;
+  if (order.shippingZoneNameSnapshot) {
+    msg += `منطقة التوصيل: ${order.shippingZoneNameSnapshot}\n`;
+  }
+  if (order.notes && order.notes.includes('العنوان:')) {
+    const addressLines = order.notes.split('\n').filter((l: string) => l.startsWith('العنوان:'));
+    if (addressLines.length > 0) {
+      msg += `${addressLines[0]}\n`;
+    }
+  }
+  msg += `\nتفاصيل الطلب:\n`;
+
+  const items = itemsOverride || order.items || [];
+  for (const it of items) {
+    msg += `- ${it.name} (${it.size}) x${it.quantity} = ${(it.total / 1000).toFixed(3)} د.أ\n`;
+  }
+
+  if (order.discountAmount > 0) {
+    msg += `\nالخصم: ${(order.discountAmount / 1000).toFixed(3)} د.أ${order.couponCodeSnapshot ? ` (${order.couponCodeSnapshot})` : ''}\n`;
+  }
+  msg += `\nرسوم التوصيل: ${(order.shippingCost / 1000).toFixed(3)} د.أ\n`;
+  msg += `الإجمالي: ${(order.totalAmount / 1000).toFixed(3)} د.أ\n\n`;
+  msg += `شكراً لكم.`;
+
+  const encodedMsg = encodeURIComponent(msg);
+  return {
+    success: true,
+    reference: order.reference,
+    whatsappUrl: `https://wa.me/${number}?text=${encodedMsg}`
+  };
+}
+
 export async function processCheckout(prevState: any, formData: FormData) {
   const parsed = checkoutSchema.safeParse(Object.fromEntries(formData));
   
@@ -39,51 +84,33 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'السلة فارغة أو غير صالحة' };
   }
 
-  // Idempotency check: Look for matching order by unique key
+  // 1. فحص مفتاح منع التكرار الفريد (Client Idempotency Key)
   if (idempotencyKey) {
     const existing = await prisma.order.findUnique({
       where: { idempotencyKey },
-      include: { items: true }
+      include: { items: true },
     });
     if (existing) {
-      const setting = await prisma.siteSettings.findUnique({ where: { key: 'whatsapp_number' } });
-      let number = '';
-      if (setting) {
-        try {
-          const config = JSON.parse(setting.value);
-          number = config.number || '';
-        } catch (e) {}
-      }
-      if (!number) number = FALLBACK_WHATSAPP_NUMBER;
-      
-      // Rebuild the exact original message from the persisted snapshots
-      let msg = `مرحباً رَواق،\nأود تأكيد طلبي الجديد رقم: ${existing.reference}\n\n`;
-      msg += `الاسم: ${existing.customerName}\n`;
-      msg += `رقم الهاتف: ${existing.customerPhone}\n`;
-      if (existing.notes && existing.notes.includes('العنوان:')) {
-        const addressLines = existing.notes.split('\n').filter(l => l.startsWith('العنوان:'));
-        if (addressLines.length > 0) {
-          msg += `${addressLines[0]}\n`;
-        }
-      }
-      msg += `\nتفاصيل الطلب:\n`;
-      
-      for (const it of (existing.items || [])) {
-        msg += `- ${it.name} (${it.size}) x${it.quantity} = ${(it.total / 1000).toFixed(3)} د.أ\n`;
-      }
-
-      if (existing.discountAmount > 0) msg += `\nالخصم: ${(existing.discountAmount / 1000).toFixed(3)} د.أ${existing.couponCodeSnapshot ? ` (${existing.couponCodeSnapshot})` : ''}\n`;
-      msg += `\nرسوم التوصيل: ${(existing.shippingCost / 1000).toFixed(3)} د.أ\n`;
-      msg += `الإجمالي: ${(existing.totalAmount / 1000).toFixed(3)} د.أ\n\n`;
-      msg += `شكراً لكم.`;
-
-      const encodedMsg = encodeURIComponent(msg);
-      return {
-        success: true,
-        reference: existing.reference,
-        whatsappUrl: `https://wa.me/${number}?text=${encodedMsg}`
-      };
+      console.log(`[Checkout Idempotency] Request matched existing order ${existing.reference}. Returning order.`);
+      return buildOrderWhatsAppResponse(existing);
     }
+  }
+
+  // 2. حماية فورية من التكرار والنقر المزدوج (Anti-Spam Short Window: 45s)
+  // إذا تم إرسال نفس الطلب من نفس رقم الهاتف خلال 45 ثانية، يُعتبر طلباً مكرراً ويُعاد نفس الطلب بدلاً من إنشاء طلب جديد
+  const recentDuplicate = await prisma.order.findFirst({
+    where: {
+      customerPhone,
+      status: 'AWAITING_WHATSAPP',
+      createdAt: { gte: new Date(Date.now() - 45 * 1000) },
+    },
+    include: { items: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (recentDuplicate) {
+    console.log(`[Checkout Anti-Spam] Duplicate order blocked for phone ${customerPhone}. Returning recent order ${recentDuplicate.reference}.`);
+    return buildOrderWhatsAppResponse(recentDuplicate);
   }
 
   // 1. جلب كل التباينات دفعة واحدة (إصلاح N+1 queries)
@@ -170,6 +197,12 @@ export async function processCheckout(prevState: any, formData: FormData) {
   }
 
   if (orderItemsData.length === 0) return { error: 'السلة فارغة أو غير صالحة' };
+
+  // فرض الحد الأدنى للطلب: 5 دنانير أردنية (5000 فلس)
+  const MIN_ORDER_AMOUNT_FILS = 5000;
+  if (totalAmount < MIN_ORDER_AMOUNT_FILS) {
+    return { error: 'الحد الأدنى للطلب هو 5 د.أ (يرجى إضافة المزيد من المنتجات إلى سلتك لإتمام الطلب).' };
+  }
 
   const now = new Date();
   const rewardRules = await prisma.rewardRule.findMany({
@@ -357,6 +390,17 @@ export async function processCheckout(prevState: any, formData: FormData) {
         shippingZoneNameSnapshot: zoneName,
         notes: detailedAddress,
         idempotencyKey: idempotencyKey || undefined,
+        deliveryJob: {
+          create: {
+            recipientName: customerName,
+            recipientPhone: customerPhone,
+            city: zoneName,
+            area: addressStreet || zoneName,
+            addressDetails: detailedAddress,
+            codAmountToCollect: grandTotal,
+            isCodCollected: false,
+          }
+        },
         items: {
           create: orderItemsData
         },
@@ -400,41 +444,6 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'تعذر حفظ الطلب، يرجى المحاولة مجدداً' };
   }
 
-  // Get WhatsApp official number from database setting
-  const setting = await prisma.siteSettings.findUnique({ where: { key: 'whatsapp_number' } });
-  let whatsappNumber = '';
-  if (setting) {
-    try {
-      const config = JSON.parse(setting.value);
-      whatsappNumber = config.number || '';
-    } catch (e) {}
-  }
-
-  if (!whatsappNumber) whatsappNumber = FALLBACK_WHATSAPP_NUMBER;
-
-  // 3. Generate secure WhatsApp message
-  let message = `مرحباً رَواق،\nأود تأكيد طلبي الجديد رقم: ${reference}\n\n`;
-  message += `الاسم: ${customerName}\n`;
-  message += `رقم الهاتف: ${customerPhone}\n`;
-  message += `منطقة التوصيل: ${zoneName}\n`;
-  message += `${detailedAddress}\n\n`;
-  message += `تفاصيل الطلب:\n`;
-  
-  for (const item of orderItemsData) {
-    message += `- ${item.name} (${item.size}) x${item.quantity} = ${(item.total / 1000).toFixed(3)} د.أ\n`;
-  }
-
-  if (totalDiscount > 0) message += `\nالخصم: ${(totalDiscount / 1000).toFixed(3)} د.أ${coupon?.code ? ` (${coupon.code})` : ''}\n`;
-  message += `\nرسوم التوصيل: ${(shippingCost / 1000).toFixed(3)} د.أ\n`;
-  message += `الإجمالي: ${(grandTotal / 1000).toFixed(3)} د.أ\n\n`;
-  message += `شكراً لكم.`;
-
-  const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
-
-  return {
-    success: true,
-    reference,
-    whatsappUrl
-  };
+  // 3. بناء رد واتساب وتوجيه العميل إلى الرقم المعتمد
+  return buildOrderWhatsAppResponse(order, orderItemsData);
 }

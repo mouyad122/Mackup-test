@@ -115,7 +115,6 @@ export function DynamicCatalogSidebar({
   };
 
   // Determine active filters for badge pills
-  const inStock = searchParams.get('inStock') === 'true';
   const minPriceParam = searchParams.get('minPrice');
   const maxPriceParam = searchParams.get('maxPrice');
   const selectedBrands = searchParams.getAll('brand');
@@ -126,7 +125,6 @@ export function DynamicCatalogSidebar({
 
   const totalActiveFiltersCount =
     (activeCategoryId ? 1 : 0) +
-    (inStock ? 1 : 0) +
     (minPriceParam ? 1 : 0) +
     (maxPriceParam ? 1 : 0) +
     selectedBrands.length +
@@ -155,12 +153,6 @@ export function DynamicCatalogSidebar({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {inStock && (
-              <span className="inline-flex items-center gap-1 bg-white px-2.5 py-1 rounded-full text-[11px] font-semibold text-[#3F4832] border border-[#E9DDCC]">
-                {isAr ? 'المتوفر فقط' : 'In stock'}
-                <button onClick={() => setSingleParam('inStock', null)} className="hover:text-[#A84242]">✕</button>
-              </span>
-            )}
             {selectedBrands.map(bId => {
               const brandFacet = facets.find(f => f.key === 'brand');
               const opt = brandFacet?.options.find(o => o.value === bId);
@@ -351,29 +343,7 @@ export function DynamicCatalogSidebar({
         </div>
       </div>
 
-      {/* ── 2. In Stock Only Toggle ── */}
-      <div className="bg-white rounded-2xl p-5 border border-[#E9DDCC] shadow-sm flex items-center justify-between">
-        <label htmlFor="inStockToggle" className="text-sm font-semibold text-[#2B2B2B] cursor-pointer">
-          {isAr ? 'المتوفر في المخزون فقط' : 'In stock only'}
-        </label>
-        <button
-          id="inStockToggle"
-          role="switch"
-          aria-checked={inStock}
-          onClick={() => setSingleParam('inStock', inStock ? null : 'true')}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            inStock ? 'bg-[#3F4832]' : 'bg-[#E9DDCC]'
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              inStock ? (isAr ? '-translate-x-6' : 'translate-x-6') : (isAr ? '-translate-x-1' : 'translate-x-1')
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* ── 3. Price Filter (دينار أردني) ── */}
+      {/* ── 2. Price Filter (دينار أردني) ── */}
       {priceRange.max > priceRange.min && (
         <div className="bg-white rounded-2xl p-5 border border-[#E9DDCC] shadow-sm">
           <h4 className="text-sm font-bold text-[#2B2B2B] mb-3 flex items-center gap-2">

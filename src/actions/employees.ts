@@ -402,30 +402,99 @@ export async function getActiveSessionPermissions() {
 export async function deleteEmployee(employeeId: string, adminId: string) {
   try {
     const session = await requireSuperAdmin();
+
+    // Prevent self-deletion
+    if (employeeId === session.employeeId) {
+      return { success: false, error: 'لا يمكنك حذف حسابك الشخصي المسجل به الدخول حالياً.' };
+    }
+
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
       include: { role: true }
     });
     if (!employee) return { success: false, error: 'الموظف غير موجود' };
 
-    if (employee.role.name === 'Admin') {
+    const roleName = employee.role.name.trim().toUpperCase().replace(/[_-]+/g, ' ');
+    const isAdmin = ['ADMIN', 'SUPER ADMIN', 'أدمن رئيسي', 'ادمن رئيسي'].includes(roleName);
+
+    if (isAdmin) {
       const activeAdminsCount = await prisma.employee.count({
         where: {
-          role: { name: 'Admin' },
+          role: { name: { in: ['Admin', 'Super Admin', 'أدمن رئيسي', 'ادمن رئيسي'] } },
+          isActive: true,
           id: { not: employeeId }
         }
       });
       if (activeAdminsCount === 0) {
-        return { success: false, error: 'لا يمكن حذف آخر مدير في النظام' };
+        return { success: false, error: 'لا يمكن حذف أو تعطيل آخر مدير رئيسي نشط في النظام' };
       }
     }
 
-    await prisma.employee.delete({
-      where: { id: employeeId }
-    });
-
     const headersList = await (await import('next/headers')).headers();
     const ipAddress = headersList.get('x-forwarded-for') || 'unknown';
+
+    // فحص ما إذا كان الموظف لديه حركات مالية، مبيعات، ورديات، أو جلسات جرد سابقة
+    const [salesCount, shiftsCount, movesCount, returnsCount, heldCount, countSessionCount] = await Promise.all([
+      prisma.sale.count({ where: { OR: [{ employeeId }, { soldByEmployeeId: employeeId }] } }),
+      prisma.shift.count({ where: { employeeId } }),
+      prisma.inventoryMovement.count({ where: { employeeId } }),
+      prisma.return.count({ where: { employeeId } }),
+      prisma.heldSale.count({ where: { employeeId } }),
+      prisma.inventoryCountSession.count({
+        where: {
+          OR: [
+            { assignedEmployeeId: employeeId },
+            { assignedByEmployeeId: employeeId },
+            { reviewedByEmployeeId: employeeId },
+            { approvedByEmployeeId: employeeId }
+          ]
+        }
+      })
+    ]);
+
+    const hasFinancialOrInventoryHistory = (salesCount + shiftsCount + movesCount + returnsCount + heldCount + countSessionCount) > 0;
+
+    if (hasFinancialOrInventoryHistory) {
+      // إيقاف الحساب وتعطيل الجلسات بدلاً من الحذف الفيزيائي للحفاظ على النزاهة المحاسبية والتاريخ المالي
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: { isActive: false }
+      });
+      await prisma.session.deleteMany({ where: { employeeId } });
+
+      await prisma.auditLog.create({
+        data: {
+          employeeId: adminId,
+          action: 'EMPLOYEE_DEACTIVATED_INSTEAD_OF_DELETE',
+          entityType: 'Employee',
+          entityId: employeeId,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'Preserve financial, sales and inventory audit history',
+            salesCount,
+            shiftsCount,
+            movesCount
+          })
+        }
+      });
+
+      revalidatePath('/admin/employees');
+      return {
+        success: true,
+        deactivated: true,
+        message: 'تم إيقاف وتعطيل حساب الموظف وإنهاء كافة جلساته بنجاح (تم الاحتفاظ ببياناته كحساب معطل لضمان سلامة السجلات المالية ومبيعات وحركات الجرد التاريخية المرتبطة به).'
+      };
+    }
+
+    // إذا لم يكن لديه سجلات تاريخية، يتم حذف السجلات المؤقتة ثم حذف الحساب
+    await prisma.$transaction([
+      prisma.session.deleteMany({ where: { employeeId } }),
+      prisma.loginAttempt.deleteMany({ where: { employeeId } }),
+      prisma.employeePermission.deleteMany({ where: { employeeId } }),
+      prisma.pendingMfaChallenge.deleteMany({ where: { employeeId } }),
+      prisma.auditLog.deleteMany({ where: { employeeId } }),
+      prisma.employee.delete({ where: { id: employeeId } })
+    ]);
 
     await prisma.auditLog.create({
       data: {
@@ -434,17 +503,32 @@ export async function deleteEmployee(employeeId: string, adminId: string) {
         entityType: 'Employee',
         entityId: employeeId,
         ipAddress,
-        details: JSON.stringify({ email: employee.email })
+        details: JSON.stringify({ email: employee.email, name: employee.name })
       }
     });
 
     revalidatePath('/admin/employees');
-    return { success: true };
+    return { success: true, message: 'تم حذف حساب الموظف نهائياً بنجاح.' };
   } catch (error: any) {
+    console.error('Error in deleteEmployee:', error);
     if (error.code === 'P2003') {
-      return { success: false, error: 'لا يمكن حذف هذا الموظف لوجود مبيعات أو حركات مرتبطة به في النظام. يرجى استخدام زر التعطيل بدلاً من ذلك.' };
+      try {
+        await prisma.employee.update({
+          where: { id: employeeId },
+          data: { isActive: false }
+        });
+        await prisma.session.deleteMany({ where: { employeeId } });
+        revalidatePath('/admin/employees');
+        return {
+          success: true,
+          deactivated: true,
+          message: 'تم تعطيل حساب الموظف وإنهاء جلساته بنجاح للحفاظ على سلامة القيود والبيانات المرتبطة به.'
+        };
+      } catch (innerError) {
+        return { success: false, error: 'لا يمكن حذف هذا الموظف لوجود بيانات مرتبطة به في النظام. يرجى استخدام زر التعطيل.' };
+      }
     }
-    return { success: false, error: 'فشل حذف الموظف' };
+    return { success: false, error: error?.message || 'فشل حذف الموظف' };
   }
 }
 

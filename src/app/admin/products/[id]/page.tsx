@@ -157,7 +157,7 @@ export default async function AdminProductEditPage({
             تعديل: {product.nameAr}
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            الرمز التعريفي الفريد: <span className="font-mono text-zinc-700">{product.sku}</span> | الحالة: {product.isVisible ? 'منشور 🟢' : 'مسودة 🟡'}
+            الحالة: {product.isVisible ? 'منشور 🟢' : 'مسودة 🟡'}
           </p>
         </div>
 

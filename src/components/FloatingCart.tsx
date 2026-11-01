@@ -169,11 +169,15 @@ export function FloatingCart({ locale = 'ar', rewardRule }: { locale?: string, r
             )}
 
             <div className="flex flex-col border-s border-white/20 ps-3">
-              {isRewardActive && (
+              {totalPrice < 5000 ? (
+                <span className="text-[10px] text-amber-200 uppercase tracking-wider font-bold">
+                  {isAr ? `متبقي ${filsToDisplay(5000 - totalPrice, 'ar')} للحد الأدنى (5 د.أ)` : `${filsToDisplay(5000 - totalPrice, 'en')} to min order (5 JOD)`}
+                </span>
+              ) : isRewardActive ? (
                 <span className="text-[10px] text-white/70 uppercase tracking-wider font-bold">
                   {isRewardUnlocked ? copy.rewardLabel : `${copy.remaining} ${filsToDisplay(remaining, displayLocale)}`}
                 </span>
-              )}
+              ) : null}
               <span className="font-bold text-base tracking-tight">{filsToDisplay(totalPrice, displayLocale)}</span>
             </div>
           </div>

@@ -89,11 +89,11 @@ export default async function FinancialsPage({ searchParams }: { searchParams: P
   const obligations = sum('SUPPLIER_OBLIGATION') - sum('SUPPLIER_OBLIGATION_REVERSAL');
   const productCosts = sum('PRODUCT_COST') - sum('PRODUCT_COST_REVERSAL');
   const supplierShare = Math.max(0, obligations - productCosts);
-  const supplierPaid = sum('SUPPLIER_PAYMENT');
+  const supplierPaid = sum('SUPPLIER_PAYMENT') - sum('SUPPLIER_PAYMENT_REVERSAL');
   const deliveryRevenue = sum('DELIVERY_REVENUE') - sum('DELIVERY_REVENUE_REVERSAL') - legacyRefundDelivery - sum('REFUND_DELIVERY');
   const carrierCost = sum('DELIVERY_COST') - sum('DELIVERY_COST_REVERSAL');
-  const captainEarned = sum('CAPTAIN_EARNING');
-  const captainPaid = sum('CAPTAIN_PAYMENT');
+  const captainEarned = sum('CAPTAIN_EARNING') - sum('CAPTAIN_EARNING_REVERSAL');
+  const captainPaid = sum('CAPTAIN_PAYMENT') - sum('CAPTAIN_PAYMENT_REVERSAL');
   const refunds = sum('REFUND') + sum('REFUND_PRODUCT') + sum('REFUND_DELIVERY') + sum('REFUND_TAX');
   const expenses = expenseAggregate._sum.amount ?? 0;
   const productProfit = netProductSales - productCosts - supplierShare;
