@@ -20,18 +20,35 @@ interface OrderNotificationPayload {
   items: OrderItemForTelegram[];
 }
 
+function escapeHtml(text: unknown): string {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export async function sendTelegramNewOrderNotification(payload: OrderNotificationPayload) {
-  const botToken =
+  const rawToken =
     process.env.TELEGRAM_BOT_TOKEN ||
     '9044594537:AAGKliMv6jmCM-E6a0x__gNdW1I_wmSvhzo';
+
+  const botToken = rawToken.trim().replace(/^["']|["']$/g, '');
 
   if (!botToken) {
     console.warn('[Telegram] No TELEGRAM_BOT_TOKEN configured');
     return { success: false, error: 'لم يتم ضبط TELEGRAM_BOT_TOKEN' };
   }
 
-  // 1. Resolve Target Chat ID (Prefer env, with auto-fallback to getUpdates)
-  let chatId = process.env.TELEGRAM_CHAT_ID;
+  // 1. Resolve Target Chat ID (Prefer env, with mouyad admin fallback, then getUpdates)
+  let chatId: string | undefined = undefined;
+  if (process.env.TELEGRAM_CHAT_ID) {
+    chatId = process.env.TELEGRAM_CHAT_ID.trim().replace(/^["']|["']$/g, '');
+  }
+
+  // Default to primary admin chat ID if not explicitly specified
+  if (!chatId) {
+    chatId = '1961929406';
+  }
 
   if (!chatId) {
     try {
@@ -60,33 +77,33 @@ export async function sendTelegramNewOrderNotification(payload: OrderNotificatio
     return { success: false, error: 'لم يتم العثور على Chat ID للإدارة. يرجى إرسال /start للبوت' };
   }
 
-  // 2. Format rich notification message
-  let text = `🛍️ *طلب جديد في متجر رَواق!*\n\n`;
-  text += `📋 *رقم الطلب:* \`${payload.reference}\`\n`;
-  text += `👤 *العميل:* ${payload.customerName}\n`;
-  text += `📞 *الهاتف:* \`${payload.customerPhone}\`\n`;
+  // 2. Format rich HTML notification message (resilient against special characters)
+  let text = `🛍️ <b>طلب جديد في متجر رَواق!</b>\n\n`;
+  text += `📋 <b>رقم الطلب:</b> <code>${escapeHtml(payload.reference)}</code>\n`;
+  text += `👤 <b>العميل:</b> ${escapeHtml(payload.customerName)}\n`;
+  text += `📞 <b>الهاتف:</b> <code>${escapeHtml(payload.customerPhone)}</code>\n`;
   if (payload.zoneName) {
-    text += `📍 *المنطقة:* ${payload.zoneName}\n`;
+    text += `📍 <b>المنطقة:</b> ${escapeHtml(payload.zoneName)}\n`;
   }
   if (payload.address) {
-    text += `🏠 *العنوان:* ${payload.address.replace(/^العنوان:\s*/, '')}\n`;
+    text += `🏠 <b>العنوان:</b> ${escapeHtml(payload.address.replace(/^العنوان:\s*/, ''))}\n`;
   }
 
-  text += `\n🛒 *المنتجات:*\n`;
+  text += `\n🛒 <b>المنتجات:</b>\n`;
   for (const it of payload.items) {
     const sizeStr = it.size && it.size !== 'افتراضي' ? ` (${it.size})` : '';
-    text += `• ${it.name}${sizeStr} × ${it.quantity} = ${filsToDisplay(it.total, 'ar')}\n`;
+    text += `• ${escapeHtml(it.name)}${escapeHtml(sizeStr)} × ${it.quantity} = ${escapeHtml(filsToDisplay(it.total, 'ar'))}\n`;
   }
 
   if (payload.discountAmount && payload.discountAmount > 0) {
-    text += `\n🏷️ *الخصم:* ${filsToDisplay(payload.discountAmount, 'ar')}\n`;
+    text += `\n🏷️ <b>الخصم:</b> ${escapeHtml(filsToDisplay(payload.discountAmount, 'ar'))}\n`;
   }
 
-  text += `🚚 *التوصيل:* ${payload.shippingCost === 0 ? 'مجاني' : filsToDisplay(payload.shippingCost, 'ar')}\n`;
-  text += `💰 *المجموع النهائي:* *${filsToDisplay(payload.totalAmount, 'ar')}*\n\n`;
+  text += `🚚 <b>التوصيل:</b> ${payload.shippingCost === 0 ? 'مجاني' : escapeHtml(filsToDisplay(payload.shippingCost, 'ar'))}\n`;
+  text += `💰 <b>المجموع النهائي:</b> <b>${escapeHtml(filsToDisplay(payload.totalAmount, 'ar'))}</b>\n\n`;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mackup-test-weld.vercel.app';
-  text += `🔗 [فتح الطلب في لوحة التحكم](${siteUrl}/admin/orders?orderId=${payload.reference})`;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mackup-test-weld.vercel.app').trim().replace(/\/+$/, '');
+  text += `🔗 <a href="${siteUrl}/admin/orders?orderId=${encodeURIComponent(payload.reference)}">فتح الطلب في لوحة التحكم</a>`;
 
   try {
     const sendRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -95,10 +112,10 @@ export async function sendTelegramNewOrderNotification(payload: OrderNotificatio
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         disable_web_page_preview: true,
       }),
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(6000),
     });
 
     const resJson = await sendRes.json();
