@@ -30,7 +30,7 @@ export default async function AdminOrdersPage({
         employeeName={session.employee.name}
         roleName={session.employee.role.name}
       />
-      <main className="w-full flex-1 overflow-y-auto p-4 md:p-8">
+      <main className="min-w-0 max-w-full w-full flex-1 overflow-y-auto p-4 md:p-8">
         <UnifiedOrdersCommandCenter
           initialKpis={summary.kpis}
           initialOrders={summary.orders}

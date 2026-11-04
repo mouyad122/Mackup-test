@@ -97,7 +97,7 @@ export default async function ReconciliationPage({
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
 
-      <main className="w-full flex-1 p-4 md:p-8 print:p-0 print:m-0 print:w-full print:max-w-none">
+      <main className="min-w-0 max-w-full w-full flex-1 p-4 md:p-8 print:p-0 print:m-0 print:w-full print:max-w-none">
         {/* Screen Interactive Container */}
         <div className="space-y-6">
           {/* Header */}

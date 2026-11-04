@@ -32,7 +32,7 @@ export default async function ProfitsPage({
         roleName={session.employee.role.name}
       />
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="min-w-0 max-w-full flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <ProfitsClientTabs
             initialTab={rawTab}

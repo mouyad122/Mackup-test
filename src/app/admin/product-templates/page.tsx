@@ -35,7 +35,7 @@ export default async function ProductTemplatesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row font-sans" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
-      <main className="w-full flex-1 space-y-6 p-4 md:p-8">
+      <main className="min-w-0 max-w-full w-full flex-1 space-y-6 p-4 md:p-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">

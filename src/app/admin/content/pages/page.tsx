@@ -68,7 +68,7 @@ export default async function AdminPagesCMS() {
     <div className="flex flex-col md:flex-row h-screen bg-[var(--color-ivory-100)] overflow-hidden" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
+      <main className="min-w-0 max-w-full flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full max-w-full">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div className="flex items-center gap-4">
             <Link href="/admin/content" className="bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-700 p-2 rounded-lg transition-colors flex items-center justify-center shadow-sm shrink-0" title="الرجوع للصفحة السابقة">

@@ -38,7 +38,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
     <div className="flex flex-col md:flex-row min-h-screen bg-[var(--color-ivory-100)]" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
-      <main className="flex-1 p-4 md:p-8 font-sans">
+      <main className="min-w-0 max-w-full flex-1 p-4 md:p-8 font-sans">
         <div className="flex justify-between items-center mb-8 border-b border-[var(--color-ivory-200)] pb-4">
           <div>
             <h1 className="text-3xl font-bold font-heading text-[#3F4832]">

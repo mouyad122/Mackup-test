@@ -1016,7 +1016,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
               <span className="font-bold text-stone-900 block">
                 كافة أصناف ومنتجات هذا الطلب ({selectedOrderModal.items?.length || 0}):
               </span>
-              <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white">
+              <div className="border border-stone-200 rounded-2xl overflow-x-auto w-full bg-white">
                 <table className="w-full text-right">
                   <thead>
                     <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold text-[11px]">

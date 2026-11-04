@@ -91,36 +91,38 @@ export function POClientActions({ poId, status, items, warehouses, hasInvoice, i
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
-          <table className="w-full text-right text-sm">
-            <thead>
-              <tr>
-                <th className="py-2">المنتج</th>
-                <th className="py-2">الكمية المطلوبة</th>
-                <th className="py-2">الكمية المستلمة مسبقاً</th>
-                <th className="py-2">الكمية المستلمة الآن</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => {
-                const ri = receiptItems.find(r => r.id === item.id);
-                return (
-                  <tr key={item.id}>
-                    <td className="py-2">{item.variant.product.nameAr} - {item.variant.name}</td>
-                    <td className="py-2">{item.quantityOrdered}</td>
-                    <td className="py-2">{item.quantityReceived}</td>
-                    <td className="py-2">
-                      <input 
-                        type="number" min="0" max={item.quantityOrdered - item.quantityReceived} 
-                        value={ri?.quantityReceived || 0}
-                        onChange={e => setReceiptItems(prev => prev.map(p => p.id === item.id ? { ...p, quantityReceived: parseInt(e.target.value) || 0 } : p))}
-                        className="w-24 rounded border px-2 py-1"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-right text-sm">
+              <thead>
+                <tr>
+                  <th className="py-2">المنتج</th>
+                  <th className="py-2">الكمية المطلوبة</th>
+                  <th className="py-2">الكمية المستلمة مسبقاً</th>
+                  <th className="py-2">الكمية المستلمة الآن</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const ri = receiptItems.find(r => r.id === item.id);
+                  return (
+                    <tr key={item.id}>
+                      <td className="py-2">{item.variant.product.nameAr} - {item.variant.name}</td>
+                      <td className="py-2">{item.quantityOrdered}</td>
+                      <td className="py-2">{item.quantityReceived}</td>
+                      <td className="py-2">
+                        <input 
+                          type="number" min="0" max={item.quantityOrdered - item.quantityReceived} 
+                          value={ri?.quantityReceived || 0}
+                          onChange={e => setReceiptItems(prev => prev.map(p => p.id === item.id ? { ...p, quantityReceived: parseInt(e.target.value) || 0 } : p))}
+                          className="w-24 rounded border px-2 py-1"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <div className="flex gap-2">
             <button type="submit" disabled={loading} className="rounded bg-green-600 px-4 py-2 text-white font-bold disabled:opacity-50">حفظ الاستلام</button>
             <button type="button" onClick={() => setReceiving(false)} className="rounded bg-gray-200 px-4 py-2 font-bold text-gray-700">إلغاء</button>

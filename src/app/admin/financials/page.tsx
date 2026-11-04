@@ -113,7 +113,7 @@ export default async function FinancialsPage({ searchParams }: { searchParams: P
     ['قيمة المخزون', inventoryValue], ['عمليات نقاط البيع', posSales],
   ];
   const presets = [['today','اليوم'],['yesterday','أمس'],['week','هذا الأسبوع'],['month','هذا الشهر'],['lastMonth','الشهر الماضي'],['year','هذه السنة'],['custom','فترة مخصصة']];
-  return <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl"><AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name}/><main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
+  return <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl"><AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name}/><main className="min-w-0 max-w-full w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
     <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5"><div><h1 className="text-3xl font-bold">الملخص المالي</h1><p className="mt-1 text-sm text-zinc-600">الربح = مبيعات المنتجات بعد الخصم − تكلفة المورد − حصة المورد + ربح التوصيل؛ صافي الربح يخصم المصروفات.</p></div><Link href="/admin/transactions" className="rounded border bg-white px-4 py-2 text-sm">دفتر الحركات</Link></header>
     <form className="grid grid-cols-2 gap-2 rounded-lg bg-white p-3 shadow-sm sm:grid-cols-3 lg:grid-cols-5">
       <label className="grid gap-1 text-xs">الفترة<select name="preset" defaultValue={p.preset || 'custom'} className="rounded border p-2">{presets.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>

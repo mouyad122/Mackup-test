@@ -145,7 +145,7 @@ export default async function AdminLogsPage({
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
 
-      <main className="w-full flex-1 p-4 md:p-8 font-sans max-w-7xl mx-auto space-y-6">
+      <main className="min-w-0 max-w-full w-full flex-1 p-4 md:p-8 font-sans max-w-7xl mx-auto space-y-6">
         <AuditLogsClient
           logs={paginatedLogs}
           employees={employees}

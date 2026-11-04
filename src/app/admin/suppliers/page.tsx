@@ -74,7 +74,7 @@ export default async function SuppliersPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
-      <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
+      <main className="min-w-0 max-w-full w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
         <header>
           <h1 className="font-heading text-3xl font-bold text-[#3F4832]">المحلات والعروض</h1>
           <p className="mt-1 text-sm text-zinc-600">

@@ -177,7 +177,7 @@ export default async function AdminEmployeesPage({
     <div className="flex flex-col md:flex-row min-h-screen bg-[var(--color-ivory-100)]" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
-      <main className="flex-1 p-4 md:p-8 font-sans w-full max-w-4xl mx-auto">
+      <main className="min-w-0 max-w-full flex-1 p-4 md:p-8 font-sans w-full max-w-4xl mx-auto">
         {/* Feedback Alerts */}
         {errorMsg && (
           <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-sm font-semibold flex items-center justify-between shadow-xs">

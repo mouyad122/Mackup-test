@@ -5,6 +5,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { calculateSupplierSplit, capPromotionDiscounts } from '@/lib/business-finance';
 import { STORE_WHATSAPP_NUMBER } from '@/lib/contact';
+import { sendTelegramNewOrderNotification } from '@/lib/telegram';
 
 import { checkoutSchema, cartItemsSchema } from '@/lib/schemas';
 
@@ -54,6 +55,10 @@ async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[]) {
   return {
     success: true,
     reference: order.reference,
+    orderId: order.id,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    totalAmount: order.totalAmount,
     whatsappUrl: `https://wa.me/${number}?text=${encodedMsg}`
   };
 }
@@ -444,6 +449,23 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'تعذر حفظ الطلب، يرجى المحاولة مجدداً' };
   }
 
-  // 3. بناء رد واتساب وتوجيه العميل إلى الرقم المعتمد
+  // 3. إرسال إشعار فوري للآدمن عبر تليجرام في الخلفية
+  void sendTelegramNewOrderNotification({
+    reference: order.reference,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    zoneName,
+    address: detailedAddress,
+    totalAmount: order.totalAmount,
+    shippingCost: order.shippingCost,
+    discountAmount: order.discountAmount,
+    items: orderItemsData.map((it) => ({
+      name: it.name,
+      size: it.size,
+      quantity: it.quantity,
+      total: it.total,
+    })),
+  }).catch((err) => console.error('[Checkout Telegram Notification] Error:', err));
+
   return buildOrderWhatsAppResponse(order, orderItemsData);
 }

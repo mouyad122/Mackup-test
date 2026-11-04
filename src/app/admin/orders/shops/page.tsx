@@ -19,7 +19,7 @@ export default async function ShopOrdersHubPage() {
         employeeName={session.employee.name}
         roleName={session.employee.role.name}
       />
-      <main className="w-full flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="min-w-0 max-w-full w-full flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <ShopOperationsClient initialData={data} />
       </main>
     </div>

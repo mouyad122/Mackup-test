@@ -14,7 +14,7 @@ export default async function PurchaseOrdersPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session.employee.role.name} />
-      <main className="w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
+      <main className="min-w-0 max-w-full w-full flex-1 space-y-6 overflow-y-auto p-4 md:p-8">
         <header className="flex justify-between items-center">
           <div>
             <h1 className="font-heading text-3xl font-bold text-[#3F4832]">أوامر الشراء</h1>
@@ -25,7 +25,7 @@ export default async function PurchaseOrdersPage() {
           </Link>
         </header>
 
-        <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
+        <section className="overflow-x-auto w-full rounded-lg border bg-white shadow-sm">
           <table className="w-full text-right text-sm">
             <thead className="bg-zinc-50 text-zinc-500 border-b">
               <tr>

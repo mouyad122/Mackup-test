@@ -30,7 +30,7 @@ export default async function AdminPage() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-8">
+      <main className="min-w-0 max-w-full flex-1 p-8">
         <div className="bg-white rounded-xl shadow-sm border border-zinc-100 p-8">
           <h1 className="text-2xl font-bold text-[#3F4832] mb-4 border-b border-zinc-100 pb-4">
             Dashboard / MEDIA

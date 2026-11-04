@@ -46,14 +46,16 @@ export default async function OrderSuccessPage({
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-emerald-600 mb-6"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         
         <h1 className="text-3xl font-bold font-heading text-[#3F4832] mb-4">
-          {isAr ? 'تم تسجيل طلبك بنجاح!' : 'Order Placed Successfully!'}
+          {isAr ? 'تم استلام طلبك بنجاح!' : 'Order Placed Successfully!'}
         </h1>
         
-        <p className="text-zinc-650 mb-8 leading-relaxed">
-          {isAr 
-            ? 'لقد تم إرسال معلومات طلبك. يرجى التأكيد عبر تطبيق الواتساب لإتمام عملية الشحن والتوصيل.'
-            : 'Your order details have been saved. Please confirm via WhatsApp to complete delivery.'}
-        </p>
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-xl mb-6 text-sm font-bold leading-relaxed">
+          <p>
+            {isAr 
+              ? 'شكراً لطلبك من رَواق! تم تأكيد الطلب، وسيتم إرسال الفاتورة وتفاصيل الشحن والتوصيل على رقم واتساب الخاص بك قريباً.'
+              : 'Thank you for shopping at Rawaq! Your order is confirmed, and the invoice with delivery details will be sent to your WhatsApp shortly.'}
+          </p>
+        </div>
 
         <div className="bg-[var(--color-ivory-100)] p-6 rounded-lg text-right mb-8">
           <div className="flex justify-between border-b pb-2 mb-2 text-sm text-zinc-600">
@@ -74,21 +76,19 @@ export default async function OrderSuccessPage({
           </div>
         </div>
 
-        <div className="space-y-4">
-          <a 
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-center w-full bg-[#25D366] hover:bg-[#20ba5a] text-white py-3.5 rounded font-bold transition-colors"
-          >
-            {isAr ? 'فتح المحادثة للتأكيد الآن' : 'Open WhatsApp to Confirm'}
-          </a>
-          
+        <div className="space-y-3">
           <Link 
             href={`/${locale}/shop`}
-            className="block text-center w-full bg-[var(--color-ivory-200)] hover:bg-[var(--color-ivory-300)] text-[#3F4832] py-3 rounded font-bold transition-colors"
+            className="block text-center w-full bg-[#3F4832] hover:bg-[#2e3524] text-white py-3.5 rounded-full font-bold transition-colors shadow-md"
           >
             {isAr ? 'العودة للتسوق' : 'Continue Shopping'}
+          </Link>
+
+          <Link
+            href={`/${locale}/invoice/${order.reference}`}
+            className="block text-center w-full bg-[var(--color-ivory-200)] hover:bg-[var(--color-ivory-300)] text-[#3F4832] py-3 rounded-full font-bold transition-colors"
+          >
+            {isAr ? 'عرض الفاتورة الإلكترونية' : 'View Digital Invoice'}
           </Link>
         </div>
       </div>

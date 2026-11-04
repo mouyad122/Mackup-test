@@ -73,14 +73,14 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
       {/* Backdrop for mobile view */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-30 transition-opacity"
+          className="md:hidden fixed inset-0 bg-black/60 z-40 transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar Content container */}
       <aside
-        className={`no-print print:hidden fixed md:sticky top-0 right-0 z-30 bg-[#3F4832] text-white flex flex-col h-screen font-sans border-l-4 border-[#B7935F] transition-all duration-300 transform md:transform-none ${
+        className={`no-print print:hidden fixed md:sticky top-0 right-0 z-50 bg-[#3F4832] text-white flex flex-col h-screen font-sans border-l-4 border-[#B7935F] transition-all duration-300 transform md:transform-none ${
           isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-16' : 'md:w-64'} w-64`}
         dir="rtl"

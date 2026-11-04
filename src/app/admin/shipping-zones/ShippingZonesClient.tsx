@@ -42,7 +42,7 @@ export default function ShippingZonesClient({ initialZones }: { initialZones: Zo
       )}
 
       {!isAdding && !editingZone && (
-        <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
+        <div className="rounded-lg border bg-white overflow-x-auto w-full shadow-sm">
           <table className="w-full text-sm text-right">
             <thead className="bg-zinc-50 border-b">
               <tr>

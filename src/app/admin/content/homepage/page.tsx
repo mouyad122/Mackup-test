@@ -33,7 +33,7 @@ export default async function AdminCMSHomepagePage() {
     <div className="flex min-h-screen bg-[var(--color-ivory-100)] text-zinc-800" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
       
-      <main className="flex-1 p-6 md:p-12 font-sans w-full max-w-6xl mx-auto space-y-6">
+      <main className="min-w-0 max-w-full flex-1 p-6 md:p-12 font-sans w-full max-w-6xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/content" className="bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-700 p-2 rounded-lg transition-colors flex items-center justify-center shadow-sm shrink-0" title="الرجوع للصفحة السابقة">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
