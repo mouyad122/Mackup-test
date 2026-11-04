@@ -47,6 +47,7 @@ import {
   searchProductsForCatalogAction,
   addOrderItemAction,
   cancelUnifiedOrderAction,
+  retryOrderTelegramNotificationAction,
 } from '@/actions/unified-orders';
 import {
   dispatchFinalDeliveryAction,
@@ -61,6 +62,7 @@ interface Props {
     needsActionCount: number;
     preparingCount: number;
     readyDeliveryCount: number;
+    telegramFailedCount?: number;
   };
   initialOrders: any[];
   captains: any[];
@@ -140,6 +142,38 @@ export default function UnifiedOrdersCommandCenter({
     shippingFee: number;
     ruleName: string;
   } | null>(null);
+
+  const [isRetryingTelegram, setIsRetryingTelegram] = useState(false);
+
+  const handleRetryTelegram = async (orderId: string) => {
+    setIsRetryingTelegram(true);
+    try {
+      const res = await retryOrderTelegramNotificationAction(orderId);
+      if (res.success) {
+        alert(res.message || 'تم إرسال إشعار التيليجرام بنجاح! ✓');
+        const clientOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+        const updated = await getOrderFullDetailsAction(orderId, clientOrigin);
+        setSelectedOrderDetails(updated);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderId
+              ? { ...o, telegramStatus: 'SENT', telegramSentAt: new Date(), telegramError: null }
+              : o
+          )
+        );
+        setKpis((prev) => ({
+          ...prev,
+          telegramFailedCount: Math.max(0, (prev.telegramFailedCount || 1) - 1),
+        }));
+      } else {
+        alert(res.error || 'تعذر إرسال الإشعار إلى تيليجرام');
+      }
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء محاولة إرسال إشعار تيليجرام');
+    } finally {
+      setIsRetryingTelegram(false);
+    }
+  };
 
   const handleConfirmCancelOrder = async (orderId: string, reason?: string) => {
     setIsCancellingOrder(true);
@@ -479,6 +513,9 @@ export default function UnifiedOrdersCommandCenter({
     }
     if (activeTab === 'COMPLETED') {
       return ord.status === 'DELIVERED';
+    }
+    if (activeTab === 'TELEGRAM_FAILED') {
+      return ord.telegramStatus === 'FAILED';
     }
     return true;
   });
@@ -833,8 +870,8 @@ export default function UnifiedOrdersCommandCenter({
           </div>
         </div>
 
-        {/* The 4 KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* The KPI Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {/* Card 1: New Orders */}
           <button
             onClick={() => setActiveTab('NEW')}
@@ -854,7 +891,30 @@ export default function UnifiedOrdersCommandCenter({
             <span className="text-[11px] text-amber-700 mt-1 block">بانتظار التأكيد والاعتماد</span>
           </button>
 
-          {/* Card 2: Needs Action */}
+          {/* Card 2: Telegram Notifications */}
+          <button
+            onClick={() => setActiveTab('TELEGRAM_FAILED')}
+            className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
+              activeTab === 'TELEGRAM_FAILED'
+                ? 'bg-sky-50/80 border-sky-300 ring-2 ring-sky-400'
+                : (kpis.telegramFailedCount || 0) > 0
+                ? 'bg-rose-50/70 border-rose-300 ring-1 ring-rose-400 hover:border-rose-400'
+                : 'bg-white border-stone-200 hover:border-sky-300'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
+              <span>إشعارات تيليجرام</span>
+              <Send className="w-4 h-4 text-sky-500" />
+            </div>
+            <div className={`text-2xl font-black font-mono mt-2 ${(kpis.telegramFailedCount || 0) > 0 ? 'text-rose-700' : 'text-sky-900'}`}>
+              {(kpis.telegramFailedCount || 0) > 0 ? `${kpis.telegramFailedCount}` : 'سليمة ✓'}
+            </div>
+            <span className={`text-[11px] mt-1 block ${(kpis.telegramFailedCount || 0) > 0 ? 'text-rose-700 font-bold' : 'text-sky-700'}`}>
+              {(kpis.telegramFailedCount || 0) > 0 ? 'إشعارات تحتاج إعادة إرسال' : 'كل الإشعارات أُرسلت'}
+            </span>
+          </button>
+
+          {/* Card 3: Needs Action */}
           <button
             onClick={() => setActiveTab('NEEDS_ACTION')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
@@ -873,7 +933,7 @@ export default function UnifiedOrdersCommandCenter({
             <span className="text-[11px] text-rose-700 mt-1 block">مشاكل ونواقص أو تعثر توصيل</span>
           </button>
 
-          {/* Card 3: In Fulfillment */}
+          {/* Card 4: In Fulfillment */}
           <button
             onClick={() => setActiveTab('PREPARING')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
@@ -892,7 +952,7 @@ export default function UnifiedOrdersCommandCenter({
             <span className="text-[11px] text-blue-700 mt-1 block">لدى المحلات والتقسيم</span>
           </button>
 
-          {/* Card 4: Ready for Delivery */}
+          {/* Card 5: Ready for Delivery */}
           <button
             onClick={() => setActiveTab('DELIVERY')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
@@ -920,6 +980,7 @@ export default function UnifiedOrdersCommandCenter({
           {[
             { id: 'ALL', label: 'كافة الطلبات' },
             { id: 'NEW', label: 'الجديدة' },
+            { id: 'TELEGRAM_FAILED', label: `تيليجرام متعثر ${(kpis.telegramFailedCount || 0) > 0 ? `(${kpis.telegramFailedCount})` : ''}` },
             { id: 'NEEDS_ACTION', label: 'تحتاج تدخلك' },
             { id: 'PREPARING', label: 'التجهيز' },
             { id: 'DELIVERY', label: 'التوصيل' },
@@ -986,6 +1047,17 @@ export default function UnifiedOrdersCommandCenter({
                           <span>واتساب</span>
                         </span>
                       )}
+                      {ord.telegramStatus === 'SENT' ? (
+                        <span className="text-[10px] bg-sky-50 text-sky-800 font-bold px-1.5 py-0.5 rounded border border-sky-200 flex items-center gap-0.5" title="Telegram أُرسل بنجاح">
+                          <Check className="w-2.5 h-2.5 text-sky-600" />
+                          <span>Telegram أُرسل</span>
+                        </span>
+                      ) : ord.telegramStatus === 'FAILED' ? (
+                        <span className="text-[10px] bg-rose-50 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-0.5 animate-pulse" title="تعثر إرسال إشعار تيليجرام">
+                          <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                          <span>إشعار فشل</span>
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-xs font-black text-[#3F4832] font-mono" dir="ltr">
                       {filsToDisplay(ord.totalAmount)}
@@ -1313,6 +1385,69 @@ export default function UnifiedOrdersCommandCenter({
                   </div>
                 </div>
               )}
+
+              {/* Telegram Admin Notification Card */}
+              <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center text-base shrink-0 font-bold">
+                      ✈️
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-stone-900">
+                        إشعار تيليجرام الإدارة (@rawaq_jo_bot)
+                      </h3>
+                      <p className="text-[11px] text-stone-400">
+                        تنبيه فوري للإدارة عند تسجيل الطلب الجديد
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedOrderDetails.order.telegramStatus === 'SENT' ? (
+                    <span className="text-[11px] bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1 w-fit">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Telegram أُرسل بنجاح</span>
+                    </span>
+                  ) : selectedOrderDetails.order.telegramStatus === 'FAILED' ? (
+                    <span className="text-[11px] bg-rose-50 text-rose-800 font-bold px-3 py-1 rounded-full border border-rose-200 flex items-center gap-1 w-fit">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>إشعار فشل</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] bg-amber-50 text-amber-800 font-bold px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1 w-fit">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>قيد الإرسال / لم يُرسل</span>
+                    </span>
+                  )}
+                </div>
+
+                {selectedOrderDetails.order.telegramError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>سبب تعثر الإرسال:</span>
+                    </div>
+                    <p className="font-mono text-[11px]">{selectedOrderDetails.order.telegramError}</p>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-stone-100 text-xs">
+                  <span className="text-stone-500 text-[11px]">
+                    {selectedOrderDetails.order.telegramSentAt
+                      ? `وقت الإرسال: ${new Date(selectedOrderDetails.order.telegramSentAt).toLocaleString('ar-JO')}`
+                      : 'لم يتم توثيق وقت إرسال ناجح حتى الآن'}
+                  </span>
+
+                  <button
+                    onClick={() => handleRetryTelegram(selectedOrderDetails.order.id)}
+                    disabled={isRetryingTelegram}
+                    className="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isRetryingTelegram ? 'جاري الإرسال...' : 'إعادة إرسال إشعار Telegram الآن'}</span>
+                  </button>
+                </div>
+              </div>
 
               {/* 5. Section 2: Shop Fulfillment Banner (انتقال لمركز متابعة المحلات والطرود - للطلبات الجارية فقط) */}
               {!isCompletedOrder && (

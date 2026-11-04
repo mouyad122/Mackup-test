@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Naskh_Arabic, Cormorant_Garamond } from "next/font/google";
+import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -90,6 +91,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={`${notoNaskhArabic.variable} ${cormorantGaramond.variable}`} style={{ colorScheme: 'light' }}>
       <body className="antialiased min-h-screen flex flex-col">
+        <ActiveOrderBanner />
         {children}
       </body>
     </html>

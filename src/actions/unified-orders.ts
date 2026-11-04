@@ -13,6 +13,7 @@ import { createSupplierAccessSession } from '@/lib/fulfillment/supplier-session'
 import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
 import { filsToDisplay } from '@/lib/money';
 import { evaluateOrderRewardProtection } from '@/lib/orders/reward-protection';
+import { retryOrderTelegramNotification } from '@/lib/telegram';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
@@ -26,7 +27,7 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
 }) {
   await requirePermission('orders.view');
 
-  const [newCount, needsActionCount, preparingCount, readyDeliveryCount] =
+  const [newCount, needsActionCount, preparingCount, readyDeliveryCount, telegramFailedCount] =
     await Promise.all([
       // 1. طلبات جديدة بانتظار التأكيد
       prisma.order.count({
@@ -67,6 +68,13 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
           ],
         },
       }),
+
+      // 5. إشعارات تيليجرام فشلت وتحتاج إعادة إرسال
+      prisma.order.count({
+        where: {
+          telegramStatus: 'FAILED',
+        },
+      }),
     ]);
 
   // بناء شرط التبويب
@@ -95,6 +103,8 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
     };
   } else if (filter?.tab === 'COMPLETED') {
     whereTab = { status: 'DELIVERED' };
+  } else if (filter?.tab === 'TELEGRAM_FAILED') {
+    whereTab = { telegramStatus: 'FAILED' };
   }
 
   const searchQuery = filter?.search?.trim();
@@ -128,6 +138,9 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
       discountAmount: true,
       shippingZoneNameSnapshot: true,
       customerWhatsAppSentAt: true,
+      telegramStatus: true,
+      telegramSentAt: true,
+      telegramError: true,
       hasAdjustment: true,
       previousTotalAmount: true,
       adjustmentNotes: true,
@@ -164,6 +177,7 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
       needsActionCount,
       preparingCount,
       readyDeliveryCount,
+      telegramFailedCount,
     },
     orders,
   };
@@ -1389,3 +1403,14 @@ export async function cancelUnifiedOrderAction(orderId: string, reason?: string)
     return { success: false, error: error.message || 'تعذر إلغاء الطلب.' };
   }
 }
+
+/**
+ * إعادة محاولة إرسال إشعار التيليجرام لطلب محدد من لوحة التحكم
+ */
+export async function retryOrderTelegramNotificationAction(orderId: string) {
+  await requirePermission('orders.edit');
+  const result = await retryOrderTelegramNotification(orderId);
+  revalidatePath('/admin/orders');
+  return result;
+}
+

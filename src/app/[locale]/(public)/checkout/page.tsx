@@ -19,6 +19,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [confirmedRef, setConfirmedRef] = useState<string>('');
+  const [isDuplicatePrevented, setIsDuplicatePrevented] = useState(false);
   const [cooldown, setCooldown] = useState<number>(0);
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
   const isSubmittingRef = React.useRef(false);
@@ -84,6 +85,17 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
       window.dispatchEvent(new CustomEvent('cart_updated'));
       if ('reference' in state && typeof state.reference === 'string') {
         setConfirmedRef(state.reference);
+        try {
+          localStorage.setItem('rawaq_active_order', JSON.stringify({
+            reference: state.reference,
+            customerName: 'customerName' in state ? state.customerName : '',
+            createdAt: Date.now(),
+          }));
+          window.dispatchEvent(new CustomEvent('rawaq_order_updated'));
+        } catch (e) {}
+      }
+      if ('isDuplicatePrevented' in state && state.isDuplicatePrevented) {
+        setIsDuplicatePrevented(true);
       }
       setIsOrderConfirmed(true);
       setIsSubmittingLocal(false);
@@ -409,45 +421,68 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
             
             <div className="space-y-2">
               <h3 className="text-2xl font-black text-[#2B2B2B] font-heading">
-                {isAr ? 'تم طلبك بنجاح!' : 'Order Placed Successfully!'}
+                {isAr ? 'تم استلام طلبكِ بنجاح!' : 'Order Placed Successfully!'}
               </h3>
               <p className="text-sm text-stone-600 leading-relaxed">
                 {isAr
-                  ? 'شكراً لتسوقك من رَواق. تم تسجيل وتأكيد طلبك بنجاح في النظام.'
-                  : 'Thank you for shopping at Rawaq. Your order has been placed successfully.'}
+                  ? 'شكراً لتسوقكِ من رَواق. طلبكِ الآن قيد المراجعة، وسيتم إرسال الفاتورة وتفاصيل التأكيد على واتساب قريباً.'
+                  : 'Thank you for shopping at Rawaq. Your order is under review, and details will be sent to your WhatsApp shortly.'}
               </p>
             </div>
 
-            <div className="p-4 bg-[#FBF8F2] rounded-2xl border border-[#E9DDCC] text-stone-800 space-y-2.5 text-sm text-right">
+            <div className="p-4 bg-[#FBF8F2] rounded-2xl border border-[#E9DDCC] text-stone-800 space-y-3 text-sm text-right">
               {confirmedRef && (
                 <div className="flex justify-between items-center border-b border-[#E9DDCC] pb-2">
                   <span className="text-xs text-stone-500 font-bold">{isAr ? 'رقم الطلب:' : 'Order Ref:'}</span>
-                  <span className="font-mono font-black text-[#3F4832]">{confirmedRef}</span>
+                  <span className="font-mono font-black text-[#3F4832] text-base">#{confirmedRef}</span>
                 </div>
               )}
-              <div className="flex items-start gap-2.5 text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl leading-relaxed">
-                <span className="text-base shrink-0">📱</span>
+
+              <div className="flex justify-between items-center border-b border-[#E9DDCC] pb-2">
+                <span className="text-xs text-stone-500 font-bold">{isAr ? 'الحالة:' : 'Status:'}</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>{isAr ? 'بانتظار مراجعة الإدارة' : 'Pending Admin Review'}</span>
+                </span>
+              </div>
+
+              {isDuplicatePrevented && (
+                <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-medium leading-relaxed">
+                  🛡️ {isAr ? 'لديكِ طلب مطابق قيد المراجعة بالفعل. تم استرجاع تفاصيل طلبكِ لحمايتكِ من تكرار المشتريات.' : 'You already have an active matching order. Details retrieved safely.'}
+                </div>
+              )}
+
+              <div className="flex items-start gap-2.5 text-xs text-stone-600 bg-white border border-[#E9DDCC] p-3 rounded-xl leading-relaxed">
+                <span className="text-base shrink-0">💬</span>
                 <span>
                   {isAr 
-                    ? 'تم تأكيد طلبك بنجاح، وسيتم إرسال الفاتورة وتفاصيل الشحن والتوصيل على واتساب قريباً.' 
-                    : 'Your order is confirmed! The invoice and delivery details will be sent to your WhatsApp shortly.'}
+                    ? 'لا تحتاجين لإعادة إرسال الطلب. سيتم التواصل معكِ عند تأكيده.' 
+                    : 'No need to resend the order. We will contact you once confirmed.'}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-2.5 pt-2">
+            <div className="space-y-2.5 pt-1">
+              {confirmedRef && (
+                <Link
+                  href={`/${locale}/order-status/${confirmedRef}`}
+                  className="w-full btn-rawaq-primary py-3.5 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all block text-center"
+                >
+                  {isAr ? 'عرض حالة طلبي' : 'Track My Order Status'}
+                </Link>
+              )}
               <Link
                 href={`/${locale}/shop`}
-                className="w-full btn-rawaq-primary py-3.5 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all block text-center"
+                className="w-full py-2.5 rounded-full text-xs text-stone-700 bg-stone-100 hover:bg-stone-200 font-bold transition block text-center"
               >
-                {isAr ? 'متابعة التسوق' : 'Continue Shopping'}
+                {isAr ? 'متابعة التسوق في المتجر' : 'Continue Shopping'}
               </Link>
               {confirmedRef && (
                 <Link
                   href={`/${locale}/invoice/${confirmedRef}`}
-                  className="w-full py-2 text-xs text-stone-500 hover:text-stone-800 font-bold block text-center underline"
+                  className="w-full py-1 text-xs text-stone-400 hover:text-stone-700 font-bold block text-center underline"
                 >
-                  {isAr ? 'عرض الفاتورة الإلكترونية للطلب' : 'View Digital Order Invoice'}
+                  {isAr ? 'عرض الفاتورة الإلكترونية المباشرة' : 'View Digital Invoice'}
                 </Link>
               )}
             </div>

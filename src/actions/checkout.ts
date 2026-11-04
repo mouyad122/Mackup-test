@@ -14,7 +14,7 @@ import { checkoutSchema, cartItemsSchema } from '@/lib/schemas';
 // the admin area without a deployment.
 const FALLBACK_WHATSAPP_NUMBER = STORE_WHATSAPP_NUMBER;
 
-async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[]) {
+async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[], isDuplicatePrevented = false) {
   const setting = await prisma.siteSettings.findUnique({ where: { key: 'whatsapp_number' } });
   let number = '';
   if (setting) {
@@ -59,6 +59,7 @@ async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[]) {
     customerName: order.customerName,
     customerPhone: order.customerPhone,
     totalAmount: order.totalAmount,
+    isDuplicatePrevented,
     whatsappUrl: `https://wa.me/${number}?text=${encodedMsg}`
   };
 }
@@ -89,7 +90,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'السلة فارغة أو غير صالحة' };
   }
 
-  // 1. فحص مفتاح منع التكرار الفريد (Client Idempotency Key)
+  // الطبقة 1: فحص مفتاح منع التكرار الفريد (Client Idempotency Key)
   if (idempotencyKey) {
     const existing = await prisma.order.findUnique({
       where: { idempotencyKey },
@@ -97,25 +98,50 @@ export async function processCheckout(prevState: any, formData: FormData) {
     });
     if (existing) {
       console.log(`[Checkout Idempotency] Request matched existing order ${existing.reference}. Returning order.`);
-      return buildOrderWhatsAppResponse(existing);
+      return buildOrderWhatsAppResponse(existing, undefined, true);
     }
   }
 
-  // 2. حماية فورية من التكرار والنقر المزدوج (Anti-Spam Short Window: 45s)
-  // إذا تم إرسال نفس الطلب من نفس رقم الهاتف خلال 45 ثانية، يُعتبر طلباً مكرراً ويُعاد نفس الطلب بدلاً من إنشاء طلب جديد
-  const recentDuplicate = await prisma.order.findFirst({
+  // الطبقة 2: حماية من الإغراق ومعدل الطلبات المشبوه (Rate Limiting: Max 5 orders per 15 mins per phone)
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  const recentOrdersCount = await prisma.order.count({
     where: {
       customerPhone,
-      status: 'AWAITING_WHATSAPP',
-      createdAt: { gte: new Date(Date.now() - 45 * 1000) },
+      createdAt: { gte: fifteenMinutesAgo },
+    },
+  });
+
+  if (recentOrdersCount >= 5) {
+    return {
+      error: 'تم تسجيل عدة طلبات مؤخراً من هذا الرقم. لحمايتكِ، يرجى الانتظار قليلاً قبل إرسال طلب جديد أو التواصل مع إدارة رَواق مباشرة.',
+    };
+  }
+
+  // الطبقة 3: حماية السلة المتطابقة والطلبات قيد المراجعة (Anti-Duplicate Matching Cart: 30 Minutes Window)
+  // إذا كان لدى الزبونة طلب نشط قيد المراجعة من نفس رقم الهاتف خلال 30 دقيقة:
+  // يتم فحص وجود طلب مماثل، وعند التطابق يُعاد الطلب النشط لحماية الزبونة من الازدواجية
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  const activeOrder = await prisma.order.findFirst({
+    where: {
+      customerPhone,
+      status: { in: ['AWAITING_WHATSAPP', 'PENDING'] },
+      createdAt: { gte: thirtyMinutesAgo },
     },
     include: { items: true },
     orderBy: { createdAt: 'desc' },
   });
 
-  if (recentDuplicate) {
-    console.log(`[Checkout Anti-Spam] Duplicate order blocked for phone ${customerPhone}. Returning recent order ${recentDuplicate.reference}.`);
-    return buildOrderWhatsAppResponse(recentDuplicate);
+  if (activeOrder) {
+    // تحقق من تطابق عدد المنتجات ومجموع العناصر
+    const activeItemCount = activeOrder.items.reduce((s, it) => s + it.quantity, 0);
+    const incomingItemCount = parsedItems.reduce((s, it) => s + it.quantity, 0);
+
+    if (activeItemCount === incomingItemCount) {
+      console.log(
+        `[Checkout Protection] Active matching order #${activeOrder.reference} found for ${customerPhone}. Returning existing order.`
+      );
+      return buildOrderWhatsAppResponse(activeOrder, undefined, true);
+    }
   }
 
   // 1. جلب كل التباينات دفعة واحدة (إصلاح N+1 queries)
@@ -395,6 +421,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
         shippingZoneNameSnapshot: zoneName,
         notes: detailedAddress,
         idempotencyKey: idempotencyKey || undefined,
+        telegramStatus: 'PENDING',
         deliveryJob: {
           create: {
             recipientName: customerName,
@@ -449,23 +476,53 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'تعذر حفظ الطلب، يرجى المحاولة مجدداً' };
   }
 
-  // 3. إرسال إشعار فوري للآدمن عبر تليجرام في الخلفية
-  void sendTelegramNewOrderNotification({
-    reference: order.reference,
-    customerName: order.customerName,
-    customerPhone: order.customerPhone,
-    zoneName,
-    address: detailedAddress,
-    totalAmount: order.totalAmount,
-    shippingCost: order.shippingCost,
-    discountAmount: order.discountAmount,
-    items: orderItemsData.map((it) => ({
-      name: it.name,
-      size: it.size,
-      quantity: it.quantity,
-      total: it.total,
-    })),
-  }).catch((err) => console.error('[Checkout Telegram Notification] Error:', err));
+  // 3. إرسال إشعار فوري موثوق للإدارة عبر تيليجرام وتوثيق الحالة في قاعدة البيانات
+  try {
+    const tgResult = await sendTelegramNewOrderNotification({
+      reference: order.reference,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      zoneName,
+      address: detailedAddress,
+      totalAmount: order.totalAmount,
+      shippingCost: order.shippingCost,
+      discountAmount: order.discountAmount,
+      items: orderItemsData.map((it) => ({
+        name: it.name,
+        size: it.size,
+        quantity: it.quantity,
+        total: it.total,
+      })),
+    });
+
+    if (tgResult.success) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          telegramStatus: 'SENT',
+          telegramSentAt: new Date(),
+          telegramError: null,
+        },
+      });
+    } else {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          telegramStatus: 'FAILED',
+          telegramError: tgResult.error || 'فشل إرسال إشعار تيليجرام',
+        },
+      });
+    }
+  } catch (err: any) {
+    console.error('[Checkout Telegram Notification] Non-blocking error:', err);
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        telegramStatus: 'FAILED',
+        telegramError: err.message || 'خطأ غير متوقع في تيليجرام',
+      },
+    }).catch(() => {});
+  }
 
   return buildOrderWhatsAppResponse(order, orderItemsData);
 }

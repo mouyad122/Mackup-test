@@ -412,9 +412,15 @@ model Order {
   deliveryJob              DeliveryJob?
   fulfillmentOutboxTasks   FulfillmentOutbox[]
 
+  // Telegram Notifications Tracking & Outbox
+  telegramStatus           String?                @default("PENDING")
+  telegramSentAt           DateTime?
+  telegramError            String?
+
   @@index([customerId])
   @@index([deliveryBatchId])
   @@index([fulfillmentStatus])
+  @@index([telegramStatus])
 }
 
 model OrderItem {
