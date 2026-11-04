@@ -1,7 +1,7 @@
 import React from 'react';
-import Link from 'next/link';
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
+import { AdminSidebar } from '@/components/AdminSidebar';
 
 export default async function AdminPage() {
   // Enforce server-side authorization check
@@ -12,34 +12,20 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans flex">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[var(--color-charcoal-950)] text-white p-6 flex flex-col gap-6">
-        <div className="font-heading text-xl font-bold border-b border-[#2d3623] pb-4 text-[var(--color-champagne-300)]">
-          makeup Admin
-        </div>
-        <nav className="flex flex-col gap-2">
-          <Link href="/admin/products" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Products</Link>
-          <Link href="/admin/orders" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Orders</Link>
-          <Link href="/admin/sales" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Sales & POS Reports</Link>
-          <Link href="/admin/inventory" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Inventory</Link>
-          <Link href="/admin/raw-materials" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Raw Materials</Link>
-          <Link href="/admin/formulas" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Formulas</Link>
-          <Link href="/admin/employees" className="hover:text-[var(--color-champagne-200)] py-2 transition-colors">Employees & Roles</Link>
-        </nav>
-      </aside>
+    <div className="flex min-h-screen flex-col bg-zinc-50 font-sans md:flex-row" dir="rtl">
+      <AdminSidebar employeeName={user?.name || 'مدير النظام'} roleName={user?.role?.name || 'ADMIN'} />
 
       {/* Main Content Area */}
-      <main className="min-w-0 max-w-full flex-1 p-8">
-        <div className="bg-white rounded-xl shadow-sm border border-zinc-100 p-8">
-          <h1 className="text-2xl font-bold text-[#3F4832] mb-4 border-b border-zinc-100 pb-4">
-            Dashboard / ROLES
+      <main className="min-w-0 max-w-full flex-1 overflow-y-auto p-4 md:p-8 font-sans w-full">
+        <div className="bg-white rounded-xl shadow-sm border border-zinc-100 p-6 md:p-8">
+          <h1 className="text-xl md:text-2xl font-bold text-[#3F4832] mb-4 border-b border-zinc-100 pb-4">
+            لوحة التحكم / الأدوار والصلاحيات (Roles)
           </h1>
-          <p className="text-zinc-500 mb-6">
-            Logged in as: <strong className="text-zinc-700">{user?.name}</strong> ({user?.role?.name})
+          <p className="text-zinc-500 mb-6 text-sm md:text-base">
+            تم تسجيل الدخول كـ: <strong className="text-zinc-700">{user?.name}</strong> ({user?.role?.name})
           </p>
           <div className="bg-zinc-50 rounded-lg p-6 border border-dashed border-zinc-200 text-sm text-zinc-600">
-            Feature module for admin: roles is fully wired to server authorization constraints.
+            وحدة إدارة الأدوار مفعّلة ومتصلة بقيود التحقق من صلاحيات الخادم بنجاح.
           </div>
         </div>
       </main>

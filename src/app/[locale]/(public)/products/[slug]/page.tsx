@@ -88,6 +88,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       variants: {
         where: { isActive: true },
         include: {
+          shade: true,
           supplierOffers: {
             where: { isActive: true, supplier: { isActive: true } },
             select: { stock: true },
@@ -115,8 +116,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const mainImage = product.images.find(img => img.isMain) || product.images[0];
   const variants = product.variants.map((variant) => ({
     ...variant,
-    name: variant.size,
-    colorHex: null,
+    size: variant.size,
+    name: variant.name || variant.size,
+    shadeName: variant.shade?.name || variant.colorName || (variant.shadeId ? 'درجة' : null),
+    colorHex: variant.colorHex || variant.shade?.hexCode || null,
     stock: variant.inventorySource === 'SUPPLIER'
       ? variant.supplierOffers.reduce((total, offer) => total + offer.stock, 0)
       : variant.stock,

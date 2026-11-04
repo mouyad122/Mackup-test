@@ -50,7 +50,7 @@ export default async function AdminContentPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-[var(--color-ivory-100)] overflow-hidden" dir="rtl">
+    <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
 
       <main className="min-w-0 max-w-full flex-1 overflow-y-auto p-8 font-sans w-full max-w-full">

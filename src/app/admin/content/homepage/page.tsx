@@ -30,7 +30,7 @@ export default async function AdminCMSHomepagePage() {
   const locationSettings = await getStoreLocationSettings();
 
   return (
-    <div className="flex min-h-screen bg-[var(--color-ivory-100)] text-zinc-800" dir="rtl">
+    <div className="flex min-h-screen flex-col bg-[var(--color-ivory-100)] text-zinc-800 md:flex-row" dir="rtl">
       <AdminSidebar employeeName={session.employee.name} roleName={session?.employee?.role?.name || "ADMIN"} />
       
       <main className="min-w-0 max-w-full flex-1 p-6 md:p-12 font-sans w-full max-w-6xl mx-auto space-y-6">
