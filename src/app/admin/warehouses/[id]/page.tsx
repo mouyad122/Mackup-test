@@ -5,11 +5,12 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 import { WarehouseForm } from '../WarehouseForm';
 import { notFound } from 'next/navigation';
 
-export default async function EditWarehousePage({ params }: { params: { id: string } }) {
+export default async function EditWarehousePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
+  const { id } = await params;
   
   const warehouse = await prisma.warehouse.findUnique({
-    where: { id: params.id }
+    where: { id }
   });
 
   if (!warehouse) {

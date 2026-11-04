@@ -6,7 +6,7 @@ import ProfitsClientTabs from './ProfitsClientTabs';
 export default async function ProfitsPage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, string | undefined>> | Record<string, string | undefined>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const session = await requirePermission('manage:settings');
   const params = searchParams ? await searchParams : {};
