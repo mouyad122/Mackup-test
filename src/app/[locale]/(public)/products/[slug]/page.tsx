@@ -11,11 +11,8 @@ import type { Metadata } from 'next';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
 
-export const dynamic = 'force-dynamic'; // Ensure we get fresh DB data for demo
-
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 export async function generateMetadata({
   params,
@@ -24,9 +21,23 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, locale } = await params;
   const isAr = locale === 'ar';
+  const decodedSlug = (() => {
+    try {
+      return decodeURIComponent(slug);
+    } catch {
+      return slug;
+    }
+  })();
 
-  const product = await prisma.product.findUnique({
-    where: { slug },
+  const product = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { slug },
+        { slug: decodedSlug },
+        { id: slug },
+        { id: decodedSlug },
+      ],
+    },
     include: {
       images: { where: { isMain: true }, take: 1 },
       category: true,
@@ -81,9 +92,23 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string; locale: string }> }) {
   const { slug, locale } = await params;
+  const decodedSlug = (() => {
+    try {
+      return decodeURIComponent(slug);
+    } catch {
+      return slug;
+    }
+  })();
   
-  const product = await prisma.product.findUnique({
-    where: { slug },
+  const product = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { slug },
+        { slug: decodedSlug },
+        { id: slug },
+        { id: decodedSlug },
+      ],
+    },
     include: {
       variants: {
         where: { isActive: true },
@@ -241,8 +266,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-16 items-start">
-          {/* Product Images (Interactive Gallery) */}
-          <div className="sticky top-28">
+          {/* Product Images (Interactive Gallery) - static on mobile so it scrolls naturally, sticky on desktop */}
+          <div className="lg:sticky lg:top-28">
             <ProductGallery images={product.images} productName={productName} isAr={isAr} categorySlug={product.category?.slug} />
           </div>
 

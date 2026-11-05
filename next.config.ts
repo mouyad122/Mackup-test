@@ -90,6 +90,16 @@ const nextConfig: NextConfig = {
         destination: '/ar',
         permanent: true,
       },
+      {
+        source: '/r/products/:slug*',
+        destination: '/ar/products/:slug*',
+        permanent: false,
+      },
+      {
+        source: '/r/products',
+        destination: '/ar/shop',
+        permanent: false,
+      },
     ];
   },
 };
