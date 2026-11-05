@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Naskh_Arabic, Cormorant_Garamond } from "next/font/google";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import "./globals.css";
 
@@ -8,20 +7,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
 };
-
-const notoNaskhArabic = Noto_Naskh_Arabic({
-  subsets: ["arabic"],
-  variable: "--font-noto-naskh",
-  weight: ["400", "500", "600", "700"],
-  display: 'swap',
-});
-
-const cormorantGaramond = Cormorant_Garamond({
-  subsets: ["latin"],
-  variable: "--font-cormorant",
-  weight: ["400", "500", "600", "700"],
-  display: 'swap',
-});
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
 
@@ -89,7 +74,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${notoNaskhArabic.variable} ${cormorantGaramond.variable}`} style={{ colorScheme: 'light' }}>
+    <html lang="ar" dir="rtl" style={{ colorScheme: 'light' }}>
       <body className="antialiased min-h-screen flex flex-col">
         <ActiveOrderBanner />
         {children}

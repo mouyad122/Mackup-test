@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAuth } from '@/lib/dal';
+import { requireAuth, requirePermission } from '@/lib/dal';
+import { escapeCsvCell } from '@/lib/csv';
 
 export async function GET(request: Request) {
   try {
     await requireAuth();
+    await requirePermission('manage:settings');
+  } catch {
+    return new NextResponse('Forbidden', { status: 403 });
+  }
+
+  try {
 
     const { searchParams } = new URL(request.url);
     const filterEmployee = searchParams.get('employeeId');
@@ -34,6 +41,7 @@ export async function GET(request: Request) {
     const sales = await prisma.sale.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
+      take: 5000,
       include: {
         employee: true,
         payments: true
@@ -50,7 +58,7 @@ export async function GET(request: Request) {
       const date = new Date(sale.createdAt).toLocaleString('en-GB').replace(/,/g, '');
       const empName = sale.employee?.name || '-';
       
-      csv += `${sale.reference},${empName},${source},${sale.customerName || '-'},${total},${payMethod},${date}\n`;
+      csv += [sale.reference, empName, source, sale.customerName, total, payMethod, date].map(escapeCsvCell).join(',') + '\n';
     });
 
     // Need BOM for Excel to open UTF-8 correctly

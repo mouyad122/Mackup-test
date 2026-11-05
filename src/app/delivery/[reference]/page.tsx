@@ -1,15 +1,18 @@
 import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
+import { requirePermission } from '@/lib/dal';
 import { filsToDisplay } from '@/lib/money';
 import DeliveryManifestClient from './DeliveryManifestClient';
 
 export default async function DeliveryBatchPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ reference: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const { reference } = await params;
+  const [{ reference }, { token }] = await Promise.all([params, searchParams]);
 
   const batch = await prisma.deliveryBatch.findUnique({
     where: { reference },
@@ -46,6 +49,13 @@ export default async function DeliveryBatchPage({
 
   if (!batch) {
     return notFound();
+  }
+
+  if (batch.secureToken) {
+    if (!token || token !== batch.secureToken) return notFound();
+  } else {
+    // Older batches predate capability links and remain staff-only.
+    await requirePermission('manage:orders');
   }
 
   // Shared delivery links expire after 60 days
@@ -209,7 +219,7 @@ export default async function DeliveryBatchPage({
       (host && (host.startsWith('localhost') || host.startsWith('127.0.0.1')) ? 'http' : 'https');
     if (host) baseUrl = `${proto}://${host}`;
   } catch {}
-  const manifestUrl = `${baseUrl}/delivery/${batch.reference}`;
+  const manifestUrl = `${baseUrl}/delivery/${batch.reference}${batch.secureToken ? `?token=${encodeURIComponent(batch.secureToken)}` : ''}`;
 
   let formattedWhatsAppText =
     `📋 *كشف إرسالية شركة التوصيل - رَواق (RAWAQ)*\n` +
@@ -251,6 +261,7 @@ export default async function DeliveryBatchPage({
     <DeliveryManifestClient
       batch={{
         reference: batch.reference,
+        secureToken: batch.secureToken || undefined,
         createdAt: batch.createdAt,
         status: batch.status,
       }}

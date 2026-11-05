@@ -59,6 +59,7 @@ async function getSiteSettings<T>(key: string, defaultValue: T, schema?: z.ZodSc
 
 // 1. Tax Settings
 export async function getTaxSettings() {
+  await requireSuperAdmin();
   const settings = await prisma.globalPricingSettings.findUnique({ where: { id: '1' } });
   return {
     taxEnabled: settings?.taxEnabled ?? false,
@@ -109,6 +110,7 @@ export async function updateTaxSettings(data: { taxEnabled: boolean; taxRate: nu
 
 // 2. Shipping Settings
 export async function getShippingZones() {
+  await requireSuperAdmin();
   return await prisma.shippingZone.findMany({
     orderBy: { nameAr: 'asc' }
   });
@@ -315,6 +317,7 @@ export interface InventorySettings {
   lowStockThreshold: number;
 }
 export async function getInventorySettings(): Promise<InventorySettings> {
+  await requirePermission('manage:settings');
   return await getSiteSettings<InventorySettings>('inventory_settings', { lowStockThreshold: 1.0 });
 }
 export async function updateInventorySettings(data: InventorySettings, adminId: string) {
@@ -428,6 +431,7 @@ const localizationSettingsSchema = z.object({
   supportedLocales: z.array(z.string()).catch(['ar', 'en'])
 });
 export async function getLocalizationSettings(): Promise<LocalizationSettings> {
+  await requireSuperAdmin();
   return await getSiteSettings<LocalizationSettings>('localization_settings', {
     defaultLocale: 'ar',
     supportedLocales: ['ar', 'en']

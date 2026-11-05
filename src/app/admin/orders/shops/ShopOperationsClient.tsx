@@ -695,7 +695,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
                     </h3>
                   </div>
                   <span className="text-xs text-stone-500 font-medium">
-                    يمكنك استعراض تفاصيل أي طلب بالكامل بالنقر على "عرض تفاصيل الطلب"
+                    يمكنك استعراض تفاصيل أي طلب بالكامل بالنقر على &quot;عرض تفاصيل الطلب&quot;
                   </span>
                 </div>
 

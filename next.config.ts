@@ -42,7 +42,6 @@ const nextConfig: NextConfig = {
         hostname: '*.supabase.com',
       },
     ],
-    dangerouslyAllowSVG: true,
     // تحسين جودة الصور
     formats: ['image/avif', 'image/webp'],
     // Cache الصور لمدة أسبوع

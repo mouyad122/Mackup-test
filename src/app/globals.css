@@ -21,7 +21,7 @@ body {
   min-height: 100%;
   background-color: #F7F3EA;
   color: #3F4832;
-  font-family: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
+  font-family: 'EnglishDigits', 'Noto Naskh Arabic', 'Geeza Pro', system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-feature-settings: "locl" 0;
   font-feature-settings: "locl" 0;
@@ -37,7 +37,7 @@ input,
 select,
 textarea {
   color-scheme: only light;
-  font-family: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
+  font-family: 'EnglishDigits', 'Noto Naskh Arabic', 'Geeza Pro', system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
 }
 
@@ -64,9 +64,9 @@ textarea {
   --radius-card-accent: 2.5rem;   /* زوايا مميزة */
 
   /* ─── Typography ─── */
-  --font-heading: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
-  --font-body: 'EnglishDigits', var(--font-noto-naskh), system-ui, sans-serif;
-  --font-english: var(--font-cormorant);
+  --font-heading: 'EnglishDigits', 'Noto Naskh Arabic', 'Geeza Pro', system-ui, sans-serif;
+  --font-body: 'EnglishDigits', 'Noto Naskh Arabic', 'Geeza Pro', system-ui, sans-serif;
+  --font-english: 'Cormorant Garamond', Georgia, serif;
 }
 
 /* The storefront uses a deliberately restrained visual language: one dark

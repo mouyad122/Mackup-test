@@ -1,11 +1,11 @@
 // Mock server-only before any other imports
 const Module = require('module');
 const originalRequire = Module.prototype.require;
-Module.prototype.require = function (path: string) {
+Module.prototype.require = function (path: string, ...args: unknown[]) {
   if (path === 'server-only') {
     return {};
   }
-  return originalRequire.apply(this, arguments);
+  return originalRequire.call(this, path, ...args);
 };
 
 import { prisma } from '../src/lib/db';

@@ -1329,7 +1329,7 @@ export default function UnifiedOrdersCommandCenter({
                         onClick={handleMarkWhatsAppSent}
                         className="text-[11px] text-stone-600 hover:text-stone-900 font-bold underline"
                       >
-                        تحديد كـ "تم الإرسال"
+                        تحديد كـ &quot;تم الإرسال&quot;
                       </button>
                     )}
                   </div>

@@ -26,6 +26,7 @@ import {
 interface Props {
   batch: {
     reference: string;
+    secureToken?: string;
     createdAt: Date | string;
     status: string;
   };
@@ -127,7 +128,7 @@ export default function DeliveryManifestClient({
 
     try {
       setIsConfirmingPickup(true);
-      const res = await confirmBatchPickupFromManifestAction(batch.reference);
+      const res = await confirmBatchPickupFromManifestAction(batch.reference, batch.secureToken);
       if (res.success) {
         setLocalBatchStatus('IN_DELIVERY');
         alert('تم تأكيد الاستلام بنجاح! تم تحديث حالة الإرسالية إلى (جارٍ التوصيل). 🚚');
@@ -159,7 +160,7 @@ export default function DeliveryManifestClient({
 
     try {
       setIsConfirmingDelivery((prev) => ({ ...prev, [orderId]: true }));
-      const res = await confirmOrderDeliveryFromManifestAction(batch.reference, orderId);
+      const res = await confirmOrderDeliveryFromManifestAction(batch.reference, orderId, undefined, batch.secureToken);
       if (res.success) {
         setLocalDeliveredOrders((prev) => ({ ...prev, [orderId]: true }));
         alert(`تم تأكيد تسليم الطلب #${orderRef} وتحصيل المبلغ بنجاح! ✓`);

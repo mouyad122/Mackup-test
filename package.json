@@ -9,15 +9,15 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
-    "test": "pnpm test:migrate && node --env-file=.env node_modules/vitest/vitest.mjs run --pool=forks --fileParallelism=false",
-    "test:migrate": "DATABASE_URL=postgres://postgres:postgres@localhost:51214/makeup_test?sslmode=disable DIRECT_URL=postgres://postgres:postgres@localhost:51214/makeup_test?sslmode=disable prisma migrate deploy",
-    "test:e2e": "playwright test",
+    "test": "pnpm test:migrate && cross-env NODE_ENV=test TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DIRECT_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable vitest run --pool=forks --fileParallelism=false",
+    "test:migrate": "cross-env DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DIRECT_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable prisma migrate deploy",
+    "test:e2e": "pnpm test:migrate && cross-env E2E_TEST_MODE=1 TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DIRECT_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable NEXT_PUBLIC_SUPABASE_URL=https://dummy.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=test-only NEXT_PUBLIC_SUPABASE_ANON_KEY=test-only SUPABASE_SERVICE_ROLE_KEY= SUPABASE_SECRET_KEY= TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= AWS_ENDPOINT_URL_S3= AWS_ACCESS_KEY_ID= AWS_SECRET_ACCESS_KEY= AWS_REGION= PUBLIC_APP_URL=http://127.0.0.1:3000 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 playwright test",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "tsx --env-file=.env scripts/create-admin.ts",
     "import:products": "tsx --env-file=.env scripts/import-products.ts",
     "create:admin": "tsx --env-file=.env scripts/create-admin.ts",
-    "test:concurrency": "node --env-file=.env node_modules/vitest/vitest.mjs run src/tests/concurrency-verification.test.ts",
+    "test:concurrency": "pnpm test:migrate && cross-env NODE_ENV=test TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DATABASE_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable DIRECT_URL=postgres://postgres:postgres@127.0.0.1:51214/makeup_test?sslmode=disable tsx scripts/test-concurrent-checkout.ts",
     "db:safeguard": "tsx scripts/db-safeguard.ts"
   },
   "dependencies": {
@@ -30,16 +30,15 @@
     "@types/pg": "^8.20.0",
     "argon2": "^0.44.0",
     "lucide-react": "^1.24.0",
-    "next": "16.2.10",
+    "next": "16.4.1",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.81.0",
     "server-only": "^0.0.1",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@neon/config": "^1.8.6",
@@ -53,15 +52,15 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
     "cross-env": "^10.1.0",
-    "csv-parse": "^7.0.1",
+    "csv-parse": "^7.0.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.4.1",
     "jsdom": "^29.1.1",
     "papaparse": "^5.5.4",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

@@ -9,8 +9,12 @@ import { prisma } from '@/lib/db';
  */
 export async function GET(request: Request) {
   // التحقق من صلاحية الطلب (Cron secret)
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return new NextResponse('Cron authorization is not configured', { status: 503 });
+  }
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 

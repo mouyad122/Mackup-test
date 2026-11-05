@@ -7,6 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { cancelOrderAndReverseFinancials } from '@/lib/order-cancellation';
 import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
+import { authorizeManifestAction } from '@/lib/delivery-manifest-access';
 
 function parseOrders(formData: FormData) {
   const values = formData.getAll('orderIds').flatMap(value => String(value).split(',')).filter(Boolean);
@@ -24,6 +25,7 @@ function refreshBatch(reference: string) {
 export async function createDeliveryBatch(formData: FormData) {
   const session = await requirePermission('manage:orders');
   const orderIds = parseOrders(formData);
+  const secureToken = randomBytes(32).toString('base64url');
   const reference = await prisma.$transaction(async tx => {
     const [count, lastBatch] = await Promise.all([
       tx.deliveryBatch.count(),
@@ -55,7 +57,7 @@ export async function createDeliveryBatch(formData: FormData) {
       },
     });
     if (eligible !== orderIds.length) throw new Error('تغيرت حالة بعض الطلبات أو أُضيفت إلى طلبية أخرى. حدّث الصفحة.');
-    const batch = await tx.deliveryBatch.create({ data: { reference: newRef, status: 'NOT_DELIVERED' } });
+    const batch = await tx.deliveryBatch.create({ data: { reference: newRef, secureToken, status: 'NOT_DELIVERED' } });
     const updated = await tx.order.updateMany({
       where: { id: { in: orderIds }, deliveryBatchId: null },
       data: { deliveryBatchId: batch.id, status: 'SHIPPED', fulfillmentStatus: 'OUT_FOR_DELIVERY' },
@@ -176,8 +178,9 @@ export async function updateDeliveryBatchStatus(batchId: string, formData: FormD
 /**
  * تأكيد استلام الطرود وبدء رحلة التوصيل مباشرة من كشف التوصيل الميداني (دون الحاجة لدخول الأدمن)
  */
-export async function confirmBatchPickupFromManifestAction(batchReference: string) {
+export async function confirmBatchPickupFromManifestAction(batchReference: string, secureToken?: string) {
   try {
+    await authorizeManifestAction(batchReference, secureToken);
     const batch = await prisma.deliveryBatch.findUnique({
       where: { reference: batchReference },
       include: {
@@ -276,9 +279,11 @@ export async function confirmBatchPickupFromManifestAction(batchReference: strin
 export async function confirmOrderDeliveryFromManifestAction(
   batchReference: string,
   orderId: string,
-  notes?: string
+  notes?: string,
+  secureToken?: string
 ) {
   try {
+    await authorizeManifestAction(batchReference, secureToken);
     const batch = await prisma.deliveryBatch.findUnique({
       where: { reference: batchReference },
       include: {

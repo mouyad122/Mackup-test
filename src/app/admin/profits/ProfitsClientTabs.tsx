@@ -1035,7 +1035,7 @@ export default function ProfitsClientTabs({
             <h4 className="font-bold text-xs text-stone-700">سجل إغلاقات الفترات المالية:</h4>
             {ledger.filter((l) => l.category === 'PERIOD_CLOSE').length === 0 ? (
               <div className="p-8 text-center text-xs text-stone-400 bg-stone-50 rounded-2xl">
-                لا توجد فترات مغلقة بعد. استخدم زر "إنشاء مسودة إغلاق جديدة" للبدء.
+                لا توجد فترات مغلقة بعد. استخدم زر &quot;إنشاء مسودة إغلاق جديدة&quot; للبدء.
               </div>
             ) : (
               ledger

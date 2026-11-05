@@ -34,6 +34,7 @@ type Order = {
 type Batch = {
   id: string;
   reference: string;
+  secureToken: string | null;
   status: string;
   createdAt: Date;
   orders: Order[];
@@ -113,7 +114,7 @@ function BatchEditor({ batch, preparedOrders }: { batch: Batch; preparedOrders: 
           <div className="flex flex-wrap items-center gap-2"><h2 className="text-lg font-bold">{batch.reference}</h2><span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold">{statusLabel[batch.status] || batch.status}</span></div>
           <p className="mt-1 text-xs text-zinc-500">أُنشئت <span dir="ltr">{new Date(batch.createdAt).toLocaleString('en-GB')}</span> · {batch.orders.length} طلب</p>
         </div>
-        <div className="w-full sm:w-72"><BatchActions batchId={batch.id} reference={batch.reference} deleteAction={deleteDeliveryBatch} status={batch.status} /></div>
+        <div className="w-full sm:w-72"><BatchActions batchId={batch.id} reference={batch.reference} secureToken={batch.secureToken} deleteAction={deleteDeliveryBatch} status={batch.status} /></div>
       </div>
       <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section>

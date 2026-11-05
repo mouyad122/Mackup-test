@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: Request) {
-  // Check authorization - you can secure this with a secret header (e.g. Vercel Cron Secret)
+  if (process.env.ORDER_RETENTION_CLEANUP_ENABLED !== 'true') {
+    return new NextResponse('Order retention cleanup is disabled', { status: 410 });
+  }
+
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return new NextResponse('Cron authorization is not configured', { status: 503 });
+  }
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -29,6 +36,6 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error('CRON Cleanup Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Cleanup failed' }, { status: 500 });
   }
 }
