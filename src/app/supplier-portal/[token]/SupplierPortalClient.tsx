@@ -29,7 +29,6 @@ interface Props {
 export default function SupplierPortalClient({ token, initialData }: Props) {
   const [data, setData] = useState(initialData);
   const [loadingOrder, setLoadingOrder] = useState<string | null>(null);
-  const [packagesInputs, setPackagesInputs] = useState<Record<string, number>>({});
   const [issueInputs, setIssueInputs] = useState<Record<string, string>>({});
   const [showIssueBox, setShowIssueBox] = useState<Record<string, boolean>>({});
   const [activeItemShortage, setActiveItemShortage] = useState<string | null>(null);
@@ -95,7 +94,8 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
   ) => {
     try {
       setLoadingOrder(orderId);
-      const pkgCount = packagesInputs[orderId] || 1;
+      // كل طلب يعامل كطرد واحد تلقائياً من كل محل
+      const pkgCount = 1;
       const issueReason = issueInputs[orderId];
 
       const res = await updateFulfillmentFromPortalAction(token, orderId, action, {
@@ -371,13 +371,13 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
 
                   {/* Packages generated notice */}
                   {f.packages && f.packages.length > 0 && (
-                    <div className="pt-2 border-t border-zinc-100 space-y-1.5">
-                      <div className="text-xs font-bold text-zinc-600">رموز الطرود للتسليم:</div>
+                    <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-xs">
+                      <span className="font-bold text-zinc-600">رمز الطرد للتسليم:</span>
                       <div className="flex flex-wrap gap-1.5">
                         {f.packages.map((pkg: any) => (
                           <span
                             key={pkg.id}
-                            className="text-xs font-mono bg-purple-50 text-purple-800 border border-purple-200 px-2 py-1 rounded-md"
+                            className="text-xs font-mono bg-purple-50 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-md font-bold"
                           >
                             {pkg.packageCode}
                           </span>
@@ -406,27 +406,6 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
 
                   {f.status === 'IN_PREPARATION' ? (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <label className="text-xs font-bold text-zinc-700 whitespace-nowrap">
-                          عدد الطرود:
-                        </label>
-                        <select
-                          value={packagesInputs[f.id] || 1}
-                          onChange={(e) =>
-                            setPackagesInputs({
-                              ...packagesInputs,
-                              [f.id]: parseInt(e.target.value),
-                            })
-                          }
-                          className="bg-white border border-zinc-300 rounded-lg text-xs py-1.5 px-3 font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        >
-                          <option value="1">1 طرد (كيس / كرتون واحد)</option>
-                          <option value="2">2 طرد</option>
-                          <option value="3">3 طرود</option>
-                          <option value="4">4 طرود</option>
-                        </select>
-                      </div>
-
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleAction(f.id, 'READY')}
@@ -489,11 +468,11 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-purple-600" />
                         <span className="font-bold">
-                          تم إعلان الجاهزية وبانتظار حضور المندوب
+                          تم تجهيز الطلب وهو جاهز للاستلام وبانتظار حضور المندوب
                         </span>
                       </div>
-                      <span className="font-bold bg-white px-2 py-0.5 rounded text-purple-700 border border-purple-200">
-                        {f.packagesCount} طرد
+                      <span className="font-bold bg-white px-2.5 py-1 rounded-lg text-purple-700 border border-purple-200 whitespace-nowrap">
+                        جاهز للاستلام ✅
                       </span>
                     </div>
                   ) : null}

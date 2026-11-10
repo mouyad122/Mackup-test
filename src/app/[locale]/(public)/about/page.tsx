@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { OliveBranchDecoration } from '@/components/RawaqMotifs';
+import {
+  OliveBranchDecoration,
+  OliveBranchIcon,
+  JordanianStoneArchIcon,
+  TatreezEmbroideryIcon,
+  JordanStarIcon,
+} from '@/components/RawaqMotifs';
 
 export const metadata: Metadata = {
   title: 'قصتنا | رَواق — أناقة من روح الأصالة',
@@ -29,9 +35,9 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           }}
         />
 
-        {/* زخارف زيتونية معمارية خفيفة */}
-        <OliveBranchDecoration className="absolute -start-24 -top-24 w-96 text-white opacity-[0.06] pointer-events-none rotate-45" />
-        <OliveBranchDecoration className="absolute -end-24 -bottom-24 w-96 text-white opacity-[0.06] pointer-events-none -rotate-135" />
+        {/* زخارف أغصان الزيتون الطبيعية في الأركان */}
+        <OliveBranchDecoration className="absolute -start-24 -top-24 w-96 text-white opacity-[0.08] pointer-events-none rotate-45" />
+        <OliveBranchDecoration className="absolute -end-24 -bottom-24 w-96 text-white opacity-[0.08] pointer-events-none -rotate-135" />
 
         {/* قوس معماري رمزي في الخلفية */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -40,7 +46,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
 
         {/* المحتوى التحريري الرئيسي */}
         <div className="relative z-10 mx-auto w-full max-w-4xl px-5 sm:px-8 py-20 text-center">
-          <span className="inline-flex items-center gap-2 mb-5 px-4 py-1 rounded-full border border-[#B7935F]/40 bg-[#B7935F]/10 text-[#D9C6A8] text-xs font-bold tracking-[0.25em] uppercase">
+          <span className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-[#B7935F]/40 bg-[#B7935F]/15 text-[#D9C6A8] text-xs font-bold tracking-[0.25em] uppercase shadow-sm">
             ✦ {isAr ? 'هوية رَواق' : 'THE ESSENCE OF RAWAQ'} ✦
           </span>
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.25] mb-6 font-heading">
@@ -50,7 +56,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               {isAr ? 'أناقة من روح الأصالة' : 'Elegance rooted in heritage'}
             </span>
           </h1>
-          <p className="text-base sm:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-xl text-white/85 max-w-2xl mx-auto leading-relaxed font-light">
             {isAr
               ? 'هناك جمال لا يرتبط بزمن، وأصالة تبقى ناضرة مهما تغيّرت تفاصيل الحياة.'
               : 'There is a beauty untethered from time, and an authenticity that endures through every change.'}
@@ -111,22 +117,50 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               </div>
             </div>
 
-            {/* Visual Side — Heritage Architectural Composition */}
+            {/* Visual Side — Heritage Architectural & Embroidery Composition */}
             <div className={`grid grid-cols-2 gap-4 ${isAr ? 'order-2' : 'order-1'}`}>
-              <div className="flex flex-col items-center justify-center p-8 rounded-t-[4rem] rounded-b-2xl bg-[#3F4832] text-white shadow-lg text-center">
-                <span className="text-3xl text-[#D9C6A8] mb-3">⚱</span>
-                <h3 className="font-heading font-bold text-lg mb-1">{isAr ? 'معمار الحجر' : 'Stone Heritage'}</h3>
-                <p className="text-xs text-white/70 leading-relaxed">{isAr ? 'دفء الحجر الأردني وأقواسه التاريخية' : 'Warmth of Jordanian stone arches'}</p>
+              {/* بطاقة معمار الحجر وأقواسه التاريخية */}
+              <div className="flex flex-col items-center justify-center p-7 sm:p-8 rounded-t-[4rem] rounded-b-2xl bg-[#3F4832] text-white shadow-lg text-center group hover:bg-[#363e2b] transition-all duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4 p-2.5 border border-[#D9C6A8]/30 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                  <JordanianStoneArchIcon className="w-full h-full" primaryColor="#D9C6A8" stoneColor="#F7F3EA" />
+                </div>
+                <h3 className="font-heading font-bold text-lg mb-1 text-[#F7F3EA]">
+                  {isAr ? 'معمار الحجر' : 'Stone Heritage'}
+                </h3>
+                <p className="text-xs text-white/80 leading-relaxed max-w-[180px]">
+                  {isAr ? 'دفء الحجر الأردني وأقواسه التاريخية' : 'Warmth of Jordanian stone arches'}
+                </p>
               </div>
-              <div className="flex flex-col items-center justify-center p-8 mt-6 rounded-b-[4rem] rounded-t-2xl bg-[#F7F3EA] border border-[#D9C6A8] text-[#3F4832] shadow-md text-center">
-                <span className="text-3xl text-[#B7935F] mb-3">🪡</span>
-                <h3 className="font-heading font-bold text-lg mb-1">{isAr ? 'خيوط التطريز' : 'Living Embroidery'}</h3>
-                <p className="text-xs text-[#746A64] leading-relaxed">{isAr ? 'أناقة الحرفة وذاكرة المكان' : 'Craftsmanship and cultural memory'}</p>
+
+              {/* بطاقة خيوط التطريز التراثية */}
+              <div className="flex flex-col items-center justify-center p-7 sm:p-8 mt-6 rounded-b-[4rem] rounded-t-2xl bg-[#F7F3EA] border border-[#D9C6A8] text-[#3F4832] shadow-md text-center group hover:border-[#B7935F] hover:shadow-lg transition-all duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-4 p-2 border border-[#B7935F]/30 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                  <TatreezEmbroideryIcon className="w-full h-full" />
+                </div>
+                <h3 className="font-heading font-bold text-lg mb-1 text-[#3F4832]">
+                  {isAr ? 'خيوط التطريز' : 'Living Embroidery'}
+                </h3>
+                <p className="text-xs text-[#746A64] leading-relaxed max-w-[180px]">
+                  {isAr ? 'أناقة الحرفة وذاكرة المكان' : 'Craftsmanship and cultural memory'}
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* فاصل تطريز تراثي فخم يربط المشاهد */}
+      <div className="w-full py-3.5 bg-[#F8F2E8]/70 border-b border-[#E9DDCC]/80">
+        <div className="max-w-4xl mx-auto px-4 flex items-center justify-center gap-4 text-xs font-semibold text-[#3F4832]/85">
+          <span className="hidden sm:inline-block h-px w-24 bg-[#B7935F]/40" />
+          <span className="flex items-center gap-2">
+            <span className="text-[#A61E22] font-bold">✦</span>
+            <span>{isAr ? 'غرزة تروي حكاية، وقوس يعانق الأصالة' : 'Every stitch tells a story, every arch holds identity'}</span>
+            <span className="text-[#A61E22] font-bold">✦</span>
+          </span>
+          <span className="hidden sm:inline-block h-px w-24 bg-[#B7935F]/40" />
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════
           المشهد 04 — في شعارنا حكاية (الشعار الرسمي وعناصره)
@@ -163,18 +197,37 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               </p>
 
               <div className="grid sm:grid-cols-3 gap-5">
-                {(isAr ? [
-                  { symbol: '⌒', title: 'القوس المعماري', desc: 'يستحضر فناء البيت الأردني ورَواقه، حيث تتلاقى التهوية والضوء والسكينة.' },
-                  { symbol: '🪔', title: 'غصن الزيتون', desc: 'رمز النقاء والبركة والوفاء للأرض، يعبّر عن استمرارية الجمال عبر العصور.' },
-                  { symbol: '✦', title: 'النجمة', desc: 'لمسة إشراق وتميز تتوّج الهوية وتعلن عن روح معاصرة فخورة بأصلها.' },
-                ] : [
-                  { symbol: '⌒', title: 'The Arch', desc: 'Recalling the traditional Jordanian portico (Rawaq) filled with light and calm.' },
-                  { symbol: '🪔', title: 'The Olive Branch', desc: 'A symbol of purity, blessed land, and enduring beauty across centuries.' },
-                  { symbol: '✦', title: 'The Star', desc: 'A radiant crown representing modern distinction proud of its heritage.' },
-                ]).map(({ symbol, title, desc }) => (
-                  <div key={title} className="flex flex-col gap-3 p-6 rounded-2xl bg-white border border-[#E9DDCC] shadow-sm hover:border-[#B7935F] transition-all duration-300">
-                    <span className="text-3xl text-[#B7935F] font-bold">{symbol}</span>
-                    <h3 className="font-heading font-bold text-[#3F4832] text-lg">{title}</h3>
+                {[
+                  {
+                    icon: <JordanianStoneArchIcon className="w-9 h-9" primaryColor="#B7935F" stoneColor="#D9C6A8" />,
+                    title: isAr ? 'القوس المعماري' : 'The Arch',
+                    desc: isAr
+                      ? 'يستحضر فناء البيت الأردني ورَواقه، حيث تتلاقى التهوية والضوء والسكينة والمداميك التاريخية.'
+                      : 'Recalling the traditional Jordanian portico (Rawaq) filled with light and calm.',
+                  },
+                  {
+                    icon: <OliveBranchIcon className="w-9 h-9" />,
+                    title: isAr ? 'غصن الزيتون' : 'The Olive Branch',
+                    desc: isAr
+                      ? 'رمز النقاء والبركة والوفاء للأرض، يعبّر عن استمرارية الجمال عبر العصور وخير تلالنا.'
+                      : 'A symbol of purity, blessed land, and enduring beauty across centuries.',
+                  },
+                  {
+                    icon: <JordanStarIcon className="w-9 h-9" color="#B7935F" />,
+                    title: isAr ? 'النجمة السباعية' : 'The Jordan Star',
+                    desc: isAr
+                      ? 'النجمة السباعية الأردنية الخالدة، لمسة إشراق وتميز تتوّج الهوية وتعلن عن روح معاصرة فخورة بأصلها.'
+                      : 'The radiant seven-pointed Jordan star representing modern distinction proud of its heritage.',
+                  },
+                ].map(({ icon, title, desc }) => (
+                  <div
+                    key={title}
+                    className="flex flex-col gap-3 p-6 rounded-2xl bg-white border border-[#E9DDCC] shadow-sm hover:border-[#B7935F] hover:shadow-md transition-all duration-300 group"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-[#F7F3EA] flex items-center justify-center p-2.5 border border-[#E9DDCC] group-hover:bg-white group-hover:border-[#B7935F]/60 transition-colors duration-300">
+                      {icon}
+                    </div>
+                    <h3 className="font-heading font-bold text-[#3F4832] text-lg mt-1">{title}</h3>
                     <p className="text-xs sm:text-sm text-[#746A64] leading-relaxed">{desc}</p>
                   </div>
                 ))}
@@ -215,8 +268,8 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           المشهد 06 — الخاتمة والدعوة (لكل يوم تفاصيله... ولكِ رَواقكِ)
       ═══════════════════════════════════════════════════ */}
       <section className="bg-[#3F4832] py-20 sm:py-28 relative overflow-hidden text-white">
-        <OliveBranchDecoration className="absolute -end-20 -bottom-20 w-80 text-white opacity-[0.05] pointer-events-none" />
-        <OliveBranchDecoration className="absolute -start-20 -top-20 w-80 text-white opacity-[0.05] pointer-events-none rotate-180" />
+        <OliveBranchDecoration className="absolute -end-20 -bottom-20 w-80 text-white opacity-[0.06] pointer-events-none" />
+        <OliveBranchDecoration className="absolute -start-20 -top-20 w-80 text-white opacity-[0.06] pointer-events-none rotate-180" />
 
         <div className="relative z-10 mx-auto max-w-3xl px-5 sm:px-8 text-center">
           <span className="inline-block mb-4 text-[#D9C6A8] text-xs font-bold tracking-[0.25em] uppercase">

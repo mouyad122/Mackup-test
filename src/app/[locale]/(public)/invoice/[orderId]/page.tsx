@@ -166,64 +166,6 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
           </div>
         </div>
 
-        {/* Order Status History Timeline */}
-        {order.statusHistory.length > 0 && (
-          <div className="px-8 pb-8 pt-4 border-t border-zinc-100">
-            <h3 className="text-sm font-bold font-heading text-[#3F4832] mb-4 flex items-center gap-2">
-              <span>سجل ومراحل متابعة الطلب</span>
-              <span className="text-xs text-zinc-400 font-normal">({order.statusHistory.length} محطات مسجلة)</span>
-            </h3>
-            <div className="space-y-3">
-              {order.statusHistory.map((hist, index) => {
-                const histInfo = getOrderStatusInfo(hist.status);
-                const isLatest = index === order.statusHistory.length - 1;
-                return (
-                  <div 
-                    key={hist.id} 
-                    className={`p-3.5 rounded-xl border text-sm transition-all ${
-                      isLatest 
-                        ? 'bg-[#F7F3EA]/70 border-[#B7935F]/60 shadow-sm' 
-                        : 'bg-zinc-50/60 border-zinc-100'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${isLatest ? 'bg-[#3F4832]' : 'bg-zinc-400'}`} />
-                        <span className={`font-bold text-xs ${isLatest ? 'text-[#3F4832]' : 'text-zinc-700'}`}>
-                          {histInfo.label}
-                        </span>
-                        {isLatest && (
-                          <span className="text-[10px] bg-[#3F4832] text-white px-2 py-0.5 rounded-full font-bold">
-                            المرحلة الحالية
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-zinc-500 font-mono" dir="ltr">
-                        {new Date(hist.createdAt).toLocaleString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-600 leading-relaxed ps-4">
-                      {histInfo.explanation}
-                    </p>
-                    {hist.notes && hist.notes !== histInfo.explanation && (
-                      <p className="text-xs text-zinc-500 mt-1.5 ps-4 bg-white/80 p-2 rounded border border-zinc-200/50">
-                        {hist.notes}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Footer */}
         <div className="bg-zinc-50 p-6 text-center border-t border-zinc-200">
           <p className="text-zinc-600 font-bold mb-2">شكراً لثقتكم برَواق 🌟</p>
