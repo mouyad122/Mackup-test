@@ -81,6 +81,11 @@ export async function processCheckout(prevState: any, formData: FormData) {
     return { error: 'يرجى التحقق من المدخلات' };
   }
 
+  const rawTerms = formData.get('termsAccepted');
+  if (rawTerms !== 'true' && rawTerms !== 'on') {
+    return { error: 'يجب الموافقة على شروط وأحكام الشراء وسياسة الاستبدال والإرجاع للمتابعة وإتمام الطلب.' };
+  }
+
   const { customerName, customerPhone, addressStreet, addressBuilding, addressApartment, shippingZoneId, couponCode, idempotencyKey, items: itemsJson } = parsed.data;
   
   let parsedItems: { productId: string; variantId: string; quantity: number }[];
@@ -429,7 +434,7 @@ export async function processCheckout(prevState: any, formData: FormData) {
         couponCodeSnapshot: coupon?.code ?? null,
         rewardNameSnapshot: [freeDeliveryReward?.name, rewardDiscount > 0 ? reward?.name : null].filter(Boolean).join(' + ') || null,
         shippingZoneNameSnapshot: zoneName,
-        notes: detailedAddress,
+        notes: `${detailedAddress}\n[إقرار وموافقة إلكترونية موثقة]: تم قبول الشروط والأحكام وسياسة الإرجاع والاستبدال (إصدار JO-2026-v1.0) في ${new Date().toISOString()}`,
         idempotencyKey: idempotencyKey || undefined,
         telegramStatus: 'PENDING',
         deliveryJob: {

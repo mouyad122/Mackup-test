@@ -9,7 +9,8 @@ export const checkoutSchema = z.object({
   shippingZoneId: z.string().optional(),
   couponCode: z.string().trim().max(80).optional(),
   idempotencyKey: z.string().max(100).optional(),
-  items: z.string() // JSON string of [{ productId, variantId, quantity }]
+  items: z.string(), // JSON string of [{ productId, variantId, quantity }]
+  termsAccepted: z.string().optional()
 });
 
 export const cartItemSchema = z.object({

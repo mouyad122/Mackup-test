@@ -103,16 +103,6 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
               </div>
             </div>
           </div>
-
-          {/* Current Status Explanation Banner */}
-          <div className="mt-5 p-4 rounded-xl bg-[#F7F3EA] border border-[#E9DDCC] text-sm leading-relaxed text-[#2B2B2B]">
-            <p className="font-bold text-xs text-[#3F4832] uppercase tracking-wider mb-1">
-              شرح وتفاصيل حالة الطلب:
-            </p>
-            <p className="text-xs sm:text-sm text-zinc-700">
-              {currentStatusInfo.explanation}
-            </p>
-          </div>
         </div>
 
         {/* Invoice Items */}

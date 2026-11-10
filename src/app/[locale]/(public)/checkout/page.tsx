@@ -23,6 +23,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
   const [isDuplicatePrevented, setIsDuplicatePrevented] = useState(false);
   const [cooldown, setCooldown] = useState<number>(0);
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const isSubmittingRef = React.useRef(false);
 
   useEffect(() => {
@@ -307,13 +309,62 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               </div>
             )}
 
-            <div className="mt-8 space-y-3">
+            {/* شروط وأحكام الشراء وسياسة الإرجاع المتوافقة مع القانون الأردني */}
+            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-[#FBF8F2] border border-[#E9DDCC] space-y-3.5 text-right">
+              <div className="flex items-start gap-2.5">
+                <span className="text-amber-700 text-base shrink-0 mt-0.5">⚠️</span>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#3F4832] font-heading">
+                    {isAr ? 'مهم قبل تأكيد طلبكِ:' : 'Important before confirming your order:'}
+                  </h4>
+                  <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed mt-1">
+                    {isAr
+                      ? 'المنتجات المستخدمة أو التي فُتحت أختام الحماية والتغليف الصحي الخاص بها لا تشملها الإرجاعات الاختيارية، مع حفظ كامل الحقوق القانونية المتعلقة بالعيوب أو عدم المطابقة وفق قانون حماية المستهلك الأردني.'
+                      : 'Products used or with protective/hygiene seals opened are not eligible for voluntary returns, without prejudice to statutory consumer rights for defects or non-conformity.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#E9DDCC]/70">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="termsAccepted"
+                    value="true"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    required
+                    className="mt-1 w-4 h-4 rounded border-stone-300 text-[#3F4832] focus:ring-[#3F4832] cursor-pointer accent-[#3F4832]"
+                  />
+                  <span className="text-xs sm:text-sm font-medium text-stone-800 leading-snug">
+                    {isAr
+                      ? 'أقرّ بأنني اطّلعت على شروط وأحكام الشراء وسياسة الاستبدال والإرجاع وأوافق عليها.'
+                      : 'I acknowledge that I have read and agree to the Terms of Purchase and Returns Policy.'}
+                  </span>
+                </label>
+              </div>
+
+              <div className="text-left flex items-center justify-between text-xs">
+                <span className="text-[10px] text-stone-500 font-mono">الإصدار: JO-2026-v1.0</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="text-[#3F4832] hover:text-[#B7935F] font-bold underline inline-flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <span>{isAr ? 'قراءة السياسات والشروط كاملة 📄' : 'Read full Terms & Policies 📄'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
               <button
                 type="submit"
-                disabled={isPending || isSubmittingLocal || isOrderConfirmed || cooldown > 0 || cartItems.length === 0 || isBelowMinimum}
-                className="w-full btn-rawaq-primary py-4 rounded-full text-base font-bold shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isPending || isSubmittingLocal || isOrderConfirmed || cooldown > 0 || cartItems.length === 0 || isBelowMinimum || !termsAccepted}
+                className="w-full btn-rawaq-primary py-4 rounded-full text-base font-bold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isOrderConfirmed ? (
+                {!termsAccepted ? (
+                  <span>{isAr ? 'يجب الموافقة على الشروط للمتابعة' : 'Please accept terms to proceed'}</span>
+                ) : isOrderConfirmed ? (
                   <>
                     <span className="inline-block animate-pulse">✓</span>
                     <span>{isAr ? 'تم تأكيد طلبك بنجاح!' : 'Order Placed Successfully!'}</span>
@@ -489,6 +540,115 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               >
                 {isAr ? 'متابعة التسوق في المتجر' : 'Continue Shopping'}
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة استعراض الشروط والأحكام وسياسة الإرجاع كاملة */}
+      {showTermsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-xs animate-fade-in"
+          dir={isAr ? 'rtl' : 'ltr'}
+          onClick={() => setShowTermsModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-[#E9DDCC] flex flex-col overflow-hidden animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-[#3F4832] text-white flex items-center justify-between border-b border-[#B7935F]/40">
+              <div>
+                <span className="text-[10px] font-mono tracking-wider text-[#D9C6A8] uppercase block">
+                  {isAr ? 'وثيقة رسمية معتمدة — JO-2026-v1.0' : 'OFFICIAL DOCUMENT — JO-2026-v1.0'}
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold font-heading mt-0.5">
+                  {isAr ? 'الشروط والأحكام وسياسة الشراء والاستبدال والإرجاع' : 'Terms of Purchase & Returns Policy'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(false)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-lg font-bold transition cursor-pointer"
+                aria-label="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-7 overflow-y-auto space-y-5 text-sm text-[#4A4643] leading-relaxed">
+              <div className="p-4 rounded-2xl bg-[#FBF8F2] border border-[#E9DDCC] space-y-2">
+                <div className="font-bold text-[#3F4832] flex items-center gap-1.5 text-xs sm:text-sm">
+                  <span>⚖️</span>
+                  <span>{isAr ? 'ضوابط فتح المنتجات وحماية المستهلك الأردني' : 'Jordan Consumer Protection Compliance'}</span>
+                </div>
+                <p className="text-xs text-stone-600 leading-normal">
+                  {isAr
+                    ? 'حرصاً على سلامتكِ وصحتكِ، المنتجات التي تم فتح أختام حمايتها أو استخدامها لا تشملها الإرجاعات الاختيارية، مع حفظ كامل حقوقكِ القانونية المكفولة بموجب قانون حماية المستهلك الأردني رقم (7) لسنة 2017 عند وجود أي عيب مصنعي أو عدم مطابقة.'
+                    : 'For your health and safety, unsealed or used items are not eligible for voluntary returns, while fully preserving statutory rights for defects or non-conformity under Jordanian Consumer Protection Law No. 7 of 2017.'}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 1: التعريف بالمنصة' : 'Article 1: Platform Definition'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'رَواق منصة إلكترونية أردنية متعددة الموردين، تتيح للعملاء شراء منتجات متنوعة من محلات وموردين مستقلين عبر موقع إلكتروني موحد، وتتولى تنظيم الفواتير والتجهيز وخدمة العملاء.' : 'Rawaq is a Jordanian multi-vendor platform connecting customers with curated merchants.'}</p>
+                </div>
+
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 2: تأكيد الطلب' : 'Article 2: Order Placement'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'يُعد تقديم الطلب إقراراً بصحة البيانات والموافقة على الشروط. تخضع الطلبات للتحقق من التوفر ويتم التواصل مع العميلة لتأكيد الجاهزية والتوصيل.' : 'Order placement constitutes formal agreement to terms and confirmation of accurate details.'}</p>
+                </div>
+
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 3: سياسة فتح المنتجات واستخدامها' : 'Article 3: Opened Products Policy'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'لا تقبل رَواق الإرجاع الاختياري للمنتجات المستخدمة أو منزوعة أختام الحماية أو التغليف الصحي، خصوصاً مستحضرات التجميل والعطور، مع حفظ حقوق العيوب المصنعية قانوناً.' : 'Opened or used cosmetic and fragrance items cannot be voluntarily returned.'}</p>
+                </div>
+
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 4: الاستبدال والإرجاع الاختياري' : 'Article 4: Voluntary Returns'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'العدول عن الشراء متاح خلال 3 أيام للأصناف المؤهلة شريطة بقائها مغلقة بتغليفها الأصلي، وتتحمل العميلة أجور التوصيل المترتبة على ذلك.' : 'Voluntary returns require pristine unopened condition; courier fees apply.'}</p>
+                </div>
+
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 5: المنتجات المعيبة أو غير المطابقة' : 'Article 5: Defective Items'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'يحق للعميلة الاستبدال أو رد الثمن عملاً بالمادتين 6 و 7 من قانون حماية المستهلك الأردني عند ثبوت العيب أو عدم المطابقة، ولا يُمنع الحق لمجرد فتح العبوة الخارجية اللازمة للفحص.' : 'Statutory remedies apply for defective or non-conforming items under Jordanian law.'}</p>
+                </div>
+
+                <div className="border-b border-stone-150 pb-3">
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 6: إجراءات الشكاوى والتوصيل' : 'Article 6: Complaints & Delivery'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'يتم التوصيل عبر شركات معتمدة، ويُرجى التواصل مع خدمة عملاء رَواق برقم الطلب والصور لأي شكوى لسرعة معالجتها.' : 'Deliveries handled by licensed couriers; support available via WhatsApp.'}</p>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 7: القانون الواجب التطبيق' : 'Article 7: Governing Law'}</h4>
+                  <p className="text-xs text-stone-600">{isAr ? 'تخضع هذه الشروط والسياسات وتُفسر حصراً وفق القوانين والتشريعات النافذة في المملكة الأردنية الهاشمية.' : 'Governed exclusively by the laws of the Hashemite Kingdom of Jordan.'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <Link
+                href={`/${locale}/terms`}
+                target="_blank"
+                className="text-xs text-[#3F4832] underline hover:text-[#B7935F] font-bold"
+              >
+                {isAr ? 'فتح صفحة الشروط المستقلة في نافذة جديدة ←' : 'Open standalone Terms page in new tab ←'}
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setTermsAccepted(true);
+                  setShowTermsModal(false);
+                }}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#3F4832] hover:bg-[#2e3524] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition cursor-pointer"
+              >
+                {isAr ? 'أوافق على الشروط والأحكام والمتابعة ✓' : 'I Agree to the Terms & Proceed ✓'}
+              </button>
             </div>
           </div>
         </div>
