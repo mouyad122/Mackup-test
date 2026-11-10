@@ -402,7 +402,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                     </span>
                   </div>
                   <div className="flex justify-between text-xl font-bold text-[#3F4832] pt-2 border-t">
-                    <span>{isAr ? 'الإجمالي التقديري قبل القسيمة' : 'Estimated total before coupon'}</span>
+                    <span>{isAr ? 'الإجمالي' : 'Total'}</span>
                     <span>{filsToDisplay(getGrandTotal(), isAr ? 'ar' : 'en')}</span>
                   </div>
                 </div>
