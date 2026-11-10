@@ -21,7 +21,13 @@ export default async function ReconciliationPage({
 }) {
   const session = await requirePermission('manage:settings');
   const params = await searchParams;
-  const initialTab = params.v || params.tab || 'batches';
+  const initialSupplierId =
+    params.supplierId ||
+    params.supplier ||
+    params.shop ||
+    params.shopId ||
+    params.statement;
+  const initialTab = params.v || params.tab || (initialSupplierId ? 'suppliers' : 'batches');
 
   // 1. استعلامات متزامنة وسريعة دون تقطيع السجلات ودون take عشوائي للأرصدة
   const [kpis, actionItems, batches, suppliers, deliveryCompanies, differences, transactions, employees, expenses] =
@@ -197,6 +203,7 @@ export default async function ReconciliationPage({
         {/* 5 Main Tabs Component */}
         <ReconciliationClientTabs
             initialTab={initialTab}
+            initialSupplierId={initialSupplierId}
             batches={batches}
             suppliers={supplierSummaries}
             captains={courierCompanySummaries}

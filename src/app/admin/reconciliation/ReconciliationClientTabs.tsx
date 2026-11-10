@@ -26,6 +26,7 @@ function generateUUID(): string {
 
 interface Props {
   initialTab?: string;
+  initialSupplierId?: string;
   batches: any[];
   suppliers: any[];
   captains: any[];
@@ -40,6 +41,7 @@ interface Props {
 
 export function ReconciliationClientTabs({
   initialTab = 'delivery',
+  initialSupplierId,
   batches,
   suppliers,
   captains,
@@ -71,20 +73,20 @@ export function ReconciliationClientTabs({
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('v', tabId);
+      if (tabId !== 'suppliers') {
+        url.searchParams.delete('supplierId');
+        url.searchParams.delete('supplier');
+        url.searchParams.delete('shop');
+        url.searchParams.delete('shopId');
+        url.searchParams.delete('statement');
+      }
+      if (tabId !== 'delivery') {
+        url.searchParams.delete('captainId');
+        url.searchParams.delete('captain');
+      }
       window.history.replaceState(null, '', url.toString());
     }
   };
-
-  // Sync on initial mount if URL contains ?v=
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      const v = url.searchParams.get('v');
-      if (v) {
-        setActiveTab(resolveTab(v));
-      }
-    }
-  }, []);
 
   // Modals state
   const [selectedBatch, setSelectedBatch] = useState<any | null>(null);
@@ -168,6 +170,109 @@ export function ReconciliationClientTabs({
       rows,
     });
   };
+
+  // Open statement for a supplier with URL parameter sync (?v=suppliers&supplierId=...)
+  const openSupplierStatement = (supplier: any) => {
+    generateStatement('SUPPLIER', supplier);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', 'suppliers');
+      url.searchParams.set('supplierId', supplier.supplierId);
+      window.history.pushState(null, '', url.toString());
+    }
+  };
+
+  // Open statement for a courier company with URL parameter sync (?v=delivery&captainId=...)
+  const openCaptainStatement = (captain: any) => {
+    generateStatement('CAPTAIN', captain);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', 'delivery');
+      url.searchParams.set('captainId', captain.captainId);
+      window.history.pushState(null, '', url.toString());
+    }
+  };
+
+  // Close statement modal & clear statement query parameters from URL
+  const closeStatement = () => {
+    setStatementData(null);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('supplierId');
+      url.searchParams.delete('supplier');
+      url.searchParams.delete('shop');
+      url.searchParams.delete('shopId');
+      url.searchParams.delete('statement');
+      url.searchParams.delete('captainId');
+      url.searchParams.delete('captain');
+      window.history.replaceState(null, '', url.toString());
+    }
+  };
+
+  // Sync on initial mount & browser navigation (popstate)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkUrlAndOpenStatement = () => {
+      const url = new URL(window.location.href);
+      const v = url.searchParams.get('v');
+      if (v) {
+        setActiveTab(resolveTab(v));
+      }
+
+      const targetSupplierId =
+        url.searchParams.get('supplierId') ||
+        url.searchParams.get('supplier') ||
+        url.searchParams.get('shop') ||
+        url.searchParams.get('shopId') ||
+        url.searchParams.get('statement') ||
+        initialSupplierId;
+
+      if (targetSupplierId && suppliers && suppliers.length > 0) {
+        const found = suppliers.find(
+          (s: any) =>
+            s.supplierId === targetSupplierId ||
+            s.supplierId?.toLowerCase() === targetSupplierId.toLowerCase() ||
+            s.supplierName?.toLowerCase() === targetSupplierId.toLowerCase()
+        );
+        if (found) {
+          setActiveTab('suppliers');
+          generateStatement('SUPPLIER', found);
+          return;
+        }
+      }
+
+      const targetCaptainId = url.searchParams.get('captainId') || url.searchParams.get('captain');
+      if (targetCaptainId && captains && captains.length > 0) {
+        const foundC = captains.find(
+          (c: any) =>
+            c.captainId === targetCaptainId ||
+            c.captainName?.toLowerCase() === targetCaptainId.toLowerCase()
+        );
+        if (foundC) {
+          setActiveTab('delivery');
+          generateStatement('CAPTAIN', foundC);
+          return;
+        }
+      }
+
+      // If neither is present, close statement if open
+      const hasParam =
+        url.searchParams.has('supplierId') ||
+        url.searchParams.has('supplier') ||
+        url.searchParams.has('shop') ||
+        url.searchParams.has('captainId') ||
+        url.searchParams.has('statement');
+      if (!hasParam && !initialSupplierId) {
+        setStatementData(null);
+      }
+    };
+
+    checkUrlAndOpenStatement();
+
+    window.addEventListener('popstate', checkUrlAndOpenStatement);
+    return () => window.removeEventListener('popstate', checkUrlAndOpenStatement);
+  }, [suppliers, captains, initialSupplierId]);
 
   // Derive unique delivery companies
   const deliveryCompaniesList = Array.from(
@@ -404,13 +509,17 @@ export function ReconciliationClientTabs({
                     >
                       تسوية عهدة / مقاصة الشركة
                     </button>
-                    <button
-                      onClick={() => generateStatement('CAPTAIN', c)}
-                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
+                    <a
+                      href={`/admin/reconciliation?v=delivery&captainId=${encodeURIComponent(c.captainId)}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openCaptainStatement(c);
+                      }}
+                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 transition-colors inline-flex items-center justify-center cursor-pointer"
                       title="إصدار كشف حساب شركة التوصيل"
                     >
                       كشف حساب الشركة
-                    </button>
+                    </a>
                   </div>
                 </article>
               ))}
@@ -486,13 +595,17 @@ export function ReconciliationClientTabs({
                   >
                     تسجيل دفعة للمحل
                   </button>
-                  <button
-                    onClick={() => generateStatement('SUPPLIER', s)}
-                    className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
-                    title="إصدار كشف حساب محل معتمد"
+                  <a
+                    href={`/admin/reconciliation?v=suppliers&supplierId=${encodeURIComponent(s.supplierId)}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openSupplierStatement(s);
+                    }}
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 transition-colors inline-flex items-center justify-center cursor-pointer"
+                    title={`إصدار كشف حساب محل معتمد: ${s.supplierName}`}
                   >
                     كشف حساب المحل
-                  </button>
+                  </a>
                 </div>
               </article>
             ))}
@@ -1391,7 +1504,14 @@ export function ReconciliationClientTabs({
 
       {/* MODAL 5: كشف الحساب المعتمد القابل للطباعة والمشاركة */}
       {statementData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:z-auto print:block">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:z-auto print:block"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeStatement();
+            }
+          }}
+        >
           <div className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl overflow-hidden border border-zinc-200 my-8 print:border-none print:shadow-none print:my-0 print:max-w-none print:w-full print:rounded-none">
             <div className="no-print bg-emerald-950 px-6 py-4 text-white flex justify-between items-center">
               <div>
@@ -1404,8 +1524,9 @@ export function ReconciliationClientTabs({
                   documentTitle={`كشف_حساب_${statementData.subject || 'رواق'}`} 
                 />
                 <button
-                  onClick={() => setStatementData(null)}
-                  className="text-white hover:text-amber-300 text-lg font-bold"
+                  onClick={closeStatement}
+                  className="text-white hover:text-amber-300 text-lg font-bold p-1 cursor-pointer"
+                  title="إغلاق كشف الحساب"
                 >
                   ✕
                 </button>
