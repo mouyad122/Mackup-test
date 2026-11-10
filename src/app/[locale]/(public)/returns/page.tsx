@@ -37,12 +37,7 @@ export default async function ReturnsPage({ params }: { params: Promise<{ locale
 - عملاً بأحكام المادتين (6) و(7) من قانون حماية المستهلك الأردني رقم (7) لسنة 2017، يحق للعميلة طلب إرجاع السلعة المعيبة أو استبدالها واسترداد ثمنها.
 - لا يُعتبر مجرد فتح صندوق الشحن الخارجي سبباً لرفض الإرجاع القانوني إذا كان فتح الصندوق ضرورياً لاكتشاف العيب أو عدم المطابقة.
 
-ثالثاً: الإرجاع أو الاستبدال الاختياري (العدول عن الشراء)
-- تخضع إمكانية الاستبدال الاختياري لطبيعة المنتج وموافقة إدارة رَواق المسبقة خلال 3 أيام من تاريخ الاستلام.
-- يشترط أن يبقى المنتج بحالته الأصلية تماماً، مغلقاً، غير مفتوح وغير مستخدم.
-- في حالات الاستبدال الاختياري، تتحمل العميلة أجور نقل وتوصيل الشحنة.
-
-رابعاً: خطوات تقديم طلب الإرجاع أو الشكوى
+ثالثاً: خطوات تقديم طلب الإرجاع أو الشكوى
 1. التواصل مع فريق خدمة عملاء رَواق الرسمي عبر واتساب أو قنوات الاتصال المعتمدة.
 2. تزويد الفريق برقم الطلب (#ORD) وتوضيح سبب الطلب مع صور واضحة للمنتج والتغليف.
 3. يُنظم استلام الطرد بالتنسيق مع شركة التوصيل لإجراء الفحص الفني واعتماد القرار النظامي.
@@ -64,12 +59,8 @@ Under Articles 6 and 7 of the Jordanian Consumer Protection Law No. 7 of 2017:
 - Consumers are entitled to repair, replacement, or refund for defective or non-conforming goods.
 - Opening the outer shipping carton does not waive statutory defect rights when necessary to inspect the goods.
 
-3. Voluntary Exchanges
-- Must be requested within 3 days of receipt for eligible, unopened items only.
-- Delivery courier fees for voluntary exchanges are borne by the customer.
-
-4. Return Procedures
-Please reach out to official Rawaq customer care with your order reference (#ORD) and supporting photos.
+3. Return Procedures
+Please reach out to official Rawaq support with your order reference (#ORD) and supporting photos.
 
 Rawaq | Elegance Rooted in Heritage 🌿`
   };

@@ -38,41 +38,36 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
 ويشمل ذلك بصورة خاصة مستحضرات التجميل، منتجات العناية بالبشرة، والعطور ذات الطبيعة الشخصية.
 ولا يحرم هذا الشرط العميلة من أي حق مكفول قانوناً في حال وجود عيب مصنعي أو عدم مطابقة للمواصفات المعلنة وفق قانون حماية المستهلك الأردني رقم (7) لسنة 2017.
 
-المادة 4: الاستبدال والإرجاع الاختياري (العدول عن الشراء)
-- لا تضمن رَواق قبول طلبات الإرجاع الناشئة عن تغيير الرأي أو العدول بعد استلام الشحنة، إلا متى كانت سياسة الصنف تسمح بذلك صراحة، وبشرط بقاء المنتج مغلقاً بتغليفه الأصلي وأختام حمايته كاملة دون مساس.
-- في حال الموافقة على الاستبدال الاختياري، تتحمل العميلة أجور التوصيل المترتبة على إعادة الشحن ونقل البديل.
-- لا يُعتبر قيام العميلة بإعادة إرسال الطرد بمبادرة فردية موافقةً تلقائية على الاسترداد المالي، بل يخضع لفحص المعاينة في المستودع.
-
-المادة 5: المنتجات المعيبة أو غير المطابقة للمواصفات
+المادة 4: المنتجات المعيبة أو غير المطابقة للمواصفات
 - إذا تبين أن المنتج معيب أو تالف أو غير مطابق لما تم طلبه وإعلانه، يحق للعميلة تقديم طلب معالجة أو إرجاع واسترداد الثمن وفقاً للمادتين (6) و(7) من قانون حماية المستهلك الأردني رقم (7) لسنة 2017.
 - تقوم رَواق بالتنسيق المباشر مع المورد المختص للتحقق الفني واعتماد الإجراء القانوني المناسب فوراً.
 - لا يُرفض طلب الإرجاع القانوني بسبب فتح التغليف الخارجي إذا كان فتحه وسيلة وحيدة ضرورية لاكتشاف العيب أو عدم المطابقة.
 
-المادة 6: آلية تسجيل الشكاوى وطلبات الإرجاع
+المادة 5: آلية تسجيل الشكاوى وطلبات الإرجاع
 - يرجى التواصل مع خدمة عملاء رَواق عبر القنوات المعتمدة مع إرفاق رقم الطلب (#ORD) وتوضيح المشكلة وصور توثيقية واضحة للمنتج والتغليف.
 - تُنظم عملية استلام المنتج وفحصه بالتعاون مع مندوب التوصيل المعتمد.
 - يتم رد المبالغ المستحقة وفق وسيلة الدفع المتفق عليها وبما يتفق مع الأنظمة والتعليمات المالية المعتمدة في المملكة.
 
-المادة 7: التوصيل والاستلام
+المادة 6: التوصيل والاستلام
 - يتم التوصيل داخل المملكة الأردنية الهاشمية عبر شركات التوصيل المعتمدة.
 - تلتزم العميلة بتزويد المنصة برقم هاتف أردني فعال وعنوان دقيق لتسهيل مهام كابتن التوصيل.
 - يُرجى فحص الطرد ظاهرياً عند الاستلام والتأكد من سلامة التغليف ووجود رمز التتبع.
 
-المادة 8: إلغاء الطلبات وإساءة استخدام المنصة
+المادة 7: إلغاء الطلبات وإساءة استخدام المنصة
 - يحق للعميلة طلب إلغاء الطلب قبل خروجه مع شركة التوصيل عبر التواصل مع الدعم الفني.
 - تحتفظ رَواق بحق حظر أو تقييد الحسابات والأرقام التي تسجل طلبات وهمية متكررة أو ترفض استلام الطرود دون مبرر مشروع، صيانةً لحقوق الموردين وشركاء التوصيل.
 
-المادة 9: الأسعار والدفع عند الاستلام
+المادة 8: الأسعار والدفع عند الاستلام
 - جميع المعاملات والأسعار محررة بالدينار الأردني (JOD).
 - في طلبات الدفع عند الاستلام (Cash on Delivery)، المبلغ المستحق هو المبلغ الصافي المذكور في الفاتورة الرسمية الإلكترونية المعتمدة.
 
-المادة 10: حماية البيانات والمعاملات الإلكترونية
+المادة 9: حماية البيانات والمعاملات الإلكترونية
 تخضع كافة البيانات لقانون حماية البيانات الشخصية الأردني رقم (24) لسنة 2023 وقانون المعاملات الإلكترونية رقم (15) لسنة 2015 وتعديلاته، حيث يتم توثيق الموافقة على الشروط إلكترونياً وتخزينها لحفظ حقوق الأطراف.
 
-المادة 11: فض النزاعات
+المادة 10: فض النزاعات
 تحرص رَواق دوماً على تسوية أي ملاحظات ودياً وبأعلى مستويات الإنصاف والمهنية، دون الإخلال بحق المستهلك في اللجوء للجهات الرقابية الرسمية ومديرية حماية المستهلك في وزارة الصناعة والتجارة والتموين، أو القضاء الأردني المختص.
 
-المادة 12: القانون المعمول به والاختصاص القضائي
+المادة 11: القانون المعمول به والاختصاص القضائي
 تخضع هذه الشروط وتُفسر وتُطبق وفق التشريعات والقوانين النافذة في المملكة الأردنية الهاشمية، وتختص محاكم عمّان بالنظر في أي نزاع ينشأ عنها.
 
 رَواق | أناقة من روح الأصالة 🌿`,
@@ -91,28 +86,27 @@ For customer health, safety, and strict quality assurance, Rawaq does not accept
 This applies strictly to skincare, cosmetics, and fragrances.
 This does not diminish statutory consumer rights under Jordanian Consumer Protection Law No. 7 of 2017 for defective or non-conforming merchandise.
 
-Article 4: Voluntary Returns and Exchanges
-- Voluntary returns due to change of mind are strictly subject to item eligibility and require products to be completely unopened and sealed in pristine original condition.
-- Return and exchange delivery courier fees are borne by the customer for voluntary requests.
-
-Article 5: Defective or Non-Conforming Goods
+Article 4: Defective or Non-Conforming Goods
 - Customers are entitled to repair, replacement, or refund under Articles 6 and 7 of the Jordanian Consumer Protection Law No. 7 of 2017 if products arrive defective or non-conforming.
 - Outer courier box opening does not void warranty rights when necessary to inspect defects.
 
-Article 6: Complaints & Resolution Channels
+Article 5: Complaints & Resolution Channels
 Please contact official Rawaq support with order reference (#ORD) and supporting photos.
 
-Article 7: Delivery & Transit
+Article 6: Delivery & Transit
 Deliveries are fulfilled across Jordan via partnered courier networks.
 
-Article 8: Cancellations
+Article 7: Cancellations
 Orders may be cancelled prior to dispatch. Rawaq reserves the right to restrict fraudulent or abusive repeated fake orders.
 
-Article 9: Pricing and Cash on Delivery
+Article 8: Pricing and Cash on Delivery
 All transactions are calculated in Jordanian Dinars (JOD).
 
-Article 10: Data Protection & Electronic Transactions
+Article 9: Data Protection & Electronic Transactions
 Processed in accordance with Jordan Personal Data Protection Law No. 24 of 2023 and Electronic Transactions Law No. 15 of 2015.
+
+Article 10: Dispute Resolution & Consumer Protection
+Rawaq resolves inquiries amicably with integrity, without waiving statutory dispute rights through Jordanian regulatory agencies or courts.
 
 Article 11: Applicable Law & Jurisdiction
 Subject exclusively to the laws of the Hashemite Kingdom of Jordan.

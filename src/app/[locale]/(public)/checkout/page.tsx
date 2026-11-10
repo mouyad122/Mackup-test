@@ -310,22 +310,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
             )}
 
             {/* شروط وأحكام الشراء وسياسة الإرجاع المتوافقة مع القانون الأردني */}
-            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-[#FBF8F2] border border-[#E9DDCC] space-y-3.5 text-right">
-              <div className="flex items-start gap-2.5">
-                <span className="text-amber-700 text-base shrink-0 mt-0.5">⚠️</span>
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#3F4832] font-heading">
-                    {isAr ? 'مهم قبل تأكيد طلبكِ:' : 'Important before confirming your order:'}
-                  </h4>
-                  <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed mt-1">
-                    {isAr
-                      ? 'المنتجات المستخدمة أو التي فُتحت أختام الحماية والتغليف الصحي الخاص بها لا تشملها الإرجاعات الاختيارية، مع حفظ كامل الحقوق القانونية المتعلقة بالعيوب أو عدم المطابقة وفق قانون حماية المستهلك الأردني.'
-                      : 'Products used or with protective/hygiene seals opened are not eligible for voluntary returns, without prejudice to statutory consumer rights for defects or non-conformity.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-[#E9DDCC]/70">
+            <div className="mt-6 p-4 rounded-2xl bg-[#FBF8F2] border border-[#E9DDCC] space-y-3 text-right">
+              <div>
                 <label className="flex items-start gap-3 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -344,7 +330,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                 </label>
               </div>
 
-              <div className="text-left flex items-center justify-between text-xs">
+              <div className="pt-2 border-t border-[#E9DDCC]/70 text-left flex items-center justify-between text-xs">
                 <span className="text-[10px] text-stone-500 font-mono">الإصدار: JO-2026-v1.0</span>
                 <button
                   type="button"
@@ -583,12 +569,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               <div className="p-4 rounded-2xl bg-[#FBF8F2] border border-[#E9DDCC] space-y-2">
                 <div className="font-bold text-[#3F4832] flex items-center gap-1.5 text-xs sm:text-sm">
                   <span>⚖️</span>
-                  <span>{isAr ? 'ضوابط فتح المنتجات وحماية المستهلك الأردني' : 'Jordan Consumer Protection Compliance'}</span>
+                  <span>{isAr ? 'مهم قبل تأكيد طلبكِ:' : 'Important Notice Before Order Confirmation:'}</span>
                 </div>
                 <p className="text-xs text-stone-600 leading-normal">
                   {isAr
-                    ? 'حرصاً على سلامتكِ وصحتكِ، المنتجات التي تم فتح أختام حمايتها أو استخدامها لا تشملها الإرجاعات الاختيارية، مع حفظ كامل حقوقكِ القانونية المكفولة بموجب قانون حماية المستهلك الأردني رقم (7) لسنة 2017 عند وجود أي عيب مصنعي أو عدم مطابقة.'
-                    : 'For your health and safety, unsealed or used items are not eligible for voluntary returns, while fully preserving statutory rights for defects or non-conformity under Jordanian Consumer Protection Law No. 7 of 2017.'}
+                    ? 'المنتجات المستخدمة أو التي فُتحت أختام الحماية والتغليف الصحي الخاص بها لا تشملها الإرجاعات الاختيارية، مع حفظ كامل الحقوق القانونية المتعلقة بالعيوب أو عدم المطابقة وفق قانون حماية المستهلك الأردني.'
+                    : 'Unsealed or used items with broken hygiene seals are not eligible for voluntary returns, while fully preserving statutory rights for defects or non-conformity under Jordanian Consumer Protection Law.'}
                 </p>
               </div>
 
@@ -609,22 +595,17 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
                 </div>
 
                 <div className="border-b border-stone-150 pb-3">
-                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 4: الاستبدال والإرجاع الاختياري' : 'Article 4: Voluntary Returns'}</h4>
-                  <p className="text-xs text-stone-600">{isAr ? 'العدول عن الشراء متاح خلال 3 أيام للأصناف المؤهلة شريطة بقائها مغلقة بتغليفها الأصلي، وتتحمل العميلة أجور التوصيل المترتبة على ذلك.' : 'Voluntary returns require pristine unopened condition; courier fees apply.'}</p>
-                </div>
-
-                <div className="border-b border-stone-150 pb-3">
-                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 5: المنتجات المعيبة أو غير المطابقة' : 'Article 5: Defective Items'}</h4>
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 4: المنتجات المعيبة أو غير المطابقة' : 'Article 4: Defective Items'}</h4>
                   <p className="text-xs text-stone-600">{isAr ? 'يحق للعميلة الاستبدال أو رد الثمن عملاً بالمادتين 6 و 7 من قانون حماية المستهلك الأردني عند ثبوت العيب أو عدم المطابقة، ولا يُمنع الحق لمجرد فتح العبوة الخارجية اللازمة للفحص.' : 'Statutory remedies apply for defective or non-conforming items under Jordanian law.'}</p>
                 </div>
 
                 <div className="border-b border-stone-150 pb-3">
-                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 6: إجراءات الشكاوى والتوصيل' : 'Article 6: Complaints & Delivery'}</h4>
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 5: إجراءات الشكاوى والتوصيل' : 'Article 5: Complaints & Delivery'}</h4>
                   <p className="text-xs text-stone-600">{isAr ? 'يتم التوصيل عبر شركات معتمدة، ويُرجى التواصل مع خدمة عملاء رَواق برقم الطلب والصور لأي شكوى لسرعة معالجتها.' : 'Deliveries handled by licensed couriers; support available via WhatsApp.'}</p>
                 </div>
 
                 <div>
-                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 7: القانون الواجب التطبيق' : 'Article 7: Governing Law'}</h4>
+                  <h4 className="font-bold text-[#3F4832] mb-1">{isAr ? 'المادة 6: القانون الواجب التطبيق' : 'Article 6: Governing Law'}</h4>
                   <p className="text-xs text-stone-600">{isAr ? 'تخضع هذه الشروط والسياسات وتُفسر حصراً وفق القوانين والتشريعات النافذة في المملكة الأردنية الهاشمية.' : 'Governed exclusively by the laws of the Hashemite Kingdom of Jordan.'}</p>
                 </div>
               </div>
