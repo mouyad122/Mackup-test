@@ -8,6 +8,7 @@ import { STORE_WHATSAPP_NUMBER } from '@/lib/contact';
 import { sendTelegramNewOrderNotification } from '@/lib/telegram';
 
 import { checkoutSchema, cartItemsSchema } from '@/lib/schemas';
+import { getOrCreateOrderInvoice } from '@/lib/invoices/invoice-service';
 
 // Used only when the CMS setting has not been configured yet. The persisted
 // setting remains the primary source so the number can still be managed from
@@ -51,11 +52,20 @@ async function buildOrderWhatsAppResponse(order: any, itemsOverride?: any[], isD
   msg += `الإجمالي: ${(order.totalAmount / 1000).toFixed(3)} د.أ\n\n`;
   msg += `شكراً لكم.`;
 
+  let secureToken = '';
+  try {
+    const inv = await getOrCreateOrderInvoice(order.id);
+    if (inv?.secureToken) secureToken = inv.secureToken;
+  } catch (e) {
+    console.error('Invoice creation on checkout:', e);
+  }
+
   const encodedMsg = encodeURIComponent(msg);
   return {
     success: true,
     reference: order.reference,
     orderId: order.id,
+    secureToken: secureToken || order.reference,
     customerName: order.customerName,
     customerPhone: order.customerPhone,
     totalAmount: order.totalAmount,

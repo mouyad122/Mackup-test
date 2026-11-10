@@ -126,13 +126,6 @@ export function FloatingCart({ locale = 'ar', rewardRule }: { locale?: string, r
       
       <Link href={`/${locale}/checkout`} className="block w-full">
         <div className="bg-[#3F4832] hover:bg-[#2d3623] text-white p-3 sm:p-4 md:rounded-full shadow-[0_-8px_30px_rgba(63,75,50,.25)] md:shadow-[0_12px_40px_rgba(63,75,50,.3)] flex items-center justify-between md:justify-start gap-4 transition-all duration-300 md:hover:scale-105 border-t border-[#B7935F]/40 md:border md:border-[#B7935F]/50 relative overflow-hidden group">
-          
-          {/* Subtle background tatreez pattern */}
-          <div 
-            className="absolute inset-0 opacity-10 pointer-events-none transition-opacity group-hover:opacity-20"
-            style={{ backgroundImage: "url('/brand/patterns/rawaq-tatreez-strip.svg')", backgroundSize: 'auto 60px', backgroundPosition: 'center' }} 
-          />
-
           <div className="flex items-center gap-3 relative z-10 ps-2">
             <div className="relative">
               <ShoppingBag className="w-7 h-7 text-white" />

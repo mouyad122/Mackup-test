@@ -347,3 +347,163 @@ export async function confirmOrderDeliveryFromManifestAction(
     return { success: false, error: err?.message || 'تعذر تأكيد تسليم الطلب.' };
   }
 }
+
+/**
+ * تأكيد استلام طلب فردي محدد من المحل من كشف التوصيل
+ */
+export async function confirmSingleOrderPickupFromManifestAction(
+  batchReference: string,
+  orderId: string,
+  secureToken?: string
+) {
+  try {
+    await authorizeManifestAction(batchReference, secureToken);
+    const batch = await prisma.deliveryBatch.findUnique({
+      where: { reference: batchReference },
+      include: {
+        orders: {
+          where: { id: orderId },
+          include: {
+            deliveryJob: true,
+            fulfillmentOrders: {
+              include: {
+                packages: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!batch || batch.orders.length === 0) {
+      return { success: false, error: 'الطلب غير موجود ضمن كشف التوصيل.' };
+    }
+
+    const order = batch.orders[0];
+
+    await prisma.$transaction(async (tx) => {
+      // 1. تحديث أوامر تجهيز المحلات لهذا الطلب
+      await tx.fulfillmentOrder.updateMany({
+        where: {
+          orderId: order.id,
+          status: { notIn: ['PICKED_UP', 'DELIVERED', 'CANCELLED'] },
+        },
+        data: { status: 'PICKED_UP' },
+      });
+
+      // 2. تحديث طرود هذا الطلب
+      const packageIds = order.fulfillmentOrders?.flatMap((f) => f.packages.map((p) => p.id)) || [];
+      if (packageIds.length > 0) {
+        await tx.package.updateMany({
+          where: {
+            id: { in: packageIds },
+            status: { notIn: ['PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'] },
+          },
+          data: { status: 'OUT_FOR_DELIVERY' },
+        });
+      }
+
+      // 3. تحديث الطلب ليصبح قيد التوصيل
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: 'SHIPPED',
+          fulfillmentStatus: 'OUT_FOR_DELIVERY',
+        },
+      });
+
+      if (order.deliveryJob) {
+        await tx.deliveryJob.update({
+          where: { id: order.deliveryJob.id },
+          data: { status: 'OUT_FOR_DELIVERY' },
+        });
+      }
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          status: 'OUT_FOR_DELIVERY',
+          notes: `تم تأكيد استلام هذا الطلب من المحل وبدء رحلة التوصيل عبر كشف ${batchReference}`,
+        },
+      });
+
+      // 4. تحديث حالة الكشف إلى IN_DELIVERY إذا لم يكن كذلك
+      if (batch.status === 'DRAFT' || batch.status === 'CREATED' || batch.status === 'READY') {
+        await tx.deliveryBatch.update({
+          where: { id: batch.id },
+          data: { status: 'IN_DELIVERY' },
+        });
+      }
+    });
+
+    refreshBatch(batchReference);
+    return { success: true, orderId };
+  } catch (err: any) {
+    console.error('Error in confirmSingleOrderPickupFromManifestAction:', err);
+    return { success: false, error: err?.message || 'تعذر تأكيد استلام الطلب من المحل.' };
+  }
+}
+
+/**
+ * تأكيد تسليم كافة طلبات الكشف المتبقية دفعة واحدة وتحصيل مبالغها
+ */
+export async function confirmAllOrdersDeliveryFromManifestAction(
+  batchReference: string,
+  secureToken?: string
+) {
+  try {
+    await authorizeManifestAction(batchReference, secureToken);
+    const batch = await prisma.deliveryBatch.findUnique({
+      where: { reference: batchReference },
+      include: {
+        orders: {
+          include: {
+            deliveryJob: true,
+          },
+        },
+      },
+    });
+
+    if (!batch) {
+      return { success: false, error: 'كشف التوصيل غير موجود.' };
+    }
+
+    const pendingOrders = batch.orders.filter(
+      (o) => !['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(o.status)
+    );
+
+    let deliveredCount = 0;
+    for (const order of pendingOrders) {
+      try {
+        const isPrepaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'PREPAID';
+        const codAmountToCollect = isPrepaid ? 0 : (order.deliveryJob?.codAmountToCollect ?? order.totalAmount);
+
+        await OrderLifecycleService.completeOrderDelivery({
+          orderId: order.id,
+          source: 'DELIVERY_BATCH',
+          actorName: `مندوب كشف التوصيل (${batchReference})`,
+          collectedCodAmount: codAmountToCollect,
+          notes: `تم تأكيد تسليم وتحصيل كافة الطلبات دفعة واحدة عبر كشف التوصيل (${batchReference})`,
+        });
+        deliveredCount++;
+      } catch (err) {
+        console.error(`Failed delivering order ${order.reference} in batch:`, err);
+      }
+    }
+
+    await prisma.deliveryBatch.update({
+      where: { id: batch.id },
+      data: { status: 'COMPLETED' },
+    });
+
+    refreshBatch(batchReference);
+    for (const order of pendingOrders) {
+      revalidatePath(`/invoice/view/${order.reference}`);
+    }
+
+    return { success: true, deliveredCount };
+  } catch (err: any) {
+    console.error('Error in confirmAllOrdersDeliveryFromManifestAction:', err);
+    return { success: false, error: err?.message || 'تعذر تأكيد تسليم كافة الطلبات.' };
+  }
+}

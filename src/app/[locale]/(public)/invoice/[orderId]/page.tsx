@@ -4,24 +4,52 @@ import { filsToDisplay } from '@/lib/money';
 import Image from 'next/image';
 import { PrintInvoiceButton } from '@/components/PrintInvoiceButton';
 import { getOrderStatusInfo } from '@/lib/order-status';
+import { getOrCreateOrderInvoice } from '@/lib/invoices/invoice-service';
 
 export default async function InvoicePage({ params }: { params: Promise<{ orderId: string; locale: string }> }) {
   const { orderId, locale } = await params;
 
-  // We should try finding the order by id
-  // Also we must ensure it's a valid UUID, otherwise findUnique throws error. Let's do findFirst.
-  const order = await prisma.order.findFirst({
-    where: { id: orderId },
+  const rawId = orderId ? decodeURIComponent(orderId).trim() : '';
+  const cleanRef = rawId.replace(/^#/, '').trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawId);
+
+  // We should try finding the order by id, reference, or invoice identifiers
+  let order = await prisma.order.findFirst({
+    where: {
+      OR: [
+        ...(isUuid ? [{ id: rawId }] : []),
+        { reference: cleanRef },
+        { reference: rawId },
+        { reference: { equals: cleanRef, mode: 'insensitive' } },
+        { invoice: { secureToken: rawId } },
+        { invoice: { number: cleanRef } },
+        { invoice: { number: rawId } },
+      ],
+    },
     include: {
       items: true,
       statusHistory: {
-        orderBy: { createdAt: 'asc' }
-      }
-    }
+        orderBy: { createdAt: 'asc' },
+      },
+      invoice: true,
+      deliveryJob: true,
+    },
   });
 
   if (!order) {
     notFound();
+  }
+
+  // Ensure invoice record exists
+  if (!order.invoice) {
+    try {
+      const inv = await getOrCreateOrderInvoice(order.id);
+      if (inv) {
+        order = { ...order, invoice: inv as any };
+      }
+    } catch (e) {
+      console.error('Invoice auto-creation note:', e);
+    }
   }
 
   // Format Date
@@ -118,11 +146,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderI
             <div className="w-64 space-y-3 text-sm">
               <div className="flex justify-between text-zinc-600">
                 <span>المجموع الفرعي</span>
-                <span>{filsToDisplay(order.totalAmount - order.shippingCost, 'ar')}</span>
+                <span>{filsToDisplay(order.totalAmount - order.shippingCost + (order.discountAmount || 0), 'ar')}</span>
               </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-700 font-medium">
+                  <span>الخصم</span>
+                  <span>−{filsToDisplay(order.discountAmount, 'ar')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-zinc-600">
                 <span>رسوم التوصيل</span>
-                <span>{filsToDisplay(order.shippingCost, 'ar')}</span>
+                <span>{order.shippingCost === 0 ? 'مجاني' : filsToDisplay(order.shippingCost, 'ar')}</span>
               </div>
               <div className="flex justify-between font-bold text-xl text-[#3F4832] pt-3 border-t-2 border-zinc-200">
                 <span>الإجمالي</span>

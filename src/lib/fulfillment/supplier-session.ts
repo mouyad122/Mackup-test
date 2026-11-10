@@ -177,7 +177,21 @@ export async function getSupplierPortalData(rawToken: string) {
         },
       },
       location: true,
-      items: true,
+      items: {
+        include: {
+          orderItem: {
+            include: {
+              product: {
+                include: {
+                  images: {
+                    orderBy: { order: 'asc' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       packages: {
         include: {
           items: true,
@@ -208,17 +222,24 @@ export async function getSupplierPortalData(rawToken: string) {
         label: f.location.label,
         address: f.pickupAddressSnapshot,
       },
-      items: f.items.map((it) => ({
-        id: it.id,
-        productTitle: it.productTitle,
-        variantTitle: it.variantTitle,
-        sku: it.sku,
-        quantity: it.quantity,
-        preparedQuantity: it.preparedQuantity,
-        isOutOfStock: it.isOutOfStock,
-        outOfStockQuantity: it.outOfStockQuantity,
-        outOfStockReason: it.outOfStockReason,
-      })),
+      items: f.items.map((it: any) => {
+        const productImages = it.orderItem?.product?.images || [];
+        const mainImg = productImages.find((img: any) => img.isMain) || productImages[0];
+        const imageUrl = mainImg?.url ? mainImg.url.replace('local://', '/') : null;
+        return {
+          id: it.id,
+          productTitle: it.productTitle,
+          variantTitle: it.variantTitle,
+          sku: it.sku,
+          quantity: it.quantity,
+          preparedQuantity: it.preparedQuantity,
+          isOutOfStock: it.isOutOfStock,
+          outOfStockQuantity: it.outOfStockQuantity,
+          outOfStockReason: it.outOfStockReason,
+          imageUrl,
+          images: productImages.map((img: any) => img.url?.replace('local://', '/')).filter(Boolean),
+        };
+      }),
       packages: f.packages.map((p) => ({
         id: p.id,
         packageCode: p.packageCode,

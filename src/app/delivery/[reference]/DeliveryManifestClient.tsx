@@ -21,6 +21,8 @@ import { filsToDisplay } from '@/lib/money';
 import {
   confirmBatchPickupFromManifestAction,
   confirmOrderDeliveryFromManifestAction,
+  confirmSingleOrderPickupFromManifestAction,
+  confirmAllOrdersDeliveryFromManifestAction,
 } from '@/actions/delivery-batch';
 
 interface Props {
@@ -49,6 +51,8 @@ interface Props {
     parcels: Array<{
       packageCode: string;
       orderReference: string;
+      orderId?: string;
+      isPickedUp?: boolean;
       items: Array<{
         name: string;
         variantTitle?: string | null;
@@ -89,6 +93,20 @@ export default function DeliveryManifestClient({
 
   const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
+  const [localPickedUpOrders, setLocalPickedUpOrders] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const stop of pickupStops) {
+      for (const p of stop.parcels) {
+        if (p.orderId && p.isPickedUp) {
+          initial[p.orderId] = true;
+        }
+      }
+    }
+    return initial;
+  });
+  const [isConfirmingSinglePickup, setIsConfirmingSinglePickup] = useState<Record<string, boolean>>({});
+  const [isConfirmingAllDeliveries, setIsConfirmingAllDeliveries] = useState(false);
+
   const [localDeliveredOrders, setLocalDeliveredOrders] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const d of dropoffStops) {
@@ -115,6 +133,74 @@ export default function DeliveryManifestClient({
       ...prev,
       [pkgCode]: !prev[pkgCode],
     }));
+  };
+
+  const handleConfirmSingleOrderPickup = async (orderId: string, orderRef: string) => {
+    if (!confirm(`هل أنت متأكد من استلام طرد الطلب #${orderRef} من المحل؟`)) {
+      return;
+    }
+
+    try {
+      setIsConfirmingSinglePickup((prev) => ({ ...prev, [orderId]: true }));
+      const res = await confirmSingleOrderPickupFromManifestAction(
+        batch.reference,
+        orderId,
+        batch.secureToken
+      );
+      if (res.success) {
+        setLocalPickedUpOrders((prev) => ({ ...prev, [orderId]: true }));
+        alert(`تم تأكيد استلام الطلب #${orderRef} بنجاح! ✓`);
+      } else {
+        alert(res.error || 'تعذر تأكيد استلام هذا الطلب.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء تأكيد استلام الطلب');
+    } finally {
+      setIsConfirmingSinglePickup((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleConfirmAllDeliveries = async () => {
+    const undelivered = dropoffStops.filter((d) => !localDeliveredOrders[d.orderId]);
+    if (undelivered.length === 0) {
+      alert('كافة الطلبات مسلّمة بالفعل.');
+      return;
+    }
+
+    const totalRemainingCod = undelivered
+      .filter((d) => !d.isPaid)
+      .reduce((sum, d) => sum + d.codAmountFils, 0);
+
+    const msg = `هل أنت متأكد من تأكيد تسليم كافة الطلبات المتبقية (${undelivered.length} طلب) وتحصيل مبلغ إجمالي قدره (${filsToDisplay(totalRemainingCod)}) نقداً؟`;
+
+    if (!confirm(msg)) {
+      return;
+    }
+
+    try {
+      setIsConfirmingAllDeliveries(true);
+      const res = await confirmAllOrdersDeliveryFromManifestAction(
+        batch.reference,
+        batch.secureToken
+      );
+      if (res.success) {
+        setLocalDeliveredOrders((prev) => {
+          const updated = { ...prev };
+          for (const d of dropoffStops) {
+            updated[d.orderId] = true;
+          }
+          return updated;
+        });
+        setLocalBatchStatus('COMPLETED');
+        alert(`تم بنجاح تأكيد تسليم كافة طلبات الإرسالية (${res.deliveredCount} طلب) وإتمام الكشف بالكامل! ✓`);
+      } else {
+        alert(res.error || 'تعذر تأكيد تسليم جميع الطلبات.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ غير متوقع');
+    } finally {
+      setIsConfirmingAllDeliveries(false);
+    }
   };
 
   const handleConfirmPickup = async () => {
@@ -431,31 +517,78 @@ export default function DeliveryManifestClient({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {stop.parcels.map((pkg) => {
                           const isChecked = checkedParcels[pkg.packageCode];
+                          const isPickedUp = Boolean(
+                            (pkg.orderId && localPickedUpOrders[pkg.orderId]) ||
+                            pkg.isPickedUp ||
+                            localBatchStatus === 'IN_DELIVERY' ||
+                            localBatchStatus === 'COMPLETED'
+                          );
+                          const isConfirming = pkg.orderId ? Boolean(isConfirmingSinglePickup[pkg.orderId]) : false;
+
                           return (
                             <div
                               key={pkg.packageCode}
-                              onClick={() => toggleParcelCheck(pkg.packageCode)}
-                              className={`p-2.5 rounded-lg border text-xs cursor-pointer transition select-none flex items-center justify-between ${
-                                isChecked
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
-                                  : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100'
+                              className={`p-3 rounded-xl border text-xs transition flex flex-col gap-2 ${
+                                isPickedUp
+                                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                                  : isChecked
+                                  ? 'bg-amber-50/70 border-amber-300 text-amber-950 font-bold'
+                                  : 'bg-zinc-50 border-zinc-200 text-zinc-800'
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold border ${
-                                    isChecked
-                                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                                      : 'bg-white border-zinc-300 text-transparent'
-                                  }`}
+                              <div className="flex items-center justify-between">
+                                <div
+                                  onClick={() => toggleParcelCheck(pkg.packageCode)}
+                                  className="flex items-center gap-2 cursor-pointer select-none"
                                 >
-                                  ✓
+                                  <span
+                                    className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold border ${
+                                      isChecked || isPickedUp
+                                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                                        : 'bg-white border-zinc-300 text-transparent'
+                                    }`}
+                                  >
+                                    ✓
+                                  </span>
+                                  <span className="font-mono font-bold">{pkg.packageCode}</span>
+                                </div>
+                                <span className="text-zinc-600 font-mono font-bold">
+                                  طلب #{pkg.orderReference}
                                 </span>
-                                <span className="font-mono font-bold">{pkg.packageCode}</span>
                               </div>
-                              <span className="text-zinc-500 font-mono">
-                                طلب #{pkg.orderReference}
-                              </span>
+
+                              {/* Single Order Confirm Pickup Button */}
+                              <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-between gap-2 print:hidden">
+                                <div className="text-[11px] text-zinc-500 truncate max-w-[150px]">
+                                  {pkg.items?.map((it) => `${it.name} (${it.quantity})`).join(', ')}
+                                </div>
+
+                                {isPickedUp ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span>تم الاستلام من المحل ✓</span>
+                                  </span>
+                                ) : pkg.orderId ? (
+                                  <button
+                                    type="button"
+                                    disabled={isConfirming}
+                                    onClick={() => handleConfirmSingleOrderPickup(pkg.orderId!, pkg.orderReference)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-bold transition active:scale-95 cursor-pointer disabled:opacity-50"
+                                  >
+                                    {isConfirming ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        <span>جارٍ التأكيد...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                        <span>تأكيد استلام هذا الطلب</span>
+                                      </>
+                                    )}
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           );
                         })}
@@ -482,6 +615,45 @@ export default function DeliveryManifestClient({
                 <span className="text-xs font-bold text-zinc-700 bg-zinc-100 border border-zinc-200 px-2.5 py-1 rounded-md">
                   {dropoffStops.length} طلبات
                 </span>
+              </div>
+
+              {/* Master Delivery Action for All Orders */}
+              <div className="bg-emerald-50/80 border border-emerald-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
+                <div className="space-y-0.5">
+                  <h3 className="font-extrabold text-sm text-emerald-950 flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-emerald-700" />
+                    <span>تأكيد تسليم كافة الطلبات (تسليم جماعي إضافي)</span>
+                  </h3>
+                  <p className="text-xs text-emerald-800">
+                    يمكن للمندوب تأكيد تسليم كافة طلبات الكشف دفعة واحدة وتحصيل كامل المبالغ
+                  </p>
+                </div>
+
+                {localBatchStatus === 'COMPLETED' || dropoffStops.every((d) => localDeliveredOrders[d.orderId]) ? (
+                  <div className="inline-flex items-center gap-1.5 bg-white text-emerald-800 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>تم تسليم كافة الطلبات بالكامل ✓</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isConfirmingAllDeliveries}
+                    onClick={handleConfirmAllDeliveries}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    {isConfirmingAllDeliveries ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>جارٍ تأكيد تسليم الجميع...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                        <span>تأكيد تسليم جميع الطلبات دفعة واحدة ✓</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

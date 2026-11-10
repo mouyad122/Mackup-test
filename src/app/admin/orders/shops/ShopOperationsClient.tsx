@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Store,
@@ -55,8 +55,30 @@ export default function ShopOperationsClient({ initialData }: Props) {
     initialData.shops[0]?.id || ''
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [shopOrdersSearchQuery, setShopOrdersSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'SHORTAGES' | 'READY' | 'PREPARING'>('ALL');
   const [isPending, startTransition] = useTransition();
+
+  // Read ?shop=<id> parameter from URL on load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paramShop = params.get('shop');
+      if (paramShop && data.shops.some((s) => s.id === paramShop)) {
+        setSelectedShopId(paramShop);
+      }
+    }
+  }, [data.shops]);
+
+  const handleSelectShop = (id: string) => {
+    setSelectedShopId(id);
+    setShopOrdersSearchQuery('');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('shop', id);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   // Modals state
   const [selectedOrderModal, setSelectedOrderModal] = useState<any | null>(null);
@@ -517,7 +539,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
                 return (
                   <button
                     key={shop.id}
-                    onClick={() => setSelectedShopId(shop.id)}
+                    onClick={() => handleSelectShop(shop.id)}
                     className={`w-full text-right p-3.5 rounded-2xl border transition flex flex-col gap-2 ${
                       isSelected
                         ? 'bg-stone-50 border-[#3F4832] ring-2 ring-[#3F4832]/30 shadow-xs'
@@ -686,221 +708,346 @@ export default function ShopOperationsClient({ initialData }: Props) {
               </div>
 
               {/* CORE SECTION: أوامر تجهيز المحلات والطرود (SHOP FULFILLMENT ORDERS) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-[#3F4832]" />
-                    <h3 className="text-base font-black text-stone-900">
-                      أوامر تجهيز المحل والطرود ({selectedShop.fulfillmentOrders.length})
-                    </h3>
-                  </div>
-                  <span className="text-xs text-stone-500 font-medium">
-                    يمكنك استعراض تفاصيل أي طلب بالكامل بالنقر على &quot;عرض تفاصيل الطلب&quot;
-                  </span>
-                </div>
+              {(() => {
+                const shopOrders = selectedShop.fulfillmentOrders || [];
+                const filteredShopOrders = shopOrders.filter((fOrder: any) => {
+                  if (!shopOrdersSearchQuery.trim()) return true;
+                  const q = shopOrdersSearchQuery.toLowerCase().trim();
+                  const customer = (fOrder.order?.customerName || '').toLowerCase();
+                  const phone = (fOrder.order?.customerPhone || '').toLowerCase();
+                  const ref = (fOrder.order?.reference || '').toLowerCase();
+                  const city = (fOrder.order?.deliveryJob?.city || '').toLowerCase();
+                  const area = (fOrder.order?.deliveryJob?.area || '').toLowerCase();
+                  const zone = (fOrder.order?.shippingZoneNameSnapshot || '').toLowerCase();
+                  const address = (fOrder.order?.notes || '').toLowerCase();
+                  const itemsMatch = fOrder.items?.some((it: any) => (it.productName || '').toLowerCase().includes(q));
+                  const packagesMatch = fOrder.packages?.some((p: any) => (p.packageCode || '').toLowerCase().includes(q));
 
-                {selectedShop.fulfillmentOrders.length === 0 ? (
-                  <div className="bg-white rounded-3xl border border-stone-200 p-8 text-center text-xs text-stone-400">
-                    لا توجد أوامر تجهيز مفتوحة لهذا المحل حالياً.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedShop.fulfillmentOrders.map((fOrder: any) => {
-                      const isReady =
-                        fOrder.status === 'READY_FOR_PICKUP' || fOrder.status === 'PICKED_UP';
-                      const isIssue = fOrder.status === 'ISSUE_REPORTED';
+                  return (
+                    customer.includes(q) ||
+                    phone.includes(q) ||
+                    ref.includes(q) ||
+                    city.includes(q) ||
+                    area.includes(q) ||
+                    zone.includes(q) ||
+                    address.includes(q) ||
+                    itemsMatch ||
+                    packagesMatch
+                  );
+                });
 
-                      return (
-                        <div
-                          key={fOrder.id}
-                          className="bg-white border border-stone-200 rounded-3xl p-5 shadow-xs space-y-4 transition"
-                        >
-                          {/* Order Card Header */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-base text-stone-900 font-mono">
-                                  طلب #{fOrder.order.reference}
-                                </span>
-                                <span
-                                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                                    fOrder.status === 'PICKED_UP'
-                                      ? 'bg-emerald-100 text-emerald-900'
-                                      : isReady
-                                      ? 'bg-purple-100 text-purple-900'
-                                      : isIssue
-                                      ? 'bg-rose-100 text-rose-900'
-                                      : 'bg-amber-100 text-amber-900'
-                                  }`}
-                                >
-                                  {fOrder.status === 'PICKED_UP'
-                                    ? 'تم الاستلام من المحل'
-                                    : isReady
-                                    ? 'جاهز للاستلام 🚚'
-                                    : isIssue
-                                    ? '⚠️ بلاغ نقص'
-                                    : 'قيد التجهيز'}
-                                </span>
-                              </div>
+                const readyOrders = filteredShopOrders.filter(
+                  (f: any) =>
+                    f.status === 'READY_FOR_PICKUP' ||
+                    f.status === 'PICKED_UP' ||
+                    f.packages?.some((p: any) => p.status === 'READY_FOR_PICKUP')
+                );
 
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600">
-                                <span>
-                                  العميلة: <strong>{fOrder.order.customerName}</strong>
-                                </span>
-                                <span>•</span>
-                                <span className="font-mono">{fOrder.order.customerPhone}</span>
-                                <span>•</span>
-                                <span>
-                                  📍 {fOrder.order.deliveryJob?.city || fOrder.order.shippingZoneNameSnapshot || 'عمان'}
-                                  {fOrder.order.deliveryJob?.area ? ` (${fOrder.order.deliveryJob.area})` : ''}
-                                </span>
-                                <span>•</span>
-                                <span className="font-bold text-[#3F4832] font-mono" dir="ltr">
-                                  الإجمالي: {filsToDisplay(fOrder.order.totalAmount)}
-                                </span>
-                              </div>
-                            </div>
+                const preparingOrders = filteredShopOrders.filter(
+                  (f: any) => !readyOrders.includes(f)
+                );
 
-                            {/* View Full Order Details Button */}
-                            <button
-                              onClick={() => setSelectedOrderModal(fOrder.order)}
-                              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-800 transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-[#3F4832]" />
-                              <span>عرض تفاصيل الطلب الكاملة</span>
-                            </button>
-                          </div>
+                const renderOrderCard = (fOrder: any) => {
+                  const isReady =
+                    fOrder.status === 'READY_FOR_PICKUP' || fOrder.status === 'PICKED_UP';
+                  const isIssue = fOrder.status === 'ISSUE_REPORTED';
 
-                          {/* Items assigned to this shop */}
-                          <div className="bg-stone-50/80 rounded-2xl p-3.5 border border-stone-200/80 space-y-2">
-                            <span className="text-[11px] font-bold text-stone-600 block">
-                              الأصناف المسندة لهذا المحل في هذا الطلب:
+                  return (
+                    <div
+                      key={fOrder.id}
+                      className="bg-white border border-stone-200 rounded-3xl p-5 shadow-xs space-y-4 transition"
+                    >
+                      {/* Order Card Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-base text-stone-900 font-mono">
+                              طلب #{fOrder.order.reference}
                             </span>
-
-                            <div className="space-y-1.5">
-                              {fOrder.items?.map((it: any) => {
-                                const isShortage = it.isOutOfStock;
-                                return (
-                                  <div
-                                    key={it.id}
-                                    className={`flex items-center justify-between p-2 rounded-xl border text-xs ${
-                                      isShortage
-                                        ? 'bg-rose-50 border-rose-200 text-rose-900'
-                                        : 'bg-white border-stone-200 text-stone-800'
-                                    }`}
-                                  >
-                                    <div>
-                                      <span className="font-bold">
-                                        • {it.productName}
-                                      </span>
-                                      {isShortage && it.outOfStockReason && (
-                                        <p className="text-[10px] text-rose-700 mt-0.5">
-                                          سبب النقص: {it.outOfStockReason}
-                                        </p>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                      <span className="font-bold font-mono text-sm">
-                                        x{it.quantity}
-                                      </span>
-
-                                      {isShortage && (
-                                        <div className="flex items-center gap-1">
-                                          <button
-                                            type="button"
-                                            disabled={isSubmittingAdjustment}
-                                            onClick={() =>
-                                              handleRemoveShortageItem(
-                                                fOrder.order.id,
-                                                fOrder.order.reference,
-                                                it.orderItemId,
-                                                it.productName
-                                              )
-                                            }
-                                            className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition"
-                                          >
-                                            حذف وتعديل
-                                          </button>
-                                          <button
-                                            type="button"
-                                            disabled={isSubmittingAdjustment}
-                                            onClick={() => {
-                                              setReplacementModalItem({
-                                                ...it,
-                                                orderId: fOrder.order.id,
-                                                id: it.orderItemId,
-                                                name: it.productName,
-                                              });
-                                              setReplacementQuantity(it.quantity);
-                                              setSelectedReplacementVariant(null);
-                                              setReplacementSearchResults([]);
-                                              setReplacementSearchQuery('');
-                                            }}
-                                            className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-[#3F4832] text-white hover:bg-[#2d3424] transition"
-                                          >
-                                            استبدال
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            <span
+                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                                fOrder.status === 'PICKED_UP'
+                                  ? 'bg-emerald-100 text-emerald-900'
+                                  : isReady
+                                  ? 'bg-purple-100 text-purple-900'
+                                  : isIssue
+                                  ? 'bg-rose-100 text-rose-900'
+                                  : 'bg-amber-100 text-amber-900'
+                              }`}
+                            >
+                              {fOrder.status === 'PICKED_UP'
+                                ? 'تم الاستلام من المحل'
+                                : isReady
+                                ? 'جاهز للاستلام 🚚'
+                                : isIssue
+                                ? '⚠️ بلاغ نقص'
+                                : 'قيد التجهيز'}
+                            </span>
                           </div>
 
-                          {/* Packages & Quick Actions Bar */}
-                          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                            <div className="flex items-center gap-2">
-                              {fOrder.packages?.length > 0 ? (
-                                fOrder.packages.map((pkg: any) => (
-                                  <div
-                                    key={pkg.id}
-                                    className="flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-xl text-xs font-mono"
-                                  >
-                                    <span className="font-bold text-stone-900">
-                                      {pkg.packageCode}
-                                    </span>
-                                    <span className="text-[10px] text-stone-500">
-                                      ({pkg.status})
-                                    </span>
-                                    {pkg.status !== 'PICKED_UP' && (
-                                      <button
-                                        onClick={() =>
-                                          handleBatchConfirmPickup([pkg.packageCode])
-                                        }
-                                        disabled={isPending}
-                                        className="text-[10px] font-bold bg-[#3F4832] text-white px-2 py-0.5 rounded-md hover:bg-[#2e3524] transition"
-                                      >
-                                        تأكيد الاستلام
-                                      </button>
-                                    )}
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-xs text-stone-400">
-                                  بانتظار تأكيد المحل للتغليف لإنشاء الباركود
-                                </span>
-                              )}
-                            </div>
-
-                            <button
-                              onClick={() =>
-                                handleGenerateShopSession(selectedShop.id, fOrder.id)
-                              }
-                              className="text-xs font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-2xs"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>مشاركة رابط التجهيز لهذا الطلب عبر واتساب</span>
-                            </button>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600">
+                            <span>
+                              العميلة: <strong>{fOrder.order.customerName}</strong>
+                            </span>
+                            <span>•</span>
+                            <span className="font-mono">{fOrder.order.customerPhone}</span>
+                            <span>•</span>
+                            <span>
+                              📍 {fOrder.order.deliveryJob?.city || fOrder.order.shippingZoneNameSnapshot || 'عمان'}
+                              {fOrder.order.deliveryJob?.area ? ` (${fOrder.order.deliveryJob.area})` : ''}
+                            </span>
+                            <span>•</span>
+                            <span className="font-bold text-[#3F4832] font-mono" dir="ltr">
+                              الإجمالي: {filsToDisplay(fOrder.order.totalAmount)}
+                            </span>
                           </div>
                         </div>
-                      );
-                    })}
+
+                        {/* View Full Order Details Button */}
+                        <button
+                          onClick={() => setSelectedOrderModal(fOrder.order)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-800 transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-[#3F4832]" />
+                          <span>عرض تفاصيل الطلب الكاملة</span>
+                        </button>
+                      </div>
+
+                      {/* Items assigned to this shop */}
+                      <div className="bg-stone-50/80 rounded-2xl p-3.5 border border-stone-200/80 space-y-2">
+                        <span className="text-[11px] font-bold text-stone-600 block">
+                          الأصناف المسندة لهذا المحل في هذا الطلب:
+                        </span>
+
+                        <div className="space-y-1.5">
+                          {fOrder.items?.map((it: any) => {
+                            const isShortage = it.isOutOfStock;
+                            return (
+                              <div
+                                key={it.id}
+                                className={`flex items-center justify-between p-2 rounded-xl border text-xs ${
+                                  isShortage
+                                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                                    : 'bg-white border-stone-200 text-stone-800'
+                                }`}
+                              >
+                                <div>
+                                  <span className="font-bold">
+                                    • {it.productName}
+                                  </span>
+                                  {isShortage && it.outOfStockReason && (
+                                    <p className="text-[10px] text-rose-700 mt-0.5">
+                                      سبب النقص: {it.outOfStockReason}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <span className="font-bold font-mono text-sm">
+                                    x{it.quantity}
+                                  </span>
+
+                                  {isShortage && (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={isSubmittingAdjustment}
+                                        onClick={() =>
+                                          handleRemoveShortageItem(
+                                            fOrder.order.id,
+                                            fOrder.order.reference,
+                                            it.orderItemId,
+                                            it.productName
+                                          )
+                                        }
+                                        className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition"
+                                      >
+                                        حذف وتعديل
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isSubmittingAdjustment}
+                                        onClick={() => {
+                                          setReplacementModalItem({
+                                            ...it,
+                                            orderId: fOrder.order.id,
+                                            id: it.orderItemId,
+                                            name: it.productName,
+                                          });
+                                          setReplacementQuantity(it.quantity);
+                                          setSelectedReplacementVariant(null);
+                                          setReplacementSearchResults([]);
+                                          setReplacementSearchQuery('');
+                                        }}
+                                        className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-[#3F4832] text-white hover:bg-[#2d3424] transition"
+                                      >
+                                        استبدال
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Packages & Quick Actions Bar (NO individual confirm pickup button) */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                        <div className="flex items-center gap-2">
+                          {fOrder.packages?.length > 0 ? (
+                            fOrder.packages.map((pkg: any) => (
+                              <div
+                                key={pkg.id}
+                                className="flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-xl text-xs font-mono"
+                              >
+                                <span className="font-bold text-stone-900">
+                                  {pkg.packageCode}
+                                </span>
+                                <span className="text-[10px] text-stone-500">
+                                  ({pkg.status})
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-xs text-stone-400">
+                              بانتظار تأكيد المحل للتغليف لإنشاء الباركود
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            handleGenerateShopSession(selectedShop.id, fOrder.id)
+                          }
+                          className="text-xs font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>مشاركة رابط التجهيز لهذا الطلب عبر واتساب</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="space-y-6">
+                    {/* Header & Shop Orders Search */}
+                    <div className="bg-white border border-stone-200 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <Package className="w-5 h-5 text-[#3F4832]" />
+                          <div>
+                            <h3 className="text-base font-black text-stone-900">
+                              أوامر وتجهيز طرود المحل ({shopOrders.length})
+                            </h3>
+                            <p className="text-xs text-stone-500">
+                              مقسمة حسب حالة التجهيز: الجاهز للاستلام وقيد التجهيز
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs font-bold">
+                          <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
+                            جاهز للاستلام: {readyOrders.length}
+                          </span>
+                          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                            قيد التجهيز: {preparingOrders.length}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Search box for this shop */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-stone-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={shopOrdersSearchQuery}
+                          onChange={(e) => setShopOrdersSearchQuery(e.target.value)}
+                          placeholder="بحث في طلبات هذا المحل (اسم الزبونة، رقم الطلب، الهاتف، المنطقة، اسم المنتج، رمز الطرد...)"
+                          className="w-full bg-stone-50 border border-stone-200 rounded-2xl ps-10 pe-10 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3F4832]/20 font-medium"
+                        />
+                        {shopOrdersSearchQuery && (
+                          <button
+                            onClick={() => setShopOrdersSearchQuery('')}
+                            className="absolute end-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs font-bold p-1"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* SECTION 1: الطلبات الجاهزة للاستلام */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-purple-50/90 border border-purple-200 p-3.5 rounded-2xl">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            ✓
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-purple-950">
+                              قسم الطلبات الجاهزة للاستلام
+                            </h4>
+                            <p className="text-[11px] text-purple-800">
+                              الطلبات التي تم تجهيزها وتغليفها وجاهزة لحضور المندوب
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-200/90 text-purple-900 border border-purple-300">
+                          {readyOrders.length} طلبات
+                        </span>
+                      </div>
+
+                      {readyOrders.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
+                          {shopOrdersSearchQuery
+                            ? 'لا توجد طلبات جاهزة للاستلام تطابق البحث.'
+                            : 'لا توجد طلبات جاهزة للاستلام حالياً في هذا المحل.'}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {readyOrders.map(renderOrderCard)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SECTION 2: الطلبات قيد التجهيز */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between bg-amber-50/90 border border-amber-200 p-3.5 rounded-2xl">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            ⏳
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-amber-950">
+                              قسم الطلبات قيد التجهيز
+                            </h4>
+                            <p className="text-[11px] text-amber-800">
+                              الطلبات الجديدة أو قيد التحضير أو التي عليها بلاغات نقص
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200/90 text-amber-900 border border-amber-300">
+                          {preparingOrders.length} طلبات
+                        </span>
+                      </div>
+
+                      {preparingOrders.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
+                          {shopOrdersSearchQuery
+                            ? 'لا توجد طلبات قيد التجهيز تطابق البحث.'
+                            : 'لا توجد طلبات قيد التجهيز حالياً في هذا المحل.'}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {preparingOrders.map(renderOrderCard)}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </>
           )}
         </div>

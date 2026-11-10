@@ -4,6 +4,7 @@ import React, { useActionState, useEffect, useState } from 'react';
 import { processCheckout } from '@/actions/checkout';
 import { filsToDisplay } from '@/lib/money';
 import Link from 'next/link';
+import { FileText } from 'lucide-react';
 
 export default function CheckoutPage({ params }: { params: Promise<{ locale: string }> }) {
   const resolvedParams = React.use(params);
@@ -464,11 +465,22 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
 
             <div className="space-y-2.5 pt-1">
               {confirmedRef && (
+                <a
+                  href={`/${locale}/invoice/${confirmedRef}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 px-4 rounded-full text-sm font-bold bg-[#3F4832] hover:bg-[#2e3524] text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-4 h-4 text-[#B7935F]" />
+                  <span>{isAr ? 'عرض الفاتورة الإلكترونية المباشرة' : 'View Digital Invoice'}</span>
+                </a>
+              )}
+              {confirmedRef && (
                 <Link
                   href={`/${locale}/order-status/${confirmedRef}`}
-                  className="w-full btn-rawaq-primary py-3.5 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all block text-center"
+                  className="w-full btn-rawaq-primary py-3 rounded-full text-sm font-bold shadow-sm hover:shadow-md transition-all block text-center"
                 >
-                  {isAr ? 'عرض حالة طلبي' : 'Track My Order Status'}
+                  {isAr ? 'متابعة حالة الطلب' : 'Track My Order Status'}
                 </Link>
               )}
               <Link
@@ -477,14 +489,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ locale: str
               >
                 {isAr ? 'متابعة التسوق في المتجر' : 'Continue Shopping'}
               </Link>
-              {confirmedRef && (
-                <Link
-                  href={`/${locale}/invoice/${confirmedRef}`}
-                  className="w-full py-1 text-xs text-stone-400 hover:text-stone-700 font-bold block text-center underline"
-                >
-                  {isAr ? 'عرض الفاتورة الإلكترونية المباشرة' : 'View Digital Invoice'}
-                </Link>
-              )}
             </div>
           </div>
         </div>

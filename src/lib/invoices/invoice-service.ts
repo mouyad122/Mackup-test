@@ -140,14 +140,20 @@ export async function getPublicInvoiceDataByToken(token: string) {
 
   // 2. كخيار رجوع آمن للتوافق مع الطلبات القديمة: البحث برقم الطلب أو معرفه
   if (!invoice) {
+    const rawToken = token.trim();
+    const cleanRef = rawToken.replace(/^#/, '');
     const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawToken);
+
     invoice = await prisma.invoice.findFirst({
       where: {
         OR: [
-          ...(isUuid ? [{ orderId: token }] : []),
-          { number: token },
-          { order: { reference: token } },
+          ...(isUuid ? [{ orderId: rawToken }] : []),
+          { number: cleanRef },
+          { number: rawToken },
+          { order: { reference: cleanRef } },
+          { order: { reference: rawToken } },
+          { order: { reference: { equals: cleanRef, mode: 'insensitive' } } },
         ],
       },
       include: {
@@ -159,6 +165,27 @@ export async function getPublicInvoiceDataByToken(token: string) {
         },
       },
     });
+
+    if (!invoice) {
+      const orderCandidate = await prisma.order.findFirst({
+        where: {
+          OR: [
+            ...(isUuid ? [{ id: rawToken }] : []),
+            { reference: cleanRef },
+            { reference: rawToken },
+            { reference: { equals: cleanRef, mode: 'insensitive' } },
+          ],
+        },
+      });
+
+      if (orderCandidate) {
+        try {
+          invoice = await getOrCreateOrderInvoice(orderCandidate.id);
+        } catch (e) {
+          console.error('Failed to get or create invoice:', e);
+        }
+      }
+    }
   }
 
   if (!invoice || !invoice.order) return null;
@@ -214,18 +241,19 @@ export function buildCustomerConfirmationWhatsAppMessage(params: {
   const baseUrl = resolveCustomerFacingBaseUrl(params.origin);
   const invoiceUrl = `${baseUrl}/invoice/view/${params.secureToken}`;
   const totalJod = (params.totalAmountFils / 1000).toFixed(3);
+  const cleanRef = (params.orderReference || '').replace(/^#/, '');
 
   const text =
-    `أهلاً وسهلاً فيكِ 🌿\n` +
-    `يسعدنا اختياركِ رَواق، وشكراً لثقتكِ فينا.\n\n` +
-    `تم تأكيد طلبكِ بنجاح ✨\n` +
-    `رقم الطلب: #${params.orderReference}\n` +
-    `قيمة الطلب: ${totalJod} د.أ\n` +
-    `طريقة الدفع: عند الاستلام\n\n` +
-    `تقدري تطّلعي على تفاصيل طلبكِ والفاتورة من الرابط التالي:\n` +
+    `أهلاً فيكِ بعالم رَواق 🤍\n\n` +
+    `شكراً لاختياركِ وثقتكِ فينا، يسعدنا نكون جزء من أناقتكِ. ✨\n\n` +
+    `تم تأكيد طلبكِ بنجاح! 🌿\n\n` +
+    `🛍️ **رقم الطلب:** #${cleanRef}\n` +
+    `💰 **الإجمالي:** ${totalJod} د.أ\n` +
+    `💳 **الدفع:** عند الاستلام\n\n` +
+    `🧾 **تفاصيل طلبكِ وفاتورتكِ:**\n` +
     `${invoiceUrl}\n\n` +
-    `رح نتابع تجهيز طلبكِ بعناية، ونبلغكِ عند خروجه للتوصيل.\n\n` +
-    `رَواق | أناقة من روح الأصالة 🌿`;
+    `رح نبلغكِ أول ما يكون طلبكِ بطريقه إلكِ.\n\n` +
+    `**رَواق | أناقة من روح الأصالة 🤎**`;
 
   // تجهيز رابط wa.me
   let cleanPhone = (params.customerPhone || '').replace(/\D/g, '');

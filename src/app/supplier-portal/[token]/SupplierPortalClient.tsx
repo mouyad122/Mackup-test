@@ -16,6 +16,9 @@ import {
   Check,
   Send,
   Loader2,
+  Eye,
+  ArrowRight,
+  X,
 } from 'lucide-react';
 
 interface Props {
@@ -33,6 +36,13 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
   const [itemMissingQty, setItemMissingQty] = useState<Record<string, number>>({});
   const [itemMissingReason, setItemMissingReason] = useState<Record<string, string>>({});
   const [submittingItemShortage, setSubmittingItemShortage] = useState(false);
+  const [previewImageModal, setPreviewImageModal] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    productTitle: string;
+    variantTitle?: string;
+    allImages?: string[];
+  } | null>(null);
 
   const handleItemShortageSubmit = async (orderId: string, itemId: string, maxQty: number) => {
     try {
@@ -235,6 +245,28 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
                               </span>
                             </div>
                           </div>
+
+                          {/* Image preview button if image exists */}
+                          {item.imageUrl && (
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewImageModal({
+                                    isOpen: true,
+                                    imageUrl: item.imageUrl,
+                                    productTitle: item.productTitle,
+                                    variantTitle: item.variantTitle,
+                                    allImages: item.images && item.images.length > 0 ? item.images : [item.imageUrl],
+                                  })
+                                }
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition active:scale-95 shadow-2xs cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-amber-700" />
+                                <span>عرض صورة المنتج 📷</span>
+                              </button>
+                            </div>
+                          )}
 
                           {/* Reason note if already short */}
                           {isItemShort && item.outOfStockReason && (
@@ -476,6 +508,86 @@ export default function SupplierPortalClient({ token, initialData }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Product Image Modal for Supplier (Mobile-Friendly with Back Button) */}
+      {previewImageModal?.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          onClick={() => setPreviewImageModal(null)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[92vh]"
+            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+          >
+            {/* Modal Top Header with Back / Return Button */}
+            <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
+              <button
+                type="button"
+                onClick={() => setPreviewImageModal(null)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>رجوع للقائمة</span>
+              </button>
+
+              <div className="text-start pe-2">
+                <h4 className="text-xs sm:text-sm font-black text-zinc-900 truncate max-w-[200px]">
+                  {previewImageModal.productTitle}
+                </h4>
+                {previewImageModal.variantTitle && (
+                  <p className="text-[11px] text-zinc-500">{previewImageModal.variantTitle}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Main Image Display */}
+            <div className="relative flex-1 min-h-[300px] sm:min-h-[380px] bg-zinc-100 flex items-center justify-center p-4 overflow-hidden">
+              <img
+                src={previewImageModal.imageUrl}
+                alt={previewImageModal.productTitle}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl shadow-xs"
+              />
+            </div>
+
+            {/* Thumbnail selector if multiple images */}
+            {previewImageModal.allImages && previewImageModal.allImages.length > 1 && (
+              <div className="p-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-center gap-2 overflow-x-auto">
+                {previewImageModal.allImages.map((img: string, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() =>
+                      setPreviewImageModal((prev) => (prev ? { ...prev, imageUrl: img } : null))
+                    }
+                    className={`w-12 h-12 rounded-lg border-2 overflow-hidden shrink-0 transition cursor-pointer ${
+                      previewImageModal.imageUrl === img
+                        ? 'border-amber-500 scale-105'
+                        : 'border-zinc-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Bottom Footer with Back Button */}
+            <div className="p-3 bg-white border-t border-zinc-100">
+              <button
+                type="button"
+                onClick={() => setPreviewImageModal(null)}
+                className="w-full py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold transition text-center flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>إغلاق والرجوع للطلبات</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

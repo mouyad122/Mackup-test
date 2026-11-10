@@ -735,9 +735,7 @@ export default function UnifiedOrdersCommandCenter({
             alert((res as any).error || 'تعذر تسوية النقد.');
           }
         } else if (smartAction.type === 'PICKUP_PACKAGES' || smartAction.type === 'NOTIFY_SUPPLIERS') {
-          // Scroll smoothly to suppliers section
-          const el = document.getElementById('suppliers-section');
-          el?.scrollIntoView({ behavior: 'smooth' });
+          window.location.href = '/admin/orders/shops';
         }
       } catch (err: any) {
         alert(err?.message || 'حدث خطأ أثناء تنفيذ الإجراء.');
@@ -1448,38 +1446,6 @@ export default function UnifiedOrdersCommandCenter({
                   </button>
                 </div>
               </div>
-
-              {/* 5. Section 2: Shop Fulfillment Banner (انتقال لمركز متابعة المحلات والطرود - للطلبات الجارية فقط) */}
-              {!isCompletedOrder && (
-                <div id="suppliers-section" className="bg-gradient-to-r from-purple-50 via-stone-50 to-purple-50 rounded-3xl border border-purple-200/80 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
-                      <Store className="w-5 h-5 text-purple-700" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-extrabold text-stone-900">
-                          أوامر تجهيز المحلات والطرود
-                        </h3>
-                        <span className="text-xs font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full">
-                          {selectedOrderDetails.order.fulfillmentOrders?.length || 0} محلات
-                        </span>
-                      </div>
-                      <p className="text-xs text-stone-500 mt-0.5">
-                        تم نقل إدارة وتجهيز طرود المحلات إلى قسم متابعة المحلات المخصص مع إمكانية استعراض كافة تفاصيل الطلبات هناك
-                      </p>
-                    </div>
-                  </div>
-
-                  <Link
-                    href="/admin/orders/shops"
-                    className="px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-xs shrink-0"
-                  >
-                    <Store className="w-4 h-4" />
-                    <span>فتح متابعة المحلات والطرود 🏬</span>
-                  </Link>
-                </div>
-              )}
 
               {/* 6. Section 3: Immutable Invoice Details (الفاتورة الثابتة) */}
               <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-xs space-y-4">

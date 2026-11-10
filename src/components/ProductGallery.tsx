@@ -101,14 +101,16 @@ export function ProductGallery({ images, productName, isAr }: { images: { id?: s
           className="fixed inset-0 z-[120] flex items-center justify-center bg-[#1F1B1A]/95 backdrop-blur-md transition-opacity" 
           onClick={() => setIsLightboxOpen(false)}
         >
+          {/* Exit / Close Button */}
           <button 
             type="button" 
             autoFocus 
             onClick={() => setIsLightboxOpen(false)} 
-            className="absolute right-4 top-4 md:right-8 md:top-8 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors" 
-            aria-label={isAr ? 'إغلاق' : 'Close'}
+            className="absolute top-4 end-4 sm:top-6 sm:end-6 z-30 flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-md shadow-2xl transition-all active:scale-95 text-sm sm:text-base font-bold cursor-pointer" 
+            aria-label={isAr ? 'خروج' : 'Close'}
           >
-            <X size={24} strokeWidth={1.5} />
+            <X size={20} strokeWidth={2.5} />
+            <span>{isAr ? 'خروج' : 'Close'}</span>
           </button>
           
           <div 

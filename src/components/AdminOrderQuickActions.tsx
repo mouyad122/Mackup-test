@@ -31,8 +31,19 @@ export function AdminOrderQuickActions({
   const [shippingResponsibility, setShippingResponsibility] = useState<'STORE' | 'CUSTOMER' | ''>('');
 
   const openConfirmationWhatsApp = (popup: Window | null) => {
-    const invoiceUrl = `${window.location.origin}/ar/invoice/${orderId}`;
-    const msg = encodeURIComponent(`مرحباً بك في رَواق 🌟.\nتم تأكيد طلبك والبدء بتجهيزه! رقم الطلب: #${reference}\nيمكنك استعراض الفاتورة الرسمية وتتبع الحالة عبر الرابط التالي:\n${invoiceUrl}`);
+    const invoiceUrl = `${window.location.origin}/invoice/view/${orderId}`;
+    const cleanRef = reference.replace(/^#/, '');
+    const msg = encodeURIComponent(
+      `أهلاً فيكِ بعالم رَواق 🤍\n\n` +
+      `شكراً لاختياركِ وثقتكِ فينا، يسعدنا نكون جزء من أناقتكِ. ✨\n\n` +
+      `تم تأكيد طلبكِ بنجاح! 🌿\n\n` +
+      `🛍️ **رقم الطلب:** #${cleanRef}\n` +
+      `💳 **الدفع:** عند الاستلام\n\n` +
+      `🧾 **تفاصيل طلبكِ وفاتورتكِ:**\n` +
+      `${invoiceUrl}\n\n` +
+      `رح نبلغكِ أول ما يكون طلبكِ بطريقه إلكِ.\n\n` +
+      `**رَواق | أناقة من روح الأصالة 🤎**`
+    );
     const cleanPhone = phone.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${msg}`;
     if (popup && !popup.closed) {
