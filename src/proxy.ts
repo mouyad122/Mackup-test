@@ -44,10 +44,12 @@ export default async function proxy(request: NextRequest) {
     return redirectWithCookies(new URL('/admin/login', request.url));
   }
 
-  // Supplier Portal & Public Invoice Isolation: منع إضافة بادئة اللغة /ar أو /en وإزالتها إن وُجدت
+  // Supplier Portal, Profile & Public Invoice Isolation: منع إضافة بادئة اللغة /ar أو /en وإزالتها إن وُجدت
   if (
     pathname.startsWith('/ar/supplier-portal') ||
     pathname.startsWith('/en/supplier-portal') ||
+    pathname.startsWith('/ar/supplier-profile') ||
+    pathname.startsWith('/en/supplier-profile') ||
     pathname.startsWith('/ar/invoice/view') ||
     pathname.startsWith('/en/invoice/view') ||
     pathname.startsWith('/ar/verify') ||
@@ -62,6 +64,7 @@ export default async function proxy(request: NextRequest) {
     !pathname.startsWith('/admin') &&
     !pathname.startsWith('/delivery/') &&
     !pathname.startsWith('/supplier-portal') &&
+    !pathname.startsWith('/supplier-profile') &&
     !pathname.startsWith('/invoice/view') &&
     !pathname.startsWith('/verify');
   if (isPublicRoute) {

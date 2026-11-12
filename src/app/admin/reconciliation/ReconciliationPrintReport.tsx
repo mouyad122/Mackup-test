@@ -12,6 +12,15 @@ export type ReconciliationPrintReportProps = {
   referenceCode?: string;
   departmentNote?: string;
   payments?: { date: string; reference: string; amountFils: number; type: string }[];
+  settlements?: {
+    batchReference: string;
+    deliveredOrdersCount: number;
+    netRequiredFils: number;
+    settledAmountFils: number;
+    remainingBalanceFils: number;
+    status: string;
+    settlementDate?: string;
+  }[];
   issuedByName?: string;
   issuedByRole?: string;
   approvedByName?: string;
@@ -33,6 +42,7 @@ export function ReconciliationPrintReport({
   referenceCode,
   departmentNote,
   payments,
+  settlements,
   issuedByName,
   issuedByRole,
   approvedByName,
@@ -222,6 +232,59 @@ export function ReconciliationPrintReport({
           </div>
         )}
       </section>
+
+      {/* ── Optional Batch Settlements / Remittances Table ── */}
+      {settlements && settlements.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-200">
+            <h3 className="text-xs font-bold text-emerald-950">سجل تسويات الطلبيات والمطابقة المالية المعتمدة</h3>
+            <span className="text-[11px] font-mono text-zinc-600">{settlements.length} طلبيات تجميع</span>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-zinc-300">
+            <table className="rawaq-table w-full text-right text-xs border-collapse">
+              <thead>
+                <tr className="bg-emerald-950 text-white">
+                  <th className="py-2 px-3 font-bold text-center w-10 text-[11px]">#</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">طلبية التجميع (Batch)</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">عدد الطلبات</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">المطلوب (الصافي)</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">مبلغ التسوية</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">كم متبقي</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">حالة التسوية</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">تاريخ التسوية</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 bg-white">
+                {settlements.map((s, sIdx) => (
+                  <tr key={`settle-${sIdx}`} className={`rawaq-table-tr ${sIdx % 2 === 1 ? 'bg-zinc-50/70' : 'bg-white'}`}>
+                    <td className="py-2 px-3 text-center font-mono text-[11px] text-zinc-500">{sIdx + 1}</td>
+                    <td className="py-2 px-3 text-[11px] font-mono font-bold text-zinc-900">{s.batchReference}</td>
+                    <td className="py-2 px-3 text-[11px] font-mono text-zinc-700">{s.deliveredOrdersCount}</td>
+                    <td className="py-2 px-3 text-[11px] font-mono font-bold text-zinc-900">{filsToDisplay(s.netRequiredFils)} د.أ</td>
+                    <td className="py-2 px-3 text-[11px] font-mono font-bold text-emerald-800">{filsToDisplay(s.settledAmountFils)} د.أ</td>
+                    <td className={`py-2 px-3 text-[11px] font-mono font-bold ${s.remainingBalanceFils > 0 ? 'text-amber-800' : 'text-zinc-500'}`}>
+                      {filsToDisplay(s.remainingBalanceFils)} د.أ
+                    </td>
+                    <td className="py-2 px-3 text-[11px]">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                        s.status === 'مسددة بالكامل'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : s.status === 'مسددة جزئياً'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-zinc-100 text-zinc-600'
+                      }`}>
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-[11px] text-zinc-600">{s.settlementDate || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* ── Optional Shop Disbursements / Payments Table ── */}
       {payments && payments.length > 0 && (

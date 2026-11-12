@@ -377,12 +377,175 @@ export async function resolveDiscrepancyAction(formData: FormData) {
   }
 }
 
+export async function cancelDeliveryBatchSettlementAction(formData: FormData): Promise<{ success: boolean; error?: string; message?: string }> {
+  const session = await requirePermission('manage:settings');
+
+  const batchId = formData.get('batchId') as string;
+  const reason = (formData.get('reason') as string)?.trim() || 'إلغاء تسوية طلبية معتمد من إدارة الجرد';
+
+  if (!batchId) {
+    return { success: false, error: 'معرف الطلبية مفقود.' };
+  }
+
+  try {
+    const result = await prisma.$transaction(async tx => {
+      // البحث عن الطلبية بالـ id أو reference
+      const batch = await tx.deliveryBatch.findFirst({
+        where: {
+          OR: [{ id: batchId }, { reference: batchId }],
+        },
+        include: {
+          orders: {
+            select: { id: true, reference: true, deliveryJob: true },
+          },
+        },
+      });
+
+      if (!batch) {
+        // فحص ما إذا كان طلباً منفرداً
+        const singleOrder = await tx.order.findFirst({
+          where: {
+            OR: [{ id: batchId }, { reference: batchId }],
+          },
+          include: { deliveryJob: true },
+        });
+
+        if (singleOrder && singleOrder.deliveryJob) {
+          await tx.deliveryJob.update({
+            where: { id: singleOrder.deliveryJob.id },
+            data: {
+              codStatus: 'COLLECTED_BY_COURIER',
+              codSettledAt: null,
+              codSettledByEmployeeId: null,
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              employeeId: session.employeeId,
+              action: 'DELIVERY_ORDER_SETTLEMENT_CANCELLED',
+              entityType: 'Order',
+              entityId: singleOrder.id,
+              details: JSON.stringify({ reference: singleOrder.reference, reason }),
+            },
+          });
+
+          return { success: true, reference: singleOrder.reference };
+        }
+
+        throw new Error('لم يتم العثور على طلبية التجميع المحددة.');
+      }
+
+      // البحث عن الحركات المالية المسجلة للطلبية
+      const transactions = await tx.financialTransaction.findMany({
+        where: {
+          OR: [
+            { businessEventKey: `batch-settlement:${batch.id}` },
+            { businessEventKey: { startsWith: `batch-remittance:${batch.id}` } },
+            { businessEventKey: { startsWith: `reverse-batch-settlement:${batch.id}` } },
+          ],
+        },
+      });
+
+      let netSettledFils = 0;
+      for (const t of transactions) {
+        if (t.type === 'COD_SETTLEMENT' && t.direction === 'IN') {
+          netSettledFils += t.amount;
+        } else if (t.type === 'COD_SETTLEMENT_REVERSAL' || t.direction === 'OUT') {
+          netSettledFils -= t.amount;
+        }
+      }
+
+      if (netSettledFils > 0) {
+        await tx.financialTransaction.create({
+          data: {
+            businessEventKey: `reverse-batch-settlement:${batch.id}:${Date.now()}`,
+            type: 'COD_SETTLEMENT_REVERSAL',
+            direction: 'OUT',
+            amount: netSettledFils,
+            description: `إلغاء تسوية طلبية ${batch.reference} وإعادة الذمة كعهدة معلقة لدى الناقل · السبب: ${reason}`,
+            createdByEmployeeId: session.employeeId,
+          },
+        });
+      }
+
+      // إعادة حالة تحصيل الطلبات إلى COLLECTED_BY_COURIER
+      const orderIds = batch.orders.map(o => o.id);
+      if (orderIds.length > 0) {
+        await tx.deliveryJob.updateMany({
+          where: {
+            orderId: { in: orderIds },
+            codStatus: 'SETTLED_TO_RAWAQ',
+          },
+          data: {
+            codStatus: 'COLLECTED_BY_COURIER',
+            codSettledAt: null,
+            codSettledByEmployeeId: null,
+          },
+        });
+      }
+
+      // إعادة حالة الطلبية إلى IN_DELIVERY
+      await tx.deliveryBatch.update({
+        where: { id: batch.id },
+        data: {
+          status: 'IN_DELIVERY',
+        },
+      });
+
+      // إغلاق أي فروقات مالية معلقة بهذه التسوية
+      await tx.reconciliationDifference.updateMany({
+        where: {
+          entityId: batch.id,
+          status: 'OPEN',
+        },
+        data: {
+          status: 'WRITTEN_OFF',
+          resolutionNotes: `تم إلغاء تسوية الطلبية ${batch.reference}`,
+          resolvedByEmployeeId: session.employeeId,
+          resolvedAt: new Date(),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          employeeId: session.employeeId,
+          action: 'DELIVERY_BATCH_SETTLEMENT_CANCELLED',
+          entityType: 'DeliveryBatch',
+          entityId: batch.id,
+          details: JSON.stringify({
+            reference: batch.reference,
+            reversedAmountFils: netSettledFils,
+            reason,
+          }),
+        },
+      });
+
+      return { success: true, reference: batch.reference };
+    }, { isolationLevel: 'Serializable' });
+
+    revalidatePath('/admin/reports');
+    revalidatePath('/admin/reconciliation');
+    revalidatePath('/admin/settings');
+
+    return {
+      success: true,
+      message: `تم إلغاء تسوية الطلبية ${result.reference} بنجاح وإعادة رصيدها كذمة معلقة.`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'تعذر إلغاء تسوية الطلبية.',
+    };
+  }
+}
+
 export async function universalReverseSettlementAction(formData: FormData) {
   const session = await requirePermission('manage:settings');
 
   const schema = z.object({
-    settlementType: z.enum(['SUPPLIER', 'CAPTAIN']),
-    settlementId: z.string().uuid(),
+    settlementType: z.enum(['SUPPLIER', 'CAPTAIN', 'BATCH', 'DELIVERY_BATCH']),
+    settlementId: z.string().trim(),
     reason: z.string().trim().min(3).max(500),
   });
 
@@ -395,6 +558,11 @@ export async function universalReverseSettlementAction(formData: FormData) {
 
   if (settlementType === 'SUPPLIER') {
     return reverseSupplierSettlement(settlementId, reason);
+  } else if (settlementType === 'BATCH' || settlementType === 'DELIVERY_BATCH') {
+    const fd = new FormData();
+    fd.append('batchId', settlementId);
+    fd.append('reason', reason);
+    return cancelDeliveryBatchSettlementAction(fd);
   } else {
     return reverseCaptainSettlement(settlementId, reason);
   }

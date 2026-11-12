@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       const courierCompany = searchParams.get('courierCompany') || undefined;
       const batchRef = searchParams.get('batchRef') || undefined;
       const status = searchParams.get('status') || undefined;
+      const deliveryScope = (searchParams.get('deliveryScope') || searchParams.get('scope') || undefined) as any;
 
       const report = await generateDeliveryReport({
         courierCompany,
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
         from,
         to,
         isDetailed,
+        deliveryScope,
       });
       return NextResponse.json(report);
     }

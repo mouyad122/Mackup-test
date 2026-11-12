@@ -144,6 +144,25 @@ export async function updateSupplier(id: string, formData: FormData) {
   revalidatePath('/admin/products', 'layout');
 }
 
+export async function toggleProductVisibilityFromSupplierAction(productId: string, isVisible: boolean): Promise<void> {
+  const session = await requirePermission('manage:settings');
+  await prisma.product.update({
+    where: { id: productId },
+    data: { isVisible },
+  });
+  await prisma.auditLog.create({
+    data: {
+      employeeId: session.employeeId,
+      action: isVisible ? 'PRODUCT_PUBLISHED_IN_STORE' : 'PRODUCT_HIDDEN_FROM_STORE',
+      entityType: 'Product',
+      entityId: productId,
+    },
+  });
+  revalidatePath('/admin/suppliers');
+  revalidatePath(`/supplier-profile`);
+  revalidatePath('/admin/products', 'layout');
+}
+
 export async function deleteSupplier(id: string) {
   const session = await requirePermission('manage:settings');
   await prisma.$transaction(async tx => {

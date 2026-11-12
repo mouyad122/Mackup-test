@@ -5,6 +5,7 @@ import { filsToDisplay } from '@/lib/money';
 import { ReconciliationPrintReport } from '../reconciliation/ReconciliationPrintReport';
 import { PrintButton } from '../reconciliation/PrintButton';
 import { issueAndArchiveReportAction, getArchivedReportsAction } from '@/actions/reports';
+import { cancelDeliveryBatchSettlementAction } from '@/actions/reconciliation';
 import Link from 'next/link';
 
 interface Props {
@@ -73,6 +74,7 @@ export function ReportsManager({
   const [expenseCategory, setExpenseCategory] = useState('');
   const [diffStatus, setDiffStatus] = useState('');
   const [settlementEntityType, setSettlementEntityType] = useState('ALL');
+  const [deliveryScope, setDeliveryScope] = useState<'DELIVERED' | 'UNDELIVERED' | 'ALL'>('DELIVERED');
   const [activePreset, setActivePreset] = useState<string>('all');
 
   // Archiving feedback
@@ -145,13 +147,15 @@ export function ReportsManager({
     detailed: boolean,
     overrideDept?: string,
     overrideFrom?: string,
-    overrideTo?: string
+    overrideTo?: string,
+    overrideScope?: 'DELIVERED' | 'UNDELIVERED' | 'ALL'
   ) => {
     setIsDetailed(detailed);
     setArchiveSuccessRef(null);
     const targetDept = overrideDept || department;
     const fromVal = overrideFrom !== undefined ? overrideFrom : from;
     const toVal = overrideTo !== undefined ? overrideTo : to;
+    const scopeVal = overrideScope !== undefined ? overrideScope : deliveryScope;
 
     startTransition(async () => {
       const params = new URLSearchParams({
@@ -162,6 +166,7 @@ export function ReportsManager({
         ...(targetDept === 'DELIVERY' && courierCompany ? { courierCompany } : {}),
         ...(targetDept === 'DELIVERY' && batchRef ? { batchRef } : {}),
         ...(targetDept === 'DELIVERY' && deliveryStatus ? { status: deliveryStatus } : {}),
+        ...(targetDept === 'DELIVERY' ? { scope: scopeVal } : {}),
         ...(targetDept === 'SUPPLIER' && supplierId ? { supplierId } : {}),
         ...(targetDept === 'SUPPLIER' && itemStatus ? { itemStatus } : {}),
         ...(targetDept === 'EXPENSES' && expenseCategory ? { category: expenseCategory } : {}),
@@ -263,6 +268,7 @@ export function ReportsManager({
           metadata: {
             filtersApplied: reportData.filtersApplied,
             payments: reportData.payments,
+            settlements: reportData.settlements,
           },
         },
         filterPayload: reportData.filtersApplied,
@@ -305,12 +311,13 @@ export function ReportsManager({
     switch (dept) {
       case 'DELIVERY':
         return [
-          { label: 'إجمالي الشحنات المسندة للناقل', value: summary?.totalOrders?.toString() || '0' },
-          { label: 'شحنات تم تسليمها بنجاح', value: `${summary?.deliveredOrders || 0} (${summary?.deliverySuccessRate || '100%'})` },
-          { label: 'رسوم التوصيل المستحقة للناقل', value: `${filsToDisplay(summary?.totalCarrierCostFils || 0)} د.أ` },
-          { label: 'إجمالي نقد COD المحصل فعلياً', value: `${filsToDisplay(summary?.totalCodCollectedFils || 0)} د.أ` },
-          { label: 'عهدة COD معلقة بذمة الناقل', value: `${filsToDisplay(summary?.totalCodUnremittedFils || 0)} د.أ` },
-          { label: 'صافي المقاصة الواجب توريده لرَواق', value: `${filsToDisplay(summary?.totalNetRemittanceFils || 0)} د.أ` },
+          { label: 'إجمالي طلبيات التجميع (Batches)', value: summary?.totalBatches?.toString() || '0' },
+          { label: 'إجمالي عدد الطلبات', value: `${summary?.totalOrders || 0} طلب (${summary?.deliverySuccessRate || '100%'} تسليم)` },
+          { label: 'مجموع أسعار الطلبيات الإجمالي', value: `${filsToDisplay(summary?.totalOrdersPriceFils || summary?.totalCodExpectedFils || 0)} د.أ` },
+          { label: 'مجموع سعر التوصيل الإجمالي', value: `${filsToDisplay(summary?.totalCarrierCostFils || 0)} د.أ` },
+          { label: 'صافي المبلغ المطلوب (سعر الطلبيات - التوصيل)', value: `${filsToDisplay(summary?.totalNetRequiredFils ?? (summary?.totalNetRemittanceFils || 0))} د.أ` },
+          { label: 'المسدد بالتسويات المعتمدة', value: `${filsToDisplay(summary?.totalSettledFils ?? (summary?.totalCodSettledToRawaqFils || 0))} د.أ` },
+          { label: 'المتبقي بذمة شركة التوصيل', value: `${filsToDisplay(summary?.totalRemainingFils ?? (summary?.totalCodUnremittedFils || 0))} د.أ` },
         ];
       case 'SUPPLIER':
         return [
@@ -532,6 +539,22 @@ export function ReportsManager({
                 {department === 'DELIVERY' && (
                   <>
                     <div>
+                      <label className="text-zinc-600 block mb-1 font-semibold">نطاق الجرد والتسليم</label>
+                      <select
+                        value={deliveryScope}
+                        onChange={(e) => {
+                          const nextScope = e.target.value as any;
+                          setDeliveryScope(nextScope);
+                          setTimeout(() => handleFetchReport(isDetailed, undefined, undefined, undefined, nextScope), 50);
+                        }}
+                        className="w-full rounded-lg border-2 border-emerald-600/40 bg-emerald-50/40 p-2 text-xs font-bold text-emerald-950 focus:border-emerald-600"
+                      >
+                        <option value="DELIVERED">📦 الطلبيات المسلمة (للجرد والتسويات)</option>
+                        <option value="UNDELIVERED">⏳ الطلبيات غير المسلمة (قيد التوصيل)</option>
+                        <option value="ALL">🌐 كافة الطلبيات (شامل)</option>
+                      </select>
+                    </div>
+                    <div>
                       <label className="text-zinc-600 block mb-1 font-semibold">شركة التوصيل الشريكة</label>
                       <select
                         value={courierCompany}
@@ -550,21 +573,17 @@ export function ReportsManager({
                       </select>
                     </div>
                     <div>
-                      <label className="text-zinc-600 block mb-1 font-semibold">حالة التسليم</label>
-                      <select
-                        value={deliveryStatus}
+                      <label className="text-zinc-600 block mb-1 font-semibold">كود طلبية التجميع (Batch)</label>
+                      <input
+                        type="text"
+                        placeholder="مثال: BATCH-1"
+                        value={batchRef}
                         onChange={(e) => {
-                          setDeliveryStatus(e.target.value);
-                          setTimeout(() => handleFetchReport(isDetailed), 50);
+                          setBatchRef(e.target.value);
+                          setTimeout(() => handleFetchReport(isDetailed), 300);
                         }}
-                        className="w-full rounded-lg border border-zinc-300 p-2 text-xs"
-                      >
-                        <option value="">كافة الحالات</option>
-                        <option value="DELIVERED">تم التسليم بنجاح</option>
-                        <option value="FAILED_DELIVERY">فشل التسليم / مرتجع</option>
-                        <option value="ASSIGNED">معين للناقل</option>
-                        <option value="OUT_FOR_DELIVERY">في مسار التوصيل</option>
-                      </select>
+                        className="w-full rounded-lg border border-zinc-300 p-2 text-xs font-mono"
+                      />
                     </div>
                   </>
                 )}
@@ -772,8 +791,105 @@ export function ReportsManager({
                   columns={reportData.columns || []}
                   rows={reportData.rows || []}
                   payments={reportData.payments}
+                  settlements={reportData.settlements}
                 />
               </div>
+
+              {/* ── Interactive Delivery Settlements Hub ── */}
+              {department === 'DELIVERY' && reportData?.settlements && reportData.settlements.length > 0 && (
+                <div className="no-print bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4 max-w-5xl mx-auto">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+                    <div>
+                      <h3 className="text-sm font-black text-emerald-950 flex items-center gap-2">
+                        <span>⚖️ جدول تسويات ومطابقة طلبيات التوصيل (للطلبات المسلمة)</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-mono">
+                          {reportData.settlements.length} طلبيات
+                        </span>
+                      </h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        يوضح المطلوب ومبلغ التسوية المسدد والمتبقي لكل طلبية على حدة، مع إمكانية إلغاء تسوية أي طلبية بشكل منفرد.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                    <table className="w-full text-right text-xs">
+                      <thead className="bg-zinc-50 text-zinc-600 font-bold border-b border-zinc-200">
+                        <tr>
+                          <th className="p-3">طلبية التجميع</th>
+                          <th className="p-3">الطلبات المسلمة</th>
+                          <th className="p-3">مجموع أسعار الطلبيات</th>
+                          <th className="p-3">مجموع سعر التوصيل</th>
+                          <th className="p-3">المطلوب (الصافي)</th>
+                          <th className="p-3">مبلغ التسوية</th>
+                          <th className="p-3">كم متبقي</th>
+                          <th className="p-3">حالة التسوية</th>
+                          <th className="p-3 text-center">الإجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {reportData.settlements.map((s: any) => (
+                          <tr key={s.batchId} className="hover:bg-zinc-50/50">
+                            <td className="p-3 font-mono font-bold text-zinc-900">{s.batchReference}</td>
+                            <td className="p-3 font-mono">{s.deliveredOrdersCount}</td>
+                            <td className="p-3 font-mono">{filsToDisplay(s.totalOrdersPriceFils)} د.أ</td>
+                            <td className="p-3 font-mono">{filsToDisplay(s.totalDeliveryCostFils)} د.أ</td>
+                            <td className="p-3 font-mono font-bold text-emerald-950">{filsToDisplay(s.netRequiredFils)} د.أ</td>
+                            <td className="p-3 font-mono font-bold text-emerald-800">{filsToDisplay(s.settledAmountFils)} د.أ</td>
+                            <td className={`p-3 font-mono font-bold ${s.remainingBalanceFils > 0 ? 'text-amber-800' : 'text-zinc-500'}`}>
+                              {filsToDisplay(s.remainingBalanceFils)} د.أ
+                            </td>
+                            <td className="p-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                s.status === 'مسددة بالكامل'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : s.status === 'مسددة جزئياً'
+                                  ? 'bg-amber-100 text-amber-900'
+                                  : 'bg-zinc-100 text-zinc-600'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              {s.hasSettlement ? (
+                                <button
+                                  onClick={async () => {
+                                    const confirmed = window.confirm(`هل تؤكد إلغاء تسوية طلبية ${s.batchReference}؟\n\nسيتم عكس القيد المالي وإعادة المبلغ كذمة معلقة.`);
+                                    if (!confirmed) return;
+                                    const reason = window.prompt('سبب إلغاء التسوية:', 'إلغاء معتمد من كشف الجرد المالي');
+                                    if (!reason) return;
+
+                                    const fd = new FormData();
+                                    fd.append('batchId', s.batchId);
+                                    fd.append('reason', reason);
+
+                                    startTransition(async () => {
+                                      const res = await cancelDeliveryBatchSettlementAction(fd);
+                                      if (res.success) {
+                                        alert(res.message || 'تم إلغاء تسوية الطلبية بنجاح.');
+                                        handleFetchReport(isDetailed);
+                                      } else {
+                                        alert(`فشل إلغاء التسوية: ${res.error}`);
+                                      }
+                                    });
+                                  }}
+                                  disabled={isPending}
+                                  className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition disabled:opacity-50"
+                                  title="إلغاء تسوية هذه الطلبية منفردة"
+                                >
+                                  ↩️ إلغاء تسوية الطلبية
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-zinc-400 font-medium">بانتظار السداد</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </section>
           ) : (
             <div className="bg-white rounded-2xl border border-zinc-200 p-12 text-center text-zinc-500 shadow-sm">
@@ -863,6 +979,7 @@ export function ReportsManager({
                   columns={selectedArchivedReport.dataPayload?.columns || []}
                   rows={selectedArchivedReport.dataPayload?.rows || []}
                   payments={selectedArchivedReport.dataPayload?.metadata?.payments}
+                  settlements={selectedArchivedReport.dataPayload?.metadata?.settlements}
                   isArchived={true}
                 />
               </div>

@@ -8,51 +8,74 @@ export interface DeliveryReportFilter {
   status?: string;
   batchReference?: string;
   isDetailed?: boolean;
+  deliveryScope?: 'DELIVERED' | 'UNDELIVERED' | 'ALL';
+}
+
+export interface DeliveryBatchSettlementItem {
+  batchId: string;
+  batchReference: string;
+  courierCompany: string;
+  deliveredOrdersCount: number;
+  totalOrdersPriceFils: number;
+  totalDeliveryCostFils: number;
+  netRequiredFils: number; // المطلوب = سعر الطلبيات - سعر التوصيل
+  settledAmountFils: number; // مبلغ التسوية
+  remainingBalanceFils: number; // كم متبقي
+  status: string; // مسددة بالكامل / مسددة جزئياً / بانتظار التسوية
+  settlementDate?: string;
+  hasSettlement: boolean;
 }
 
 export interface DeliveryReportSummary {
+  totalBatches: number;
   totalOrders: number;
   deliveredOrders: number;
   failedOrders: number;
   inProgressOrders: number;
   deliverySuccessRate: string;
+  totalOrdersPriceFils: number;
   totalCarrierCostFils: number;
-  totalCodExpectedFils: number;
-  totalCodCollectedFils: number;
-  totalCodSettledToRawaqFils: number;
-  totalCodUnremittedFils: number;
-  totalNetRemittanceFils: number;
+  totalNetRequiredFils: number; // المطلوب = سعر الطلبيات - سعر التوصيل
+  totalSettledFils: number;
+  totalRemainingFils: number;
 }
 
-export interface DeliveryReportRow {
-  orderReference: string;
-  courierCompany: string;
-  courierName: string;
+export interface DeliveryReportBatchRow {
+  batchId: string;
   batchReference: string;
+  ordersCount: number;
+  totalOrdersPriceFils: number;
+  totalCarrierCostFils: number;
+  netRequiredFils: number;
+  status: string;
   destination: string;
-  deliveryStatus: string;
-  paymentMethod: string;
-  carrierCostFils: number;
-  codExpectedFils: number;
-  codCollectedFils: number;
-  codUnremittedFils: number;
-  netRemittanceFils: number;
   date: string;
 }
 
 export interface DeliveryReportResult {
   reportTitle: string;
   department: 'DELIVERY';
+  deliveryScope: 'DELIVERED' | 'UNDELIVERED' | 'ALL';
   generatedAt: string;
   filtersApplied: Record<string, string>;
   isDetailed: boolean;
   summary: DeliveryReportSummary;
   columns: string[];
   rows: string[][];
-  rawRows?: DeliveryReportRow[];
+  rawBatches?: DeliveryReportBatchRow[];
+  settlements?: DeliveryBatchSettlementItem[];
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const BATCH_STATUS_LABELS: Record<string, string> = {
+  NOT_DELIVERED: 'بانتظار التحميل',
+  IN_DELIVERY: 'قيد التوصيل الميداني',
+  COMPLETED: 'مكتملة ومسلّمة',
+  CANCELLED: 'ملغاة بالكامل',
+  PARTIALLY_SETTLED: 'مسددة جزئياً',
+};
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: 'مؤكد',
   PREPARED: 'جاهز للشحن',
   ASSIGNED: 'معين للناقل',
   SHIPPED: 'خرج للتوصيل',
@@ -60,16 +83,22 @@ const STATUS_LABELS: Record<string, string> = {
   DELIVERED: 'تم التسليم بنجاح',
   FAILED_DELIVERY: 'فشل التسليم / مرتجع',
   CANCELLED: 'ملغي / مرتجع',
-  RETURNED: 'مرتجع للمحل / لدى شركة التوصيل',
+  RETURNED: 'مرتجع لدى شركة التوصيل',
 };
 
 /**
- * تقرير التوصيل واللوجستيات المنعزل والمفصل:
- * يحتوي على: الشحنات، شركات التوصيل، سائق الشحنة، الوجهات، الطرود، حالات التسليم،
- * رسوم التوصيل، مبالغ الـ COD (المتوقع والمحصل فعلياً)، العهد المحصلة، وصافي المقاصة الواجب توريده لرَواق.
- * محجوب برمجياً تماماً: أرباح وتكاليف شراء المنتجات، وحصص المحلات التجارية.
+ * تقرير وجرد التوصيل واللوجستيات المجمع بالطلبيات (Batches):
+ * - كل طلبية كاملة batch في سطر مستقل
+ * - حذف الأعمدة الفردية (سائق الشحنة، عهدة معلقة، أجرة التوصيل الفردية، صافي التوريد، طريقة الدفع، شركة التوصيل، ورقم الشحنة)
+ * - إضافة معلومة عدد الطلبات ومجموع سعر التوصيل للطلبية كاملة
+ * - دمج المتوقع والمحصل ليصبح المطلوب فقط (المطلوب = سعر الطلبيات - سعر التوصيل الإجمالي)
+ * - المؤشرات التشغيلية والمالية المعتمدة لتكامل وسرعة العمل
+ * - جدول التسويات ومبالغ السداد والمتبقي وإلغاء تسوية كل طلبية على حدة
+ * - خيار لجرد الطلبيات المسلمة أو الطلبيات التي لم تسلم بعد (قيد التوصيل)
  */
 export async function generateDeliveryReport(filter: DeliveryReportFilter = {}): Promise<DeliveryReportResult> {
+  const scope: 'DELIVERED' | 'UNDELIVERED' | 'ALL' = filter.deliveryScope || 'DELIVERED';
+
   const dateFilter = filter.from || filter.to ? {
     createdAt: {
       ...(filter.from ? { gte: filter.from } : {}),
@@ -77,18 +106,68 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
     },
   } : {};
 
-  const orders = await prisma.order.findMany({
+  // بناء محدد حالة الطلبات حسب النطاق المختار
+  let orderStatusWhere: any = {};
+  if (filter.status) {
+    orderStatusWhere = { status: filter.status };
+  } else if (scope === 'DELIVERED') {
+    orderStatusWhere = { status: 'DELIVERED' };
+  } else if (scope === 'UNDELIVERED') {
+    orderStatusWhere = { status: { notIn: ['DELIVERED', 'CANCELLED', 'REFUNDED', 'AWAITING_WHATSAPP'] } };
+  } else {
+    orderStatusWhere = { status: { notIn: ['AWAITING_WHATSAPP'] } };
+  }
+
+  // 1. استعلام طلبيات التجميع (Batches)
+  const batches = await prisma.deliveryBatch.findMany({
     where: {
       ...dateFilter,
-      ...(filter.status ? { status: filter.status } : { status: { notIn: ['AWAITING_WHATSAPP'] } }),
+      ...(filter.batchReference ? { reference: filter.batchReference } : {}),
+      ...(filter.courierCompany ? { courierCompany: { contains: filter.courierCompany, mode: 'insensitive' } } : {}),
+    },
+    include: {
+      orders: {
+        where: orderStatusWhere,
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          paymentStatus: true,
+          totalAmount: true,
+          shippingCost: true,
+          actualDeliveryCost: true,
+          createdAt: true,
+          deliveryAssignment: {
+            select: {
+              actualCarrierCost: true,
+              captainEarning: true,
+            },
+          },
+          deliveryJob: {
+            select: {
+              id: true,
+              city: true,
+              area: true,
+              codStatus: true,
+              codAmountToCollect: true,
+              isCodCollected: true,
+              collectedAmount: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // 2. استعلام الطلبات المستقلة غير المضافة إلى batch (إن وجدت) لضمان دقة الجرد وعدم إسقاط أي طلب
+  const unbatchedOrders = await prisma.order.findMany({
+    where: {
+      ...dateFilter,
+      deliveryBatchId: null,
+      ...orderStatusWhere,
       ...(filter.courierCompany ? {
-        OR: [
-          { deliveryBatch: { courierCompany: { contains: filter.courierCompany, mode: 'insensitive' } } },
-          { deliveryAssignment: { captain: { name: { contains: filter.courierCompany, mode: 'insensitive' } } } },
-        ],
-      } : {}),
-      ...(filter.batchReference ? {
-        deliveryBatch: { reference: filter.batchReference },
+        deliveryAssignment: { captain: { name: { contains: filter.courierCompany, mode: 'insensitive' } } },
       } : {}),
     },
     select: {
@@ -100,13 +179,6 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       shippingCost: true,
       actualDeliveryCost: true,
       createdAt: true,
-      deliveryBatch: {
-        select: {
-          reference: true,
-          courierCompany: true,
-          courierName: true,
-        },
-      },
       deliveryAssignment: {
         select: {
           actualCarrierCost: true,
@@ -116,101 +188,221 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       },
       deliveryJob: {
         select: {
+          id: true,
           city: true,
           area: true,
           codStatus: true,
           codAmountToCollect: true,
           isCodCollected: true,
-          collectedByCourier: true,
-          collectedAt: true,
+          collectedAmount: true,
         },
       },
     },
     orderBy: { createdAt: 'desc' },
   });
 
+  // 3. استعلام الحركات المالية المسجلة للطلبيات لمعرفة مبالغ التسوية والمسدد
+  const allBatchIds = batches.map(b => b.id);
+  const financialTransactions = allBatchIds.length > 0
+    ? await prisma.financialTransaction.findMany({
+        where: {
+          OR: allBatchIds.flatMap(id => [
+            { businessEventKey: `batch-settlement:${id}` },
+            { businessEventKey: { startsWith: `batch-remittance:${id}` } },
+            { businessEventKey: { startsWith: `reverse-batch-settlement:${id}` } },
+          ]),
+        },
+        select: {
+          businessEventKey: true,
+          amount: true,
+          type: true,
+          direction: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+    : [];
+
+  const rawBatches: DeliveryReportBatchRow[] = [];
+  const settlements: DeliveryBatchSettlementItem[] = [];
+
+  let totalBatches = 0;
   let totalOrders = 0;
   let deliveredOrders = 0;
   let failedOrders = 0;
   let inProgressOrders = 0;
+  let totalOrdersPriceFils = 0;
   let totalCarrierCostFils = 0;
-  let totalCodExpectedFils = 0;
-  let totalCodCollectedFils = 0;
-  let totalCodSettledToRawaqFils = 0;
-  let totalCodUnremittedFils = 0;
-  let totalNetRemittanceFils = 0;
+  let totalNetRequiredFils = 0;
+  let totalSettledFils = 0;
+  let totalRemainingFils = 0;
 
-  const rawRows: DeliveryReportRow[] = [];
-
-  for (const order of orders) {
-    totalOrders++;
-    const isDelivered = order.status === 'DELIVERED';
-    const isFailed = ['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY', 'RETURNED'].includes(order.status);
-
-    if (isDelivered) deliveredOrders++;
-    else if (isFailed) failedOrders++;
-    else inProgressOrders++;
-
-    const courierCompany =
-      order.deliveryBatch?.courierCompany ||
-      order.deliveryAssignment?.captain?.name ||
-      'شركة التوصيل';
-
-    const courierName =
-      order.deliveryBatch?.courierName ||
-      order.deliveryJob?.collectedByCourier ||
-      '—';
-
-    const city = order.deliveryJob?.city || '';
-    const area = order.deliveryJob?.area || '';
-    const destination = [city, area].filter(Boolean).join(' - ') || 'عمان وكافة المناطق';
-
-    // تكلفة الشحن المستحقة للناقل
-    const carrierCost = order.actualDeliveryCost ?? order.deliveryAssignment?.actualCarrierCost ?? order.deliveryAssignment?.captainEarning ?? order.shippingCost ?? 0;
-    
-    // مبالغ الـ COD الثلاثية وفق معايير رَواق المعتمدة:
-    // 1. COD المطلوب تحصيله (مع استبعاد المدفوع مسبقاً)
-    const isPrepaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'PREPAID';
-    const codExpected = isPrepaid ? 0 : (order.deliveryJob?.codAmountToCollect ?? order.totalAmount ?? 0);
-    
-    // 2. COD المحصل فعلياً (يثبت بإشعار استلام أو حالة تحصيل مؤكدة، وليس بمجرد التسليم)
-    const isCodVerifiedCollected = order.deliveryJob?.isCodCollected ||
-      order.deliveryJob?.codStatus === 'COLLECTED_BY_COURIER' ||
-      order.deliveryJob?.codStatus === 'SETTLED_TO_RAWAQ';
-    const codCollected = isCodVerifiedCollected
-      ? (order.deliveryJob?.codAmountToCollect ?? codExpected)
-      : (isDelivered && !order.deliveryJob ? codExpected : (order.deliveryJob?.isCodCollected ? codExpected : 0));
-    
-    // حالة التوريد
-    const isSettled = order.deliveryJob?.codStatus === 'SETTLED_TO_RAWAQ';
-    const codUnremitted = isDelivered && !isSettled ? codCollected : 0;
-    if (isSettled) {
-      totalCodSettledToRawaqFils += codCollected;
+  for (const batch of batches) {
+    const matchingOrders = batch.orders;
+    // إذا كان النطاق محدداً ولم يكن في الطلبية أي طلب يطابق النطاق، نتجاوزها في كشف الجرد
+    if (matchingOrders.length === 0 && (scope === 'DELIVERED' || scope === 'UNDELIVERED')) {
+      continue;
     }
 
-    // صافي التوريد (المقاصة للطلب): نقد محصل ناقص أجرة التوصيل
-    const netRemittance = isDelivered ? (codCollected - carrierCost) : 0;
+    totalBatches++;
+    const ordersCount = matchingOrders.length;
+    totalOrders += ordersCount;
 
-    totalCarrierCostFils += carrierCost;
-    totalCodExpectedFils += codExpected;
-    totalCodCollectedFils += codCollected;
-    totalCodUnremittedFils += codUnremitted;
-    totalNetRemittanceFils += netRemittance;
+    let batchOrdersPriceFils = 0;
+    let batchCarrierCostFils = 0;
+    const citiesSet = new Set<string>();
 
-    rawRows.push({
-      orderReference: order.reference,
-      courierCompany,
-      courierName,
-      batchReference: order.deliveryBatch?.reference || '—',
+    for (const order of matchingOrders) {
+      if (order.status === 'DELIVERED') deliveredOrders++;
+      else if (['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY', 'RETURNED'].includes(order.status)) failedOrders++;
+      else inProgressOrders++;
+
+      const carrierCost = order.actualDeliveryCost ??
+        order.deliveryAssignment?.actualCarrierCost ??
+        order.deliveryAssignment?.captainEarning ??
+        order.shippingCost ?? 0;
+
+      const orderPrice = order.totalAmount ?? 0;
+
+      batchOrdersPriceFils += orderPrice;
+      batchCarrierCostFils += carrierCost;
+
+      if (order.deliveryJob?.city) citiesSet.add(order.deliveryJob.city);
+      else if (order.deliveryJob?.area) citiesSet.add(order.deliveryJob.area);
+    }
+
+    // المطلوب = سعر الطلبيات - سعر التوصيل الإجمالي من كل طلبية
+    const netRequiredFils = Math.max(0, batchOrdersPriceFils - batchCarrierCostFils);
+
+    totalOrdersPriceFils += batchOrdersPriceFils;
+    totalCarrierCostFils += batchCarrierCostFils;
+    totalNetRequiredFils += netRequiredFils;
+
+    const destination = citiesSet.size > 0
+      ? Array.from(citiesSet).slice(0, 3).join('، ') + (citiesSet.size > 3 ? '...' : '')
+      : 'عمان والمحافظات';
+
+    const formattedDate = new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+      timeZone: 'Asia/Amman',
+    }).format(batch.createdAt);
+
+    const statusLabel = BATCH_STATUS_LABELS[batch.status] || batch.status;
+
+    rawBatches.push({
+      batchId: batch.id,
+      batchReference: batch.reference,
+      ordersCount,
+      totalOrdersPriceFils: batchOrdersPriceFils,
+      totalCarrierCostFils: batchCarrierCostFils,
+      netRequiredFils,
+      status: statusLabel,
       destination,
-      deliveryStatus: STATUS_LABELS[order.status] || order.status,
-      paymentMethod: order.paymentStatus === 'PAID' ? 'مدفوع مسبقاً' : 'دفع عند الاستلام (COD)',
-      carrierCostFils: carrierCost,
-      codExpectedFils: codExpected,
-      codCollectedFils: codCollected,
-      codUnremittedFils: codUnremitted,
-      netRemittanceFils: netRemittance,
-      date: new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Amman' }).format(order.createdAt),
+      date: formattedDate,
+    });
+
+    // احتساب التسوية الخاصة بهذه الطلبية
+    const batchTx = financialTransactions.filter(tx =>
+      tx.businessEventKey?.startsWith(`batch-settlement:${batch.id}`) ||
+      tx.businessEventKey?.startsWith(`batch-remittance:${batch.id}`) ||
+      tx.businessEventKey?.startsWith(`reverse-batch-settlement:${batch.id}`)
+    );
+
+    let batchSettledFils = 0;
+    let latestSettlementDate: string | undefined;
+
+    for (const tx of batchTx) {
+      if (tx.type === 'COD_SETTLEMENT' && tx.direction === 'IN') {
+        batchSettledFils += tx.amount;
+        if (!latestSettlementDate) {
+          latestSettlementDate = new Intl.DateTimeFormat('en-GB', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+            timeZone: 'Asia/Amman',
+          }).format(tx.createdAt);
+        }
+      } else if (tx.type === 'COD_SETTLEMENT_REVERSAL' || tx.direction === 'OUT') {
+        batchSettledFils -= tx.amount;
+      }
+    }
+
+    batchSettledFils = Math.max(0, batchSettledFils);
+    const remainingBalanceFils = Math.max(0, netRequiredFils - batchSettledFils);
+
+    totalSettledFils += batchSettledFils;
+    totalRemainingFils += remainingBalanceFils;
+
+    const hasSettlement = batchSettledFils > 0;
+    let settlementStatus = 'بانتظار التسوية';
+    if (remainingBalanceFils === 0 && hasSettlement) {
+      settlementStatus = 'مسددة بالكامل';
+    } else if (hasSettlement && remainingBalanceFils > 0) {
+      settlementStatus = 'مسددة جزئياً';
+    }
+
+    // إضافة الطلبيات المسلمة أو التي لها استحقاق إلى جدول التسويات
+    if (ordersCount > 0 || hasSettlement) {
+      settlements.push({
+        batchId: batch.id,
+        batchReference: batch.reference,
+        courierCompany: batch.courierCompany || 'شركة التوصيل',
+        deliveredOrdersCount: matchingOrders.filter(o => o.status === 'DELIVERED').length,
+        totalOrdersPriceFils: batchOrdersPriceFils,
+        totalDeliveryCostFils: batchCarrierCostFils,
+        netRequiredFils,
+        settledAmountFils: batchSettledFils,
+        remainingBalanceFils,
+        status: settlementStatus,
+        settlementDate: latestSettlementDate,
+        hasSettlement,
+      });
+    }
+  }
+
+  // إضافة الطلبات غير المجمعة إن وجدت كطلبيات مفردة لضمان اكتمال الجرد
+  for (const order of unbatchedOrders) {
+    totalBatches++;
+    totalOrders++;
+    if (order.status === 'DELIVERED') deliveredOrders++;
+    else if (['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY', 'RETURNED'].includes(order.status)) failedOrders++;
+    else inProgressOrders++;
+
+    const carrierCost = order.actualDeliveryCost ??
+      order.deliveryAssignment?.actualCarrierCost ??
+      order.deliveryAssignment?.captainEarning ??
+      order.shippingCost ?? 0;
+    const orderPrice = order.totalAmount ?? 0;
+    const netRequiredFils = Math.max(0, orderPrice - carrierCost);
+
+    totalOrdersPriceFils += orderPrice;
+    totalCarrierCostFils += carrierCost;
+    totalNetRequiredFils += netRequiredFils;
+
+    const destination = [order.deliveryJob?.city, order.deliveryJob?.area].filter(Boolean).join(' - ') || 'عمان والمحافظات';
+    const formattedDate = new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+      timeZone: 'Asia/Amman',
+    }).format(order.createdAt);
+
+    const isSettled = order.deliveryJob?.codStatus === 'SETTLED_TO_RAWAQ';
+    const settledAmount = isSettled ? netRequiredFils : 0;
+    const remaining = isSettled ? 0 : netRequiredFils;
+
+    totalSettledFils += settledAmount;
+    totalRemainingFils += remaining;
+
+    rawBatches.push({
+      batchId: order.id,
+      batchReference: `طلب فردي: ${order.reference}`,
+      ordersCount: 1,
+      totalOrdersPriceFils: orderPrice,
+      totalCarrierCostFils: carrierCost,
+      netRequiredFils,
+      status: ORDER_STATUS_LABELS[order.status] || order.status,
+      destination,
+      date: formattedDate,
     });
   }
 
@@ -219,67 +411,88 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
 
   const isDetailed = filter.isDetailed ?? true;
 
+  // الأعمدة المعتمدة الجديدة للطلبيات (Batches):
+  // تم حذف: سائق الشحنة، عهدة معلقة، أجرة التوصيل الفردية، صافي التوريد، طريقة الدفع، شركة التوصيل، ورقم الشحنة.
+  // تم دمج المتوقع والمحصل في عامود واحد هو "المطلوب" = سعر الطلبيات - سعر التوصيل الإجمالي.
   const columns = isDetailed
-    ? ['رقم الشحنة', 'شركة التوصيل', 'سائق الشحنة', 'طلبية التجميع (Batch)', 'الوجهة', 'الحالة', 'طريقة الدفع', 'أجرة التوصيل', 'COD المتوقع', 'COD المحصل', 'عهدة معلقة', 'صافي التوريد (المقاصة)', 'التاريخ']
+    ? [
+        'طلبية التجميع (Batch)',
+        'عدد الطلبات',
+        'مجموع أسعار الطلبيات',
+        'مجموع سعر التوصيل',
+        'المطلوب (الصافي)',
+        'الحالة',
+        'الوجهة',
+        'التاريخ',
+      ]
     : ['المؤشر التشغيلي / المالي', 'القيمة الإجمالية'];
 
   const rows = isDetailed
-    ? rawRows.map(r => [
-        r.orderReference,
-        r.courierCompany,
-        r.courierName,
-        r.batchReference,
-        r.destination,
-        r.deliveryStatus,
-        r.paymentMethod,
-        filsToDisplay(r.carrierCostFils),
-        filsToDisplay(r.codExpectedFils),
-        filsToDisplay(r.codCollectedFils),
-        filsToDisplay(r.codUnremittedFils),
-        filsToDisplay(r.netRemittanceFils),
-        r.date,
+    ? rawBatches.map(b => [
+        b.batchReference,
+        b.ordersCount.toString(),
+        filsToDisplay(b.totalOrdersPriceFils),
+        filsToDisplay(b.totalCarrierCostFils),
+        filsToDisplay(b.netRequiredFils),
+        b.status,
+        b.destination,
+        b.date,
       ])
     : [
-        ['إجمالي الشحنات المسندة للناقل', totalOrders.toString()],
-        ['شحنات تم تسليمها بنجاح للزبائن', deliveredOrders.toString()],
+        ['إجمالي طلبيات التجميع (Batches)', totalBatches.toString()],
+        ['إجمالي عدد الطلبات', totalOrders.toString()],
+        ['شحنات تم تسليمها بنجاح', deliveredOrders.toString()],
         ['نسبة نجاح التسليم الفعلية', deliverySuccessRate],
-        ['شحنات متعذرة أو مرتجعة', failedOrders.toString()],
         ['شحنات قيد التوصيل الميداني', inProgressOrders.toString()],
-        ['إجمالي رسوم التوصيل المستحقة للناقل', filsToDisplay(totalCarrierCostFils)],
-        ['إجمالي نقد COD المتوقع تحصيله', filsToDisplay(totalCodExpectedFils)],
-        ['إجمالي نقد COD المحصل فعلياً', filsToDisplay(totalCodCollectedFils)],
-        ['نقد COD تم توريده وإيداعه لرَواق', filsToDisplay(totalCodSettledToRawaqFils)],
-        ['نقد COD معلق كعهدة بذمة الناقل', filsToDisplay(totalCodUnremittedFils)],
-        ['صافي النقد الواجب توريده لرَواق بعد المقاصة', filsToDisplay(totalNetRemittanceFils)],
+        ['شحنات متعذرة أو مرتجعة', failedOrders.toString()],
+        ['مجموع أسعار الطلبيات الإجمالي', filsToDisplay(totalOrdersPriceFils)],
+        ['مجموع سعر التوصيل الإجمالي', filsToDisplay(totalCarrierCostFils)],
+        ['صافي المبلغ المطلوب (سعر الطلبيات - سعر التوصيل)', filsToDisplay(totalNetRequiredFils)],
+        ['إجمالي المسدد بالتسويات المعتمدة', filsToDisplay(totalSettledFils)],
+        ['صافي المتبقي بذمة شركة التوصيل', filsToDisplay(totalRemainingFils)],
       ];
 
+  let reportTitle = 'تقرير جرد طلبيات التوصيل والتسويات المعتمدة · رَواق';
+  if (scope === 'UNDELIVERED') {
+    reportTitle = 'تقرير جرد ومتابعة الطلبيات غير المسلمة (قيد التوصيل) · رَواق';
+  } else if (scope === 'ALL') {
+    reportTitle = 'كشف جرد ومطابقة طلبيات التوصيل الشامل · رَواق';
+  }
+
   return {
-    reportTitle: isDetailed ? 'تقرير التوصيل واللوجستيات المفصل · رَواق' : 'ملخص التوصيل والعهد اللوجستية · رَواق',
+    reportTitle,
     department: 'DELIVERY',
-    generatedAt: new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Amman' }).format(new Date()),
+    deliveryScope: scope,
+    generatedAt: new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Amman',
+    }).format(new Date()),
     filtersApplied: {
       ...(filter.courierCompany ? { 'شركة التوصيل': filter.courierCompany } : {}),
       ...(filter.batchReference ? { 'طلبية التجميع': filter.batchReference } : {}),
-      ...(filter.status ? { 'حالة التسليم': STATUS_LABELS[filter.status] || filter.status } : {}),
+      'نطاق الجرد': scope === 'DELIVERED' ? 'الطلبيات المسلمة (للجرد والتسوية)' : scope === 'UNDELIVERED' ? 'الطلبيات غير المسلمة (قيد التوصيل)' : 'كافة الطلبيات (شامل)',
+      ...(filter.status ? { 'الحالة': filter.status } : {}),
       ...(filter.from ? { 'من تاريخ': filter.from.toLocaleDateString('en-GB') } : {}),
       ...(filter.to ? { 'إلى تاريخ': filter.to.toLocaleDateString('en-GB') } : {}),
     },
     isDetailed,
     summary: {
+      totalBatches,
       totalOrders,
       deliveredOrders,
       failedOrders,
       inProgressOrders,
       deliverySuccessRate,
+      totalOrdersPriceFils,
       totalCarrierCostFils,
-      totalCodExpectedFils,
-      totalCodCollectedFils,
-      totalCodSettledToRawaqFils,
-      totalCodUnremittedFils,
-      totalNetRemittanceFils,
+      totalNetRequiredFils,
+      totalSettledFils,
+      totalRemainingFils,
     },
     columns,
     rows,
-    rawRows,
+    rawBatches,
+    settlements,
   };
 }

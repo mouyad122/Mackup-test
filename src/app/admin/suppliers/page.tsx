@@ -3,10 +3,10 @@ import { prisma } from '@/lib/db';
 import { filsToDisplay } from '@/lib/money';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import Link from 'next/link';
-import { createSupplier, updateSupplier, setSupplierOfferActive } from '@/actions/suppliers';
+import { createSupplier, updateSupplier, setSupplierOfferActive, toggleProductVisibilityFromSupplierAction } from '@/actions/suppliers';
 import { DeleteSupplierButton } from './DeleteSupplierButton';
 import { getSupplierProfitMargin } from '@/lib/supplier-margin';
-import { Store, User, Phone, MapPin, ExternalLink, Percent, Mail } from 'lucide-react';
+import { Store, User, Phone, MapPin, ExternalLink, Percent, Mail, Eye, EyeOff, Image as ImageIcon } from 'lucide-react';
 
 export default async function SuppliersPage() {
   const session = await requirePermission('manage:settings');
@@ -17,7 +17,16 @@ export default async function SuppliersPage() {
         locations: true,
         offers: {
           include: {
-            variant: { include: { product: true } },
+            variant: {
+              include: {
+                product: {
+                  include: {
+                    images: { orderBy: { order: 'asc' }, take: 1 },
+                  },
+                },
+                images: { take: 1 },
+              },
+            },
             inventoryMovements: { orderBy: { createdAt: 'desc' }, take: 5 },
           },
           orderBy: { updatedAt: 'desc' },
@@ -276,6 +285,28 @@ export default async function SuppliersPage() {
                         </a>
                       )}
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      <Link
+                        href={`/supplier-profile/${supplier.id}`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1.5 bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>عرض بيانات المحل للمشاركة 👁️</span>
+                      </Link>
+
+                      {supplier.phone && (
+                        <a
+                          href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(`مرحباً ${supplier.ownerName || supplier.name}،\nإليك رابط كشف بيانات محلك والأصناف وأسعار التكلفة وسعر البيع في المتجر على منصة رَواق:\nhttps://rawaq.jo/supplier-profile/${supplier.id}`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs"
+                        >
+                          <span>إرسال الرابط للمحل واتساب 📲</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   <div className="text-left text-xs text-zinc-500 space-y-1">
@@ -368,38 +399,111 @@ export default async function SuppliersPage() {
                 {/* Offers list */}
                 {supplier.offers.length ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[780px] text-right text-xs">
+                    <table className="w-full min-w-[880px] text-right text-xs">
                       <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-100">
                         <tr>
+                          <th className="p-3 text-center w-14">الصورة</th>
                           <th className="p-3">المنتج</th>
                           <th className="p-3">المقاس / الدرجة</th>
                           <th className="p-3">كود الصنف لدى المحل</th>
                           <th className="p-3">سعر التكلفة</th>
+                          <th className="p-3">سعر البيع في المتجر</th>
+                          <th className="p-3 text-center">حالة الصنف في المتجر</th>
                           <th className="p-3">حصة المحل</th>
-                          <th className="p-3">حالة العرض</th>
+                          <th className="p-3 text-center">تفعيل العرض</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100">
-                        {supplier.offers.map((offer) => (
-                          <tr key={offer.id} className="hover:bg-zinc-50/50">
-                            <td className="p-3 font-bold text-zinc-900">{offer.variant.product.nameAr}</td>
-                            <td className="p-3 text-zinc-600">{offer.variant.size}</td>
-                            <td className="p-3 font-mono text-zinc-500">{offer.supplierSku || '—'}</td>
-                            <td className="p-3 font-mono font-bold text-zinc-800">
-                              {filsToDisplay(offer.unitCost, 'ar')}
-                            </td>
-                            <td className="p-3 font-mono text-zinc-600">
-                              {(offer.supplierProfitShareBps / 100).toFixed(2)}%
-                            </td>
-                            <td className="p-3">
-                              <form action={setSupplierOfferActive.bind(null, offer.id, !offer.isActive)}>
-                                <button className={`font-bold text-xs ${offer.isActive ? 'text-rose-600' : 'text-emerald-700'}`}>
-                                  {offer.isActive ? 'تعطيل' : 'تفعيل'}
-                                </button>
-                              </form>
-                            </td>
-                          </tr>
-                        ))}
+                        {supplier.offers.map((offer) => {
+                          const mainImage =
+                            offer.variant.mainImage ||
+                            offer.variant.images?.[0]?.url ||
+                            offer.variant.product.images?.[0]?.url ||
+                            null;
+                          const isProductVisible = offer.variant.product.isVisible;
+                          const isVisibleInStore = isProductVisible && offer.isActive;
+
+                          return (
+                            <tr key={offer.id} className="hover:bg-zinc-50/50">
+                              <td className="p-2.5 text-center">
+                                {mainImage ? (
+                                  <div className="w-10 h-10 rounded-lg border border-zinc-200 bg-white overflow-hidden mx-auto shadow-2xs">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={mainImage}
+                                      alt={offer.variant.product.nameAr}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center mx-auto text-zinc-400">
+                                    <ImageIcon className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3 font-bold text-zinc-900">
+                                {offer.variant.product.nameAr}
+                                {offer.variant.product.nameEn && (
+                                  <span className="text-[11px] text-zinc-400 block font-normal">
+                                    {offer.variant.product.nameEn}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-zinc-600">{offer.variant.size}</td>
+                              <td className="p-3 font-mono text-zinc-500">{offer.supplierSku || '—'}</td>
+                              <td className="p-3 font-mono font-bold text-zinc-900">
+                                {filsToDisplay(offer.unitCost, 'ar')}
+                              </td>
+                              <td className="p-3 font-mono font-bold text-emerald-900">
+                                {filsToDisplay(offer.variant.price, 'ar')}
+                              </td>
+                              <td className="p-3 text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                      isVisibleInStore
+                                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                        : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                                    }`}
+                                  >
+                                    {isVisibleInStore ? (
+                                      <>
+                                        <Eye className="w-3 h-3 text-emerald-700" />
+                                        <span>ظاهر في المتجر</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <EyeOff className="w-3 h-3 text-zinc-400" />
+                                        <span>مخفي من المتجر</span>
+                                      </>
+                                    )}
+                                  </span>
+                                  <form action={toggleProductVisibilityFromSupplierAction.bind(null, offer.variant.productId, !isProductVisible)}>
+                                    <button className="text-[10px] text-zinc-500 hover:text-zinc-900 underline font-medium">
+                                      {isProductVisible ? 'إخفاء من المتجر' : 'إظهار في المتجر'}
+                                    </button>
+                                  </form>
+                                </div>
+                              </td>
+                              <td className="p-3 font-mono text-zinc-600">
+                                {(offer.supplierProfitShareBps / 100).toFixed(2)}%
+                              </td>
+                              <td className="p-3 text-center">
+                                <form action={setSupplierOfferActive.bind(null, offer.id, !offer.isActive)}>
+                                  <button
+                                    className={`rounded-lg px-2.5 py-1 font-bold text-xs transition border ${
+                                      offer.isActive
+                                        ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                        : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {offer.isActive ? 'تعطيل العرض' : 'تفعيل العرض'}
+                                  </button>
+                                </form>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
