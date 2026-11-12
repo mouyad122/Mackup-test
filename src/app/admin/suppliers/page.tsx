@@ -24,6 +24,7 @@ export default async function SuppliersPage() {
                     images: { orderBy: { order: 'asc' }, take: 1 },
                   },
                 },
+                shade: true,
                 images: { take: 1 },
               },
             },
@@ -403,8 +404,7 @@ export default async function SuppliersPage() {
                       <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-100">
                         <tr>
                           <th className="p-3 text-center w-14">الصورة</th>
-                          <th className="p-3">المنتج</th>
-                          <th className="p-3">المقاس / الدرجة</th>
+                          <th className="p-3">اسم الصنف والمنتج والمواصفات</th>
                           <th className="p-3">كود الصنف لدى المحل</th>
                           <th className="p-3">سعر التكلفة</th>
                           <th className="p-3">سعر البيع في المتجر</th>
@@ -422,6 +422,19 @@ export default async function SuppliersPage() {
                             null;
                           const isProductVisible = offer.variant.product.isVisible;
                           const isVisibleInStore = isProductVisible && offer.isActive;
+
+                          // تجميع المقاس واللون في سطر واحد
+                          const rawSize = offer.variant.size?.trim();
+                          const isStandardSize = !rawSize || ['STANDARD', 'DEFAULT', 'ONE SIZE', 'OS', 'عادي', 'قياسي', '—', '-'].includes(rawSize.toUpperCase());
+                          const rawColor = offer.variant.colorName?.trim();
+                          const shadeName = offer.variant.shade?.name?.trim();
+
+                          const specParts: string[] = [];
+                          if (rawSize && !isStandardSize) specParts.push(rawSize);
+                          const colorVal = [rawColor, shadeName].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
+                          if (colorVal) specParts.push(colorVal);
+
+                          const variantSpecs = specParts.join(' · ');
 
                           return (
                             <tr key={offer.id} className="hover:bg-zinc-50/50">
@@ -441,15 +454,23 @@ export default async function SuppliersPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="p-3 font-bold text-zinc-900">
-                                {offer.variant.product.nameAr}
+                              <td className="p-3">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <strong className="font-bold text-zinc-900 text-xs">
+                                    {offer.variant.product.nameAr}
+                                  </strong>
+                                  {variantSpecs && (
+                                    <span className="inline-flex items-center gap-1 font-bold text-emerald-950 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
+                                      {variantSpecs}
+                                    </span>
+                                  )}
+                                </div>
                                 {offer.variant.product.nameEn && (
-                                  <span className="text-[11px] text-zinc-400 block font-normal">
+                                  <span className="text-[10px] text-zinc-400 block font-normal mt-0.5">
                                     {offer.variant.product.nameEn}
                                   </span>
                                 )}
                               </td>
-                              <td className="p-3 text-zinc-600">{offer.variant.size}</td>
                               <td className="p-3 font-mono text-zinc-500">{offer.supplierSku || '—'}</td>
                               <td className="p-3 font-mono font-bold text-zinc-900">
                                 {filsToDisplay(offer.unitCost, 'ar')}

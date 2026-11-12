@@ -44,6 +44,8 @@ interface OfferData {
   productNameAr: string;
   productNameEn: string;
   size: string;
+  variantSpecs?: string;
+  fullDisplayName?: string;
   sku: string;
   image: string | null;
   costPriceFils: number;
@@ -69,6 +71,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
     const matchesQuery =
       o.productNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.productNameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (o.fullDisplayName && o.fullDisplayName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       o.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.size.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -325,8 +328,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                   <tr>
                     <th className="py-3 px-3 text-center w-12">#</th>
                     <th className="py-3 px-3 text-center w-20">صورة المنتج</th>
-                    <th className="py-3 px-4">اسم الصنف والمنتج</th>
-                    <th className="py-3 px-3">المقاس / الدرجة</th>
+                    <th className="py-3 px-4">اسم الصنف والمنتج والمواصفات</th>
                     <th className="py-3 px-3">كود الصنف (SKU)</th>
                     <th className="py-3 px-3">سعر التكلفة للمحل</th>
                     <th className="py-3 px-3">سعر البيع في المتجر</th>
@@ -359,16 +361,22 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <strong className="font-extrabold text-zinc-900 block text-xs">
-                          {offer.productNameAr}
-                        </strong>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <strong className="font-extrabold text-zinc-900 text-xs">
+                            {offer.productNameAr}
+                          </strong>
+                          {offer.variantSpecs && (
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-950 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
+                              {offer.variantSpecs}
+                            </span>
+                          )}
+                        </div>
                         {offer.productNameEn && (
-                          <span className="text-[11px] text-zinc-500 block font-sans">
+                          <span className="text-[10px] text-zinc-400 block font-normal mt-0.5">
                             {offer.productNameEn}
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 font-semibold text-zinc-700">{offer.size}</td>
                       <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">{offer.sku}</td>
                       <td className="py-3 px-3 font-mono font-bold text-zinc-900">
                         {filsToDisplay(offer.costPriceFils)} د.أ

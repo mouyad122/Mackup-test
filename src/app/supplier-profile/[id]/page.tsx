@@ -41,6 +41,7 @@ export default async function SupplierProfilePage({ params }: Props) {
                   images: { orderBy: { order: 'asc' } },
                 },
               },
+              shade: true,
               images: true,
             },
           },
@@ -116,12 +117,36 @@ export default async function SupplierProfilePage({ params }: Props) {
 
     const isVisibleInStore = offer.variant.product.isVisible && offer.isActive;
 
+    // استخراج مواصفات المقاس واللون لدمجها مع اسم الصنف في سطر واحد
+    const rawSize = offer.variant.size?.trim();
+    const isStandardSize = !rawSize || ['STANDARD', 'DEFAULT', 'ONE SIZE', 'OS', 'عادي', 'قياسي', '—', '-'].includes(rawSize.toUpperCase());
+    const rawColor = offer.variant.colorName?.trim();
+    const shadeName = offer.variant.shade?.name?.trim();
+
+    const specParts: string[] = [];
+    if (rawSize && !isStandardSize) {
+      specParts.push(rawSize);
+    }
+    const colorVal = [rawColor, shadeName].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
+    if (colorVal) {
+      specParts.push(colorVal);
+    } else if (offer.variant.name && offer.variant.name.trim() && offer.variant.name.trim() !== offer.variant.product.nameAr.trim()) {
+      specParts.push(offer.variant.name.trim());
+    }
+
+    const variantSpecs = specParts.join(' · ');
+    const fullDisplayName = variantSpecs
+      ? `${offer.variant.product.nameAr} - ${variantSpecs}`
+      : offer.variant.product.nameAr;
+
     return {
       id: offer.id,
       productId: offer.variant.productId,
       productNameAr: offer.variant.product.nameAr,
       productNameEn: offer.variant.product.nameEn,
       size: offer.variant.size,
+      variantSpecs,
+      fullDisplayName,
       sku: offer.supplierSku || offer.variant.sku,
       image: mainImage,
       costPriceFils: offer.unitCost,
