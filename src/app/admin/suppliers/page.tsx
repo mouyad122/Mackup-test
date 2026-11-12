@@ -408,7 +408,6 @@ export default async function SuppliersPage() {
                           <tr>
                             <th className="p-3 text-center w-14">الصورة</th>
                             <th className="p-3">اسم الصنف والمنتج والمواصفات (المقاسات والألوان)</th>
-                            <th className="p-3">كود الصنف (SKU)</th>
                             <th className="p-3">سعر التكلفة</th>
                             <th className="p-3">سعر البيع في المتجر</th>
                             <th className="p-3 text-center">حالة الصنف في المتجر</th>
@@ -458,7 +457,6 @@ export default async function SuppliersPage() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="p-3 font-mono font-medium text-zinc-700">{prod.sku}</td>
                                 <td className="p-3 font-mono font-bold text-zinc-900">
                                   {prod.costDisplay}
                                 </td>

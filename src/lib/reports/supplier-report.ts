@@ -218,13 +218,12 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
   const isDetailed = filter.isDetailed ?? true;
 
   const columns = isDetailed
-    ? ['اسم المنتج', 'SKU', 'رقم الطلب', 'الكمية', 'سعر الشراء (للقطعة)', 'إجمالي التكلفة', 'حالة الطلب والتجهيز', 'حالة الاستحقاق والصرف', 'المستحق النهائي', 'التاريخ']
+    ? ['اسم المنتج', 'رقم الطلب', 'الكمية', 'سعر الشراء (للقطعة)', 'إجمالي التكلفة', 'حالة الطلب والتجهيز', 'حالة الاستحقاق والصرف', 'المستحق النهائي', 'التاريخ']
     : ['المؤشر المالي للمحل', 'القيمة المعتمدة'];
 
   const rows = isDetailed
     ? rawRows.map(r => [
         r.productName,
-        r.sku,
         r.orderReference,
         r.quantity.toString(),
         filsToDisplay(r.unitCostFils),

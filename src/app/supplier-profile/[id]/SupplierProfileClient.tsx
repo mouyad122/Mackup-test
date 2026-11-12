@@ -281,7 +281,7 @@ export default function SupplierProfileClient({ supplier, products }: Props) {
               <Search className="w-4 h-4 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="بحث باسم المنتج، الكود (SKU)، أو المقاس..."
+                placeholder="بحث باسم المنتج، المقاس، أو اللون..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 pr-9 pl-3 py-2 text-xs focus:ring-1 focus:ring-emerald-800 focus:outline-none"
@@ -345,7 +345,6 @@ export default function SupplierProfileClient({ supplier, products }: Props) {
                     <th className="py-3 px-3 text-center w-12">#</th>
                     <th className="py-3 px-3 text-center w-20">صورة المنتج</th>
                     <th className="py-3 px-4">اسم الصنف والمنتج والمواصفات (المقاسات والألوان)</th>
-                    <th className="py-3 px-3">كود الصنف (SKU)</th>
                     <th className="py-3 px-3">سعر التكلفة للمحل</th>
                     <th className="py-3 px-3">سعر البيع في المتجر</th>
                     <th className="py-3 px-3 text-center">حالة الصنف في المتجر</th>
@@ -398,7 +397,6 @@ export default function SupplierProfileClient({ supplier, products }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 font-mono font-medium text-[11px] text-zinc-700">{prod.sku}</td>
                       <td className="py-3 px-3 font-mono font-bold text-zinc-900">
                         {prod.costDisplay}
                       </td>
