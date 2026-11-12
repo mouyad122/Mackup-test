@@ -148,7 +148,9 @@ export function ReportsManager({
     overrideDept?: string,
     overrideFrom?: string,
     overrideTo?: string,
-    overrideScope?: 'DELIVERED' | 'UNDELIVERED' | 'ALL'
+    overrideScope?: 'DELIVERED' | 'UNDELIVERED' | 'ALL',
+    overrideSupplierId?: string,
+    overrideItemStatus?: string
   ) => {
     setIsDetailed(detailed);
     setArchiveSuccessRef(null);
@@ -156,6 +158,18 @@ export function ReportsManager({
     const fromVal = overrideFrom !== undefined ? overrideFrom : from;
     const toVal = overrideTo !== undefined ? overrideTo : to;
     const scopeVal = overrideScope !== undefined ? overrideScope : deliveryScope;
+    const supplierIdVal = overrideSupplierId !== undefined ? overrideSupplierId : supplierId;
+    const itemStatusVal = overrideItemStatus !== undefined ? overrideItemStatus : itemStatus;
+
+    if (typeof window !== 'undefined' && targetDept === 'SUPPLIER') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', 'shops');
+      if (supplierIdVal) url.searchParams.set('supplierId', supplierIdVal);
+      else url.searchParams.delete('supplierId');
+      if (itemStatusVal) url.searchParams.set('itemStatus', itemStatusVal);
+      else url.searchParams.delete('itemStatus');
+      window.history.replaceState(null, '', url.toString());
+    }
 
     startTransition(async () => {
       const params = new URLSearchParams({
@@ -167,8 +181,8 @@ export function ReportsManager({
         ...(targetDept === 'DELIVERY' && batchRef ? { batchRef } : {}),
         ...(targetDept === 'DELIVERY' && deliveryStatus ? { status: deliveryStatus } : {}),
         ...(targetDept === 'DELIVERY' ? { scope: scopeVal } : {}),
-        ...(targetDept === 'SUPPLIER' && supplierId ? { supplierId } : {}),
-        ...(targetDept === 'SUPPLIER' && itemStatus ? { itemStatus } : {}),
+        ...(targetDept === 'SUPPLIER' && supplierIdVal ? { supplierId: supplierIdVal } : {}),
+        ...(targetDept === 'SUPPLIER' && itemStatusVal ? { itemStatus: itemStatusVal } : {}),
         ...(targetDept === 'EXPENSES' && expenseCategory ? { category: expenseCategory } : {}),
         ...(targetDept === 'DIFFERENCES' && diffStatus ? { status: diffStatus } : {}),
         ...(targetDept === 'SETTLEMENTS' && settlementEntityType !== 'ALL' ? { entityType: settlementEntityType } : {}),
@@ -204,8 +218,13 @@ export function ReportsManager({
         setDepartment(targetDept);
       }
 
+      const urlSupplierId = url.searchParams.get('supplierId') || '';
+      const urlItemStatus = url.searchParams.get('itemStatus') || url.searchParams.get('status') || '';
+      if (urlSupplierId) setSupplierId(urlSupplierId);
+      if (urlItemStatus) setItemStatus(urlItemStatus);
+
       if (!reportData) {
-        handleFetchReport(isDetailed, targetDept);
+        handleFetchReport(isDetailed, targetDept, undefined, undefined, undefined, urlSupplierId, urlItemStatus);
       }
     }
   }, []);
@@ -323,10 +342,10 @@ export function ReportsManager({
         return [
           { label: 'المحل التجاري الشريك', value: summary?.supplierName || 'كافة المحلات' },
           { label: 'القطع الموردة المباعة', value: summary?.totalQuantitySupplied?.toString() || '0' },
-          { label: 'المستحق المحاسبي العام للمحل', value: `${filsToDisplay(summary?.totalAccountingObligationFils || 0)} د.أ` },
-          { label: 'المبلغ القابل للصرف حالياً', value: `${filsToDisplay(summary?.eligiblePayoutFils || 0)} د.أ` },
-          { label: 'إجمالي المسدد للمحل سابقاً', value: `${filsToDisplay(summary?.totalPaidFils || 0)} د.أ` },
-          { label: 'صافي الرصيد المتبقي بذمة رَواق', value: `${filsToDisplay(summary?.remainingBalanceFils || 0)} د.أ` },
+          { label: 'المستحق المحاسبي العام للمحل', value: filsToDisplay(summary?.totalAccountingObligationFils || 0) },
+          { label: 'المبلغ القابل للصرف حالياً', value: filsToDisplay(summary?.eligiblePayoutFils || 0) },
+          { label: 'إجمالي المسدد للمحل سابقاً', value: filsToDisplay(summary?.totalPaidFils || 0) },
+          { label: 'صافي الرصيد المتبقي بذمة رَواق', value: filsToDisplay(summary?.remainingBalanceFils || 0) },
         ];
       case 'EXPENSES':
         return [
@@ -595,8 +614,9 @@ export function ReportsManager({
                       <select
                         value={supplierId}
                         onChange={(e) => {
-                          setSupplierId(e.target.value);
-                          setTimeout(() => handleFetchReport(isDetailed), 50);
+                          const val = e.target.value;
+                          setSupplierId(val);
+                          handleFetchReport(isDetailed, undefined, undefined, undefined, undefined, val, itemStatus);
                         }}
                         className="w-full rounded-lg border border-zinc-300 p-2 text-xs"
                       >
@@ -613,8 +633,9 @@ export function ReportsManager({
                       <select
                         value={itemStatus}
                         onChange={(e) => {
-                          setItemStatus(e.target.value);
-                          setTimeout(() => handleFetchReport(isDetailed), 50);
+                          const val = e.target.value;
+                          setItemStatus(val);
+                          handleFetchReport(isDetailed, undefined, undefined, undefined, undefined, supplierId, val);
                         }}
                         className="w-full rounded-lg border border-zinc-300 p-2 text-xs"
                       >

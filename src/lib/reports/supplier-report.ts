@@ -138,12 +138,28 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
   let totalAccountingObligationFils = 0;
   let deliveredDueFils = 0;
 
+  const statusFilter = (filter.itemStatus || '').toUpperCase().trim();
   const rawRows: SupplierReportRow[] = [];
 
   for (const item of orderItems) {
-    totalProductsCount++;
     const isCancelled = item.isRemoved || ['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY'].includes(item.order.status);
     const isDelivered = !item.isRemoved && item.order.status === 'DELIVERED';
+    const isInProgress = !isCancelled && !isDelivered;
+
+    // تصفية السجلات وفق فلتر حالة الصرف والاستحقاق المختار
+    if (statusFilter && statusFilter !== 'ALL') {
+      if ((statusFilter === 'DELIVERED' || statusFilter === 'READY') && !isDelivered) {
+        continue;
+      }
+      if ((statusFilter === 'IN_PROGRESS' || statusFilter === 'PENDING') && !isInProgress) {
+        continue;
+      }
+      if ((statusFilter === 'CANCELLED' || statusFilter === 'REFUNDED') && !isCancelled) {
+        continue;
+      }
+    }
+
+    totalProductsCount++;
 
     const unitCost = item.unitCostSnapshot || 0;
     const totalCost = unitCost * item.quantity;
@@ -235,6 +251,20 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
       ])
     : [
         ['المحل التجاري المعني', targetSupplierName],
+        ...(statusFilter && statusFilter !== 'ALL'
+          ? [
+              [
+                'حالة الصرف والاستحقاق',
+                statusFilter === 'DELIVERED' || statusFilter === 'READY'
+                  ? 'مسلّم (جاهز للصرف فوراً)'
+                  : statusFilter === 'IN_PROGRESS' || statusFilter === 'PENDING'
+                  ? 'قيد التجهيز / التوصيل (مؤجل)'
+                  : statusFilter === 'CANCELLED' || statusFilter === 'REFUNDED'
+                  ? 'ملغي / مرتجع (غير مستحق)'
+                  : statusFilter,
+              ],
+            ]
+          : []),
         ['إجمالي القطع الموردة', totalQuantitySupplied.toString()],
         ['قطع تم تسليمها بنجاح للزبائن', totalDeliveredQuantity.toString()],
         ['قطع مرتجعة أو ملغاة', totalCancelledQuantity.toString()],
@@ -244,8 +274,18 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
         ['صافي الرصيد المتبقي بذمة رَواق للمحل', filsToDisplay(remainingBalanceFils)],
       ];
 
+  const reportTitle = isDetailed
+    ? statusFilter === 'DELIVERED' || statusFilter === 'READY'
+      ? `كشف مستحقات المحل الجاهزة للصرف (الطلبات المسلمة) · ${targetSupplierName}`
+      : statusFilter === 'IN_PROGRESS' || statusFilter === 'PENDING'
+      ? `كشف مستحقات المحل المؤجلة (قيد التجهيز والتوصيل) · ${targetSupplierName}`
+      : statusFilter === 'CANCELLED' || statusFilter === 'REFUNDED'
+      ? `كشف العمليات الملغاة والمرتجعة للمحل · ${targetSupplierName}`
+      : `كشف حساب ومستحقات المحل المفصل · ${targetSupplierName}`
+    : `ملخص مستحقات المحل · ${targetSupplierName}`;
+
   return {
-    reportTitle: isDetailed ? `كشف حساب ومستحقات المحل المفصل · ${targetSupplierName}` : `ملخص مستحقات المحل · ${targetSupplierName}`,
+    reportTitle,
     department: 'SUPPLIER',
     supplierName: targetSupplierName,
     generatedAt: new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Amman' }).format(new Date()),
@@ -253,6 +293,18 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
       'المحل التجاري': targetSupplierName,
       ...(filter.from ? { 'من تاريخ': filter.from.toLocaleDateString('en-GB') } : {}),
       ...(filter.to ? { 'إلى تاريخ': filter.to.toLocaleDateString('en-GB') } : {}),
+      ...(statusFilter && statusFilter !== 'ALL'
+        ? {
+            'حالة الصرف والاستحقاق':
+              statusFilter === 'DELIVERED' || statusFilter === 'READY'
+                ? 'مسلّم (جاهز للصرف فوراً)'
+                : statusFilter === 'IN_PROGRESS' || statusFilter === 'PENDING'
+                ? 'قيد التجهيز / التوصيل (مؤجل)'
+                : statusFilter === 'CANCELLED' || statusFilter === 'REFUNDED'
+                ? 'ملغي / مرتجع (غير مستحق)'
+                : statusFilter,
+          }
+        : {}),
     },
     isDetailed,
     summary: {
