@@ -38,47 +38,63 @@ interface SupplierData {
   remainingBalanceFils: number;
 }
 
-interface OfferData {
-  id: string;
+export interface ProductData {
   productId: string;
   productNameAr: string;
-  productNameEn: string;
-  size: string;
-  variantSpecs?: string;
-  fullDisplayName?: string;
+  productNameEn?: string | null;
   sku: string;
   image: string | null;
-  costPriceFils: number;
-  sellingPriceFils: number;
-  isVisibleInStore: boolean;
+  sizes: string[];
+  sizesString: string;
+  colors: string[];
+  colorsString: string;
+  fullDisplayName: string;
+  minCostFils: number;
+  maxCostFils: number;
+  costDisplay: string;
+  minPriceFils: number;
+  maxPriceFils: number;
+  priceDisplay: string;
   isProductVisible: boolean;
-  isOfferActive: boolean;
+  isAnyOfferActive: boolean;
+  isVisibleInStore: boolean;
   profitShareBps: number;
+  profitShareDisplay: string;
+  totalVariantsCount: number;
+  offerIds: string[];
 }
 
 interface Props {
   supplier: SupplierData;
-  offers: OfferData[];
+  products: ProductData[];
 }
 
-export default function SupplierProfileClient({ supplier, offers }: Props) {
+export default function SupplierProfileClient({ supplier, products }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisibility, setFilterVisibility] = useState<'ALL' | 'VISIBLE' | 'HIDDEN'>('ALL');
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const filteredOffers = offers.filter((o) => {
+  const filteredProducts = products.filter((p) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      if (filterVisibility === 'VISIBLE') return p.isVisibleInStore;
+      if (filterVisibility === 'HIDDEN') return !p.isVisibleInStore;
+      return true;
+    }
+
     const matchesQuery =
-      o.productNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.productNameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.fullDisplayName && o.fullDisplayName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      o.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.size.toLowerCase().includes(searchQuery.toLowerCase());
+      p.productNameAr.toLowerCase().includes(q) ||
+      (p.productNameEn && p.productNameEn.toLowerCase().includes(q)) ||
+      (p.fullDisplayName && p.fullDisplayName.toLowerCase().includes(q)) ||
+      p.sku.toLowerCase().includes(q) ||
+      p.sizesString.toLowerCase().includes(q) ||
+      p.colorsString.toLowerCase().includes(q);
 
     if (!matchesQuery) return false;
 
-    if (filterVisibility === 'VISIBLE') return o.isVisibleInStore;
-    if (filterVisibility === 'HIDDEN') return !o.isVisibleInStore;
+    if (filterVisibility === 'VISIBLE') return p.isVisibleInStore;
+    if (filterVisibility === 'HIDDEN') return !p.isVisibleInStore;
     return true;
   });
 
@@ -97,7 +113,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
   };
 
   const shareText = encodeURIComponent(
-    `مرحباً ${supplier.ownerName || supplier.name}،\nإليك رابط بيانات المحل والأصناف والأسعار المعتمدة على منصة رَواق:\n${typeof window !== 'undefined' ? window.location.href : ''}\n\nإجمالي الأصناف: ${offers.length} صنف\nنسبة الربح: ${supplier.profitMargin}%`
+    `مرحباً ${supplier.ownerName || supplier.name}،\nإليك رابط بيانات المحل والأصناف والأسعار المعتمدة على منصة رَواق:\n${typeof window !== 'undefined' ? window.location.href : ''}\n\nإجمالي الأصناف: ${products.length} صنف\nنسبة الربح: ${supplier.profitMargin}%`
   );
 
   return (
@@ -281,7 +297,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                     : 'hover:text-zinc-900'
                 }`}
               >
-                كافة الأصناف ({offers.length})
+                كافة الأصناف ({products.length})
               </button>
               <button
                 onClick={() => setFilterVisibility('VISIBLE')}
@@ -291,7 +307,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                     : 'hover:text-zinc-900'
                 }`}
               >
-                👁️ ظاهر في المتجر ({offers.filter((o) => o.isVisibleInStore).length})
+                👁️ ظاهر في المتجر ({products.filter((p) => p.isVisibleInStore).length})
               </button>
               <button
                 onClick={() => setFilterVisibility('HIDDEN')}
@@ -301,19 +317,19 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                     : 'hover:text-zinc-900'
                 }`}
               >
-                🔒 مخفي من المتجر ({offers.filter((o) => !o.isVisibleInStore).length})
+                🔒 مخفي من المتجر ({products.filter((p) => !p.isVisibleInStore).length})
               </button>
             </div>
           </div>
         </section>
 
-        {/* ── Products & Offers Table ── */}
+        {/* ── Products Table ── */}
         <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm print-border-none">
           <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-emerald-900" />
               <h3 className="text-sm font-black text-zinc-900">
-                سجل أصناف وعروض المحل ({filteredOffers.length} صنف)
+                سجل منتجات وأصناف المحل ({filteredProducts.length} صنف)
               </h3>
             </div>
             <span className="text-xs text-zinc-500 font-mono">
@@ -321,14 +337,14 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
             </span>
           </div>
 
-          {filteredOffers.length > 0 ? (
+          {filteredProducts.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead className="bg-zinc-50 text-zinc-600 font-bold border-b border-zinc-200">
                   <tr>
                     <th className="py-3 px-3 text-center w-12">#</th>
                     <th className="py-3 px-3 text-center w-20">صورة المنتج</th>
-                    <th className="py-3 px-4">اسم الصنف والمنتج والمواصفات</th>
+                    <th className="py-3 px-4">اسم الصنف والمنتج والمواصفات (المقاسات والألوان)</th>
                     <th className="py-3 px-3">كود الصنف (SKU)</th>
                     <th className="py-3 px-3">سعر التكلفة للمحل</th>
                     <th className="py-3 px-3">سعر البيع في المتجر</th>
@@ -337,20 +353,20 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {filteredOffers.map((offer, idx) => (
-                    <tr key={offer.id} className="hover:bg-zinc-50/60 transition">
+                  {filteredProducts.map((prod, idx) => (
+                    <tr key={prod.productId} className="hover:bg-zinc-50/60 transition">
                       <td className="py-3 px-3 text-center font-mono text-zinc-400 text-[11px]">{idx + 1}</td>
                       <td className="py-2.5 px-3 text-center">
-                        {offer.image ? (
+                        {prod.image ? (
                           <div
-                            onClick={() => setSelectedImage(offer.image)}
+                            onClick={() => setSelectedImage(prod.image)}
                             className="w-12 h-12 rounded-xl border border-zinc-200 bg-white p-0.5 mx-auto cursor-pointer overflow-hidden shadow-2xs hover:scale-105 transition"
                             title="اضغط لتكبير الصورة"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={offer.image}
-                              alt={offer.productNameAr}
+                              src={prod.image}
+                              alt={prod.productNameAr}
                               className="w-full h-full object-cover rounded-lg"
                             />
                           </div>
@@ -363,29 +379,34 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <strong className="font-extrabold text-zinc-900 text-xs">
-                            {offer.productNameAr}
+                            {prod.productNameAr}
                           </strong>
-                          {offer.variantSpecs && (
+                          {prod.sizesString && (
                             <span className="inline-flex items-center gap-1 font-bold text-emerald-950 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
-                              {offer.variantSpecs}
+                              المقاسات: {prod.sizesString}
+                            </span>
+                          )}
+                          {prod.colorsString && (
+                            <span className="inline-flex items-center gap-1 font-bold text-stone-800 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
+                              الألوان: {prod.colorsString}
                             </span>
                           )}
                         </div>
-                        {offer.productNameEn && (
+                        {prod.productNameEn && (
                           <span className="text-[10px] text-zinc-400 block font-normal mt-0.5">
-                            {offer.productNameEn}
+                            {prod.productNameEn}
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">{offer.sku}</td>
+                      <td className="py-3 px-3 font-mono font-medium text-[11px] text-zinc-700">{prod.sku}</td>
                       <td className="py-3 px-3 font-mono font-bold text-zinc-900">
-                        {filsToDisplay(offer.costPriceFils)} د.أ
+                        {prod.costDisplay}
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-emerald-900">
-                        {filsToDisplay(offer.sellingPriceFils)} د.أ
+                        {prod.priceDisplay}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        {offer.isVisibleInStore ? (
+                        {prod.isVisibleInStore ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 text-[11px] font-bold">
                             <Eye className="w-3 h-3 text-emerald-700" />
                             <span>ظاهر في المتجر</span>
@@ -398,7 +419,7 @@ export default function SupplierProfileClient({ supplier, offers }: Props) {
                         )}
                       </td>
                       <td className="py-3 px-3 text-center font-mono font-semibold text-zinc-700">
-                        {(offer.profitShareBps / 100).toFixed(0)}%
+                        {prod.profitShareDisplay}
                       </td>
                     </tr>
                   ))}

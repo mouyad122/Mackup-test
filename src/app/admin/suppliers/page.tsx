@@ -3,9 +3,10 @@ import { prisma } from '@/lib/db';
 import { filsToDisplay } from '@/lib/money';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import Link from 'next/link';
-import { createSupplier, updateSupplier, setSupplierOfferActive, toggleProductVisibilityFromSupplierAction } from '@/actions/suppliers';
+import { createSupplier, updateSupplier, setSupplierOfferActive, toggleProductVisibilityFromSupplierAction, toggleSupplierProductOffersActiveAction } from '@/actions/suppliers';
 import { DeleteSupplierButton } from './DeleteSupplierButton';
 import { getSupplierProfitMargin } from '@/lib/supplier-margin';
+import { groupSupplierOffersByProduct } from '@/lib/supplier-products';
 import { Store, User, Phone, MapPin, ExternalLink, Percent, Mail, Eye, EyeOff, Image as ImageIcon } from 'lucide-react';
 
 export default async function SuppliersPage() {
@@ -397,140 +398,127 @@ export default async function SuppliersPage() {
                   </form>
                 </details>
 
-                {/* Offers list */}
-                {supplier.offers.length ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[880px] text-right text-xs">
-                      <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-100">
-                        <tr>
-                          <th className="p-3 text-center w-14">الصورة</th>
-                          <th className="p-3">اسم الصنف والمنتج والمواصفات</th>
-                          <th className="p-3">كود الصنف لدى المحل</th>
-                          <th className="p-3">سعر التكلفة</th>
-                          <th className="p-3">سعر البيع في المتجر</th>
-                          <th className="p-3 text-center">حالة الصنف في المتجر</th>
-                          <th className="p-3">حصة المحل</th>
-                          <th className="p-3 text-center">تفعيل العرض</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-100">
-                        {supplier.offers.map((offer) => {
-                          const mainImage =
-                            offer.variant.mainImage ||
-                            offer.variant.images?.[0]?.url ||
-                            offer.variant.product.images?.[0]?.url ||
-                            null;
-                          const isProductVisible = offer.variant.product.isVisible;
-                          const isVisibleInStore = isProductVisible && offer.isActive;
-
-                          // تجميع المقاس واللون في سطر واحد
-                          const rawSize = offer.variant.size?.trim();
-                          const isStandardSize = !rawSize || ['STANDARD', 'DEFAULT', 'ONE SIZE', 'OS', 'عادي', 'قياسي', '—', '-'].includes(rawSize.toUpperCase());
-                          const rawColor = offer.variant.colorName?.trim();
-                          const shadeName = offer.variant.shade?.name?.trim();
-
-                          const specParts: string[] = [];
-                          if (rawSize && !isStandardSize) specParts.push(rawSize);
-                          const colorVal = [rawColor, shadeName].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
-                          if (colorVal) specParts.push(colorVal);
-
-                          const variantSpecs = specParts.join(' · ');
-
-                          return (
-                            <tr key={offer.id} className="hover:bg-zinc-50/50">
-                              <td className="p-2.5 text-center">
-                                {mainImage ? (
-                                  <div className="w-10 h-10 rounded-lg border border-zinc-200 bg-white overflow-hidden mx-auto shadow-2xs">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={mainImage}
-                                      alt={offer.variant.product.nameAr}
-                                      className="w-full h-full object-cover"
-                                    />
+                {/* Offers list grouped by product */}
+                {(() => {
+                  const groupedProducts = groupSupplierOffersByProduct(supplier.offers as any);
+                  return groupedProducts.length ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[880px] text-right text-xs">
+                        <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-100">
+                          <tr>
+                            <th className="p-3 text-center w-14">الصورة</th>
+                            <th className="p-3">اسم الصنف والمنتج والمواصفات (المقاسات والألوان)</th>
+                            <th className="p-3">كود الصنف (SKU)</th>
+                            <th className="p-3">سعر التكلفة</th>
+                            <th className="p-3">سعر البيع في المتجر</th>
+                            <th className="p-3 text-center">حالة الصنف في المتجر</th>
+                            <th className="p-3">حصة المحل</th>
+                            <th className="p-3 text-center">تفعيل العرض</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {groupedProducts.map((prod) => {
+                            return (
+                              <tr key={prod.productId} className="hover:bg-zinc-50/50">
+                                <td className="p-2.5 text-center">
+                                  {prod.image ? (
+                                    <div className="w-10 h-10 rounded-lg border border-zinc-200 bg-white overflow-hidden mx-auto shadow-2xs">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={prod.image}
+                                        alt={prod.productNameAr}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center mx-auto text-zinc-400">
+                                      <ImageIcon className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <strong className="font-extrabold text-zinc-900 text-xs">
+                                      {prod.productNameAr}
+                                    </strong>
+                                    {prod.sizesString && (
+                                      <span className="inline-flex items-center gap-1 font-bold text-emerald-950 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
+                                        المقاسات: {prod.sizesString}
+                                      </span>
+                                    )}
+                                    {prod.colorsString && (
+                                      <span className="inline-flex items-center gap-1 font-bold text-stone-800 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
+                                        الألوان: {prod.colorsString}
+                                      </span>
+                                    )}
                                   </div>
-                                ) : (
-                                  <div className="w-10 h-10 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center mx-auto text-zinc-400">
-                                    <ImageIcon className="w-4 h-4" />
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-3">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <strong className="font-bold text-zinc-900 text-xs">
-                                    {offer.variant.product.nameAr}
-                                  </strong>
-                                  {variantSpecs && (
-                                    <span className="inline-flex items-center gap-1 font-bold text-emerald-950 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
-                                      {variantSpecs}
+                                  {prod.productNameEn && (
+                                    <span className="text-[10px] text-zinc-400 block font-normal mt-0.5">
+                                      {prod.productNameEn}
                                     </span>
                                   )}
-                                </div>
-                                {offer.variant.product.nameEn && (
-                                  <span className="text-[10px] text-zinc-400 block font-normal mt-0.5">
-                                    {offer.variant.product.nameEn}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="p-3 font-mono text-zinc-500">{offer.supplierSku || '—'}</td>
-                              <td className="p-3 font-mono font-bold text-zinc-900">
-                                {filsToDisplay(offer.unitCost, 'ar')}
-                              </td>
-                              <td className="p-3 font-mono font-bold text-emerald-900">
-                                {filsToDisplay(offer.variant.price, 'ar')}
-                              </td>
-                              <td className="p-3 text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <span
-                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                      isVisibleInStore
-                                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                        : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-                                    }`}
-                                  >
-                                    {isVisibleInStore ? (
-                                      <>
-                                        <Eye className="w-3 h-3 text-emerald-700" />
-                                        <span>ظاهر في المتجر</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <EyeOff className="w-3 h-3 text-zinc-400" />
-                                        <span>مخفي من المتجر</span>
-                                      </>
-                                    )}
-                                  </span>
-                                  <form action={toggleProductVisibilityFromSupplierAction.bind(null, offer.variant.productId, !isProductVisible)}>
-                                    <button className="text-[10px] text-zinc-500 hover:text-zinc-900 underline font-medium">
-                                      {isProductVisible ? 'إخفاء من المتجر' : 'إظهار في المتجر'}
+                                </td>
+                                <td className="p-3 font-mono font-medium text-zinc-700">{prod.sku}</td>
+                                <td className="p-3 font-mono font-bold text-zinc-900">
+                                  {prod.costDisplay}
+                                </td>
+                                <td className="p-3 font-mono font-bold text-emerald-900">
+                                  {prod.priceDisplay}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span
+                                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                        prod.isVisibleInStore
+                                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                          : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                                      }`}
+                                    >
+                                      {prod.isVisibleInStore ? (
+                                        <>
+                                          <Eye className="w-3 h-3 text-emerald-700" />
+                                          <span>ظاهر في المتجر</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-3 h-3 text-zinc-400" />
+                                          <span>مخفي من المتجر</span>
+                                        </>
+                                      )}
+                                    </span>
+                                    <form action={toggleProductVisibilityFromSupplierAction.bind(null, prod.productId, !prod.isProductVisible)}>
+                                      <button className="text-[10px] text-zinc-500 hover:text-zinc-900 underline font-medium">
+                                        {prod.isProductVisible ? 'إخفاء من المتجر' : 'إظهار في المتجر'}
+                                      </button>
+                                    </form>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-zinc-600">
+                                  {prod.profitShareDisplay}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <form action={toggleSupplierProductOffersActiveAction.bind(null, supplier.id, prod.productId, !prod.isAnyOfferActive)}>
+                                    <button
+                                      className={`rounded-lg px-2.5 py-1 font-bold text-xs transition border ${
+                                        prod.isAnyOfferActive
+                                          ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                                      }`}
+                                    >
+                                      {prod.isAnyOfferActive ? 'تعطيل العرض' : 'تفعيل العرض'}
                                     </button>
                                   </form>
-                                </div>
-                              </td>
-                              <td className="p-3 font-mono text-zinc-600">
-                                {(offer.supplierProfitShareBps / 100).toFixed(2)}%
-                              </td>
-                              <td className="p-3 text-center">
-                                <form action={setSupplierOfferActive.bind(null, offer.id, !offer.isActive)}>
-                                  <button
-                                    className={`rounded-lg px-2.5 py-1 font-bold text-xs transition border ${
-                                      offer.isActive
-                                        ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                                        : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-                                    }`}
-                                  >
-                                    {offer.isActive ? 'تعطيل العرض' : 'تفعيل العرض'}
-                                  </button>
-                                </form>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="p-4 text-xs text-zinc-400">لا توجد عروض مسجلة لهذا المحل.</p>
-                )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="p-4 text-xs text-zinc-400">لا توجد عروض مسجلة لهذا المحل.</p>
+                  );
+                })()}
               </article>
             );
           })}

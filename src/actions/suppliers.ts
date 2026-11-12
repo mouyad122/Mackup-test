@@ -163,6 +163,43 @@ export async function toggleProductVisibilityFromSupplierAction(productId: strin
   revalidatePath('/admin/products', 'layout');
 }
 
+export async function toggleSupplierProductOffersActiveAction(
+  supplierId: string,
+  productId: string,
+  isActive: boolean
+): Promise<void> {
+  const session = await requirePermission('manage:settings');
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { isActive: true },
+  });
+  if (!supplier || (isActive && !supplier.isActive)) {
+    throw new Error('فعّل المحل قبل استخدام عروضه.');
+  }
+
+  await prisma.supplierOffer.updateMany({
+    where: {
+      supplierId,
+      variant: { productId },
+    },
+    data: { isActive },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      employeeId: session.employeeId,
+      action: isActive ? 'SUPPLIER_OFFERS_ACTIVATED' : 'SUPPLIER_OFFERS_DEACTIVATED',
+      entityType: 'SupplierOffer',
+      entityId: `${supplierId}:${productId}`,
+      details: JSON.stringify({ supplierId, productId, isActive }),
+    },
+  });
+
+  revalidatePath('/admin/suppliers');
+  revalidatePath('/supplier-profile');
+  revalidatePath('/admin/products', 'layout');
+}
+
 export async function deleteSupplier(id: string) {
   const session = await requirePermission('manage:settings');
   await prisma.$transaction(async tx => {

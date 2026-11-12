@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
-import { filsToDisplay } from '@/lib/money';
 import { getSupplierProfitMargin } from '@/lib/supplier-margin';
-import { Store, User, Phone, MapPin, ExternalLink, Printer, Share2, Check, Eye, EyeOff } from 'lucide-react';
+import { groupSupplierOffersByProduct } from '@/lib/supplier-products';
 import { Metadata } from 'next';
 import SupplierProfileClient from './SupplierProfileClient';
 
@@ -108,55 +107,7 @@ export default async function SupplierProfilePage({ params }: Props) {
     supplier.locations?.[0]?.mapLocationUrl ||
     (supplier.address ? `https://maps.google.com/?q=${encodeURIComponent(supplier.address + ' الأردن')}` : null);
 
-  const serializedOffers = supplier.offers.map((offer) => {
-    const mainImage =
-      offer.variant.mainImage ||
-      offer.variant.images?.[0]?.url ||
-      offer.variant.product.images?.[0]?.url ||
-      null;
-
-    const isVisibleInStore = offer.variant.product.isVisible && offer.isActive;
-
-    // استخراج مواصفات المقاس واللون لدمجها مع اسم الصنف في سطر واحد
-    const rawSize = offer.variant.size?.trim();
-    const isStandardSize = !rawSize || ['STANDARD', 'DEFAULT', 'ONE SIZE', 'OS', 'عادي', 'قياسي', '—', '-'].includes(rawSize.toUpperCase());
-    const rawColor = offer.variant.colorName?.trim();
-    const shadeName = offer.variant.shade?.name?.trim();
-
-    const specParts: string[] = [];
-    if (rawSize && !isStandardSize) {
-      specParts.push(rawSize);
-    }
-    const colorVal = [rawColor, shadeName].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
-    if (colorVal) {
-      specParts.push(colorVal);
-    } else if (offer.variant.name && offer.variant.name.trim() && offer.variant.name.trim() !== offer.variant.product.nameAr.trim()) {
-      specParts.push(offer.variant.name.trim());
-    }
-
-    const variantSpecs = specParts.join(' · ');
-    const fullDisplayName = variantSpecs
-      ? `${offer.variant.product.nameAr} - ${variantSpecs}`
-      : offer.variant.product.nameAr;
-
-    return {
-      id: offer.id,
-      productId: offer.variant.productId,
-      productNameAr: offer.variant.product.nameAr,
-      productNameEn: offer.variant.product.nameEn,
-      size: offer.variant.size,
-      variantSpecs,
-      fullDisplayName,
-      sku: offer.supplierSku || offer.variant.sku,
-      image: mainImage,
-      costPriceFils: offer.unitCost,
-      sellingPriceFils: offer.variant.price,
-      isVisibleInStore,
-      isProductVisible: offer.variant.product.isVisible,
-      isOfferActive: offer.isActive,
-      profitShareBps: offer.supplierProfitShareBps,
-    };
-  });
+  const groupedProducts = groupSupplierOffersByProduct(supplier.offers as any);
 
   return (
     <SupplierProfileClient
@@ -176,7 +127,7 @@ export default async function SupplierProfilePage({ params }: Props) {
         paidFils,
         remainingBalanceFils,
       }}
-      offers={serializedOffers}
+      products={groupedProducts}
     />
   );
 }
