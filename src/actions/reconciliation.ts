@@ -101,7 +101,7 @@ export async function settleDeliveryBatchAction(formData: FormData): Promise<Set
           : (!order.deliveryJob ? codDueFromCustomer : (order.deliveryJob?.isCodCollected ? codDueFromCustomer : 0));
 
         collectedCodFils += actualCollected;
-        carrierCostFils += (order.actualDeliveryCost ?? order.shippingCost ?? 0);
+        carrierCostFils += (order.actualDeliveryCost ?? 2000);
       }
 
       // صافي التوريد المتوقع = COD المحصل فعلياً - رسوم التوصيل المسموح بخصمها (في حال Net Settlement)

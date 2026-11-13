@@ -80,7 +80,16 @@ export async function getShopOperationsHubDataAction(): Promise<ShopOperationsDa
           },
         },
       },
-      items: true,
+      items: {
+        include: {
+          orderItem: {
+            select: {
+              name: true,
+              size: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -116,7 +125,18 @@ export async function getShopOperationsHubDataAction(): Promise<ShopOperationsDa
     }
 
     const shop = shopsMap.get(supplier.id);
-    shop.fulfillmentOrders.push(fOrder);
+
+    const mappedItems = fOrder.items.map((it: any) => ({
+      ...it,
+      productTitle: it.productTitle || it.orderItem?.name || it.orderItem?.product?.title || 'منتج',
+      productName: it.productTitle || it.orderItem?.name || it.orderItem?.product?.title || 'منتج',
+      variantTitle: it.variantTitle || (it.orderItem?.size && it.orderItem.size !== 'DEFAULT' && it.orderItem.size !== 'STANDARD' ? it.orderItem.size : null),
+    }));
+
+    shop.fulfillmentOrders.push({
+      ...fOrder,
+      items: mappedItems,
+    });
     shop.counts.totalActiveOrders += 1;
 
     // حساب حالات الطرود والأوامر

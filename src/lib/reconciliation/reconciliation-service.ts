@@ -259,7 +259,7 @@ export class ReconciliationService {
       }, 0);
 
       const fees = deliveredOrders.reduce((acc, o) => {
-        return acc + (o.actualDeliveryCost ?? o.shippingCost ?? 0);
+        return acc + (o.actualDeliveryCost ?? 2000);
       }, 0);
 
       const expectedRemittance = Math.max(0, collectedCod - fees);
@@ -547,7 +547,7 @@ export class ReconciliationService {
       let deliveredItemsCount = 0;
 
       for (const o of b.orders) {
-        const orderCarrierCost = o.actualDeliveryCost ?? o.shippingCost ?? 0;
+        const orderCarrierCost = o.actualDeliveryCost ?? 2000;
         const isPrepaid = o.paymentStatus === 'PAID' || o.paymentStatus === 'PREPAID';
         const codAmount = isPrepaid ? 0 : (o.deliveryJob?.codAmountToCollect || o.totalAmount || 0);
         expectedCodFils += codAmount;

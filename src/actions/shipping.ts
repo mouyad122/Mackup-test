@@ -37,3 +37,39 @@ export async function updateShippingZone(id: string, data: { fee: number, actual
   revalidatePath('/', 'layout');
   return { success: true };
 }
+
+export async function updateAllShippingZonesAction(customerFeeJD: number, carrierCostJD: number) {
+  const session = await requirePermission('manage:settings');
+  const customerFeeFils = Math.round(customerFeeJD * 1000);
+  const carrierCostFils = Math.round(carrierCostJD * 1000);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.shippingZone.updateMany({
+      data: {
+        fee: customerFeeFils,
+        actualDeliveryCost: carrierCostFils,
+        captainEarning: carrierCostFils,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        employeeId: session.employeeId,
+        action: 'SHIPPING_ZONE_UPDATED',
+        entityType: 'ShippingZone',
+        entityId: 'ALL',
+        details: JSON.stringify({
+          customerFeeFils,
+          carrierCostFils,
+          platformMarginFils: customerFeeFils - carrierCostFils,
+          note: 'تطبيق التسعيرة الافتراضية الموحدة لكافة المحافظات بنقرة واحدة',
+        }),
+      },
+    });
+  });
+
+  revalidatePath('/admin/deliveries');
+  revalidatePath('/admin/shipping-zones');
+  revalidatePath('/', 'layout');
+  return { success: true };
+}

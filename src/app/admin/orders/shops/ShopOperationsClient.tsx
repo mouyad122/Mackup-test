@@ -791,7 +791,9 @@ export default function ShopOperationsClient({ initialData }: Props) {
                   const area = (fOrder.order?.deliveryJob?.area || '').toLowerCase();
                   const zone = (fOrder.order?.shippingZoneNameSnapshot || '').toLowerCase();
                   const address = (fOrder.order?.notes || '').toLowerCase();
-                  const itemsMatch = fOrder.items?.some((it: any) => (it.productName || '').toLowerCase().includes(q));
+                  const itemsMatch = fOrder.items?.some((it: any) =>
+                    ((it.productTitle || it.productName || it.orderItem?.name || '')).toLowerCase().includes(q)
+                  );
                   const packagesMatch = fOrder.packages?.some((p: any) => (p.packageCode || '').toLowerCase().includes(q));
 
                   return (
@@ -893,28 +895,38 @@ export default function ShopOperationsClient({ initialData }: Props) {
                         <div className="space-y-1.5">
                           {fOrder.items?.map((it: any) => {
                             const isShortage = it.isOutOfStock;
+                            const displayName = it.productTitle || it.productName || it.orderItem?.name || 'صنف مسند';
+                            const displayVariant = it.variantTitle || (it.orderItem?.size && it.orderItem.size !== 'DEFAULT' && it.orderItem.size !== 'STANDARD' ? it.orderItem.size : null);
+
                             return (
                               <div
                                 key={it.id}
-                                className={`flex items-center justify-between p-2 rounded-xl border text-xs ${
+                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs ${
                                   isShortage
                                     ? 'bg-rose-50 border-rose-200 text-rose-900'
                                     : 'bg-white border-stone-200 text-stone-800'
                                 }`}
                               >
-                                <div>
-                                  <span className="font-bold">
-                                    • {it.productName}
-                                  </span>
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-extrabold text-stone-900 text-xs sm:text-sm">
+                                      • {displayName}
+                                    </span>
+                                    {displayVariant && (
+                                      <span className="text-[11px] font-semibold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+                                        {displayVariant}
+                                      </span>
+                                    )}
+                                  </div>
                                   {isShortage && it.outOfStockReason && (
-                                    <p className="text-[10px] text-rose-700 mt-0.5">
+                                    <p className="text-[11px] text-rose-700 font-bold mt-0.5">
                                       سبب النقص: {it.outOfStockReason}
                                     </p>
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-3">
-                                  <span className="font-bold font-mono text-sm">
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="font-bold font-mono text-xs sm:text-sm bg-stone-100 px-2.5 py-1 rounded-lg border border-stone-200 text-stone-900">
                                     x{it.quantity}
                                   </span>
 
@@ -928,7 +940,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
                                             fOrder.order.id,
                                             fOrder.order.reference,
                                             it.orderItemId,
-                                            it.productName
+                                            it.productName || it.productTitle || it.orderItem?.name || 'صنف'
                                           )
                                         }
                                         className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition"
@@ -943,7 +955,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
                                             ...it,
                                             orderId: fOrder.order.id,
                                             id: it.orderItemId,
-                                            name: it.productName,
+                                            name: it.productName || it.productTitle || it.orderItem?.name || 'صنف',
                                           });
                                           setReplacementQuantity(it.quantity);
                                           setSelectedReplacementVariant(null);
