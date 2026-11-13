@@ -354,6 +354,7 @@ export async function confirmOrderDeliveryFromManifestAction(
 export async function confirmSingleOrderPickupFromManifestAction(
   batchReference: string,
   orderId: string,
+  fulfillmentOrderId?: string,
   secureToken?: string
 ) {
   try {
@@ -382,48 +383,59 @@ export async function confirmSingleOrderPickupFromManifestAction(
     const order = batch.orders[0];
 
     await prisma.$transaction(async (tx) => {
-      // 1. تحديث أوامر تجهيز المحلات لهذا الطلب
+      // 1. تحديث أوامر تجهيز المحلات لهذا الطلب أو أمر التجهيز المحدد
       await tx.fulfillmentOrder.updateMany({
         where: {
           orderId: order.id,
+          ...(fulfillmentOrderId ? { id: fulfillmentOrderId } : {}),
           status: { notIn: ['PICKED_UP', 'DELIVERED', 'CANCELLED'] },
         },
         data: { status: 'PICKED_UP' },
       });
 
-      // 2. تحديث طرود هذا الطلب
-      const packageIds = order.fulfillmentOrders?.flatMap((f) => f.packages.map((p) => p.id)) || [];
+      // 2. تحديث طرود هذا التجهيز
+      const targetFulfillments = order.fulfillmentOrders?.filter((f) => !fulfillmentOrderId || f.id === fulfillmentOrderId) || [];
+      const packageIds = targetFulfillments.flatMap((f) => f.packages.map((p) => p.id)) || [];
       if (packageIds.length > 0) {
         await tx.package.updateMany({
           where: {
             id: { in: packageIds },
             status: { notIn: ['PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'] },
           },
-          data: { status: 'OUT_FOR_DELIVERY' },
+          data: { status: 'PICKED_UP' },
         });
       }
 
-      // 3. تحديث الطلب ليصبح قيد التوصيل
-      await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'SHIPPED',
-          fulfillmentStatus: 'OUT_FOR_DELIVERY',
+      // 3. التحقق إذا كانت كافة أوامر تجهيز المحلات لهذا الطلب تم استلامها
+      const remainingUnpicked = await tx.fulfillmentOrder.count({
+        where: {
+          orderId: order.id,
+          status: { notIn: ['PICKED_UP', 'DELIVERED', 'CANCELLED'] },
         },
       });
 
-      if (order.deliveryJob) {
-        await tx.deliveryJob.update({
-          where: { id: order.deliveryJob.id },
-          data: { status: 'OUT_FOR_DELIVERY' },
+      if (remainingUnpicked === 0) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'SHIPPED',
+            fulfillmentStatus: 'OUT_FOR_DELIVERY',
+          },
         });
+
+        if (order.deliveryJob) {
+          await tx.deliveryJob.update({
+            where: { id: order.deliveryJob.id },
+            data: { status: 'OUT_FOR_DELIVERY' },
+          });
+        }
       }
 
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
-          status: 'OUT_FOR_DELIVERY',
-          notes: `تم تأكيد استلام هذا الطلب من المحل وبدء رحلة التوصيل عبر كشف ${batchReference}`,
+          status: remainingUnpicked === 0 ? 'OUT_FOR_DELIVERY' : 'PICKED_UP',
+          notes: `تم تأكيد استلام هذا الطلب من المحل بواسطة مندوب التوصيل عبر كشف ${batchReference}`,
         },
       });
 
@@ -437,7 +449,7 @@ export async function confirmSingleOrderPickupFromManifestAction(
     });
 
     refreshBatch(batchReference);
-    return { success: true, orderId };
+    return { success: true, orderId, fulfillmentOrderId };
   } catch (err: any) {
     console.error('Error in confirmSingleOrderPickupFromManifestAction:', err);
     return { success: false, error: err?.message || 'تعذر تأكيد استلام الطلب من المحل.' };

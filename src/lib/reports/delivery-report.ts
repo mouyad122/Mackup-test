@@ -16,6 +16,7 @@ export interface DeliveryBatchSettlementItem {
   batchReference: string;
   courierCompany: string;
   deliveredOrdersCount: number;
+  shopsCount?: number;
   totalOrdersPriceFils: number;
   totalDeliveryCostFils: number;
   netRequiredFils: number; // المطلوب = سعر الطلبيات - سعر التوصيل
@@ -44,6 +45,7 @@ export interface DeliveryReportBatchRow {
   batchId: string;
   batchReference: string;
   ordersCount: number;
+  shopsCount: number;
   totalOrdersPriceFils: number;
   totalCarrierCostFils: number;
   netRequiredFils: number;
@@ -154,6 +156,16 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
               collectedAmount: true,
             },
           },
+          items: {
+            select: {
+              supplierIdSnapshot: true,
+            },
+          },
+          fulfillmentOrders: {
+            select: {
+              supplierId: true,
+            },
+          },
         },
       },
     },
@@ -195,6 +207,16 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
           codAmountToCollect: true,
           isCodCollected: true,
           collectedAmount: true,
+        },
+      },
+      items: {
+        select: {
+          supplierIdSnapshot: true,
+        },
+      },
+      fulfillmentOrders: {
+        select: {
+          supplierId: true,
         },
       },
     },
@@ -251,11 +273,19 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
     let batchOrdersPriceFils = 0;
     let batchCarrierCostFils = 0;
     const citiesSet = new Set<string>();
+    const batchShopsSet = new Set<string>();
 
     for (const order of matchingOrders) {
       if (order.status === 'DELIVERED') deliveredOrders++;
       else if (['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY', 'RETURNED'].includes(order.status)) failedOrders++;
       else inProgressOrders++;
+
+      for (const it of (order.items || [])) {
+        if (it.supplierIdSnapshot) batchShopsSet.add(it.supplierIdSnapshot);
+      }
+      for (const fo of (order.fulfillmentOrders || [])) {
+        if (fo.supplierId) batchShopsSet.add(fo.supplierId);
+      }
 
       const carrierCost = order.actualDeliveryCost ??
         order.deliveryAssignment?.actualCarrierCost ??
@@ -270,6 +300,8 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       if (order.deliveryJob?.city) citiesSet.add(order.deliveryJob.city);
       else if (order.deliveryJob?.area) citiesSet.add(order.deliveryJob.area);
     }
+
+    const shopsCount = batchShopsSet.size > 0 ? batchShopsSet.size : 1;
 
     // المطلوب = سعر الطلبيات - سعر التوصيل الإجمالي من كل طلبية
     const netRequiredFils = Math.max(0, batchOrdersPriceFils - batchCarrierCostFils);
@@ -294,6 +326,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       batchId: batch.id,
       batchReference: batch.reference,
       ordersCount,
+      shopsCount,
       totalOrdersPriceFils: batchOrdersPriceFils,
       totalCarrierCostFils: batchCarrierCostFils,
       netRequiredFils,
@@ -348,6 +381,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
         batchReference: batch.reference,
         courierCompany: batch.courierCompany || 'شركة التوصيل',
         deliveredOrdersCount: matchingOrders.filter(o => o.status === 'DELIVERED').length,
+        shopsCount,
         totalOrdersPriceFils: batchOrdersPriceFils,
         totalDeliveryCostFils: batchCarrierCostFils,
         netRequiredFils,
@@ -367,6 +401,15 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
     if (order.status === 'DELIVERED') deliveredOrders++;
     else if (['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY', 'RETURNED'].includes(order.status)) failedOrders++;
     else inProgressOrders++;
+
+    const orderShopsSet = new Set<string>();
+    for (const it of (order.items || [])) {
+      if (it.supplierIdSnapshot) orderShopsSet.add(it.supplierIdSnapshot);
+    }
+    for (const fo of (order.fulfillmentOrders || [])) {
+      if (fo.supplierId) orderShopsSet.add(fo.supplierId);
+    }
+    const shopsCount = orderShopsSet.size > 0 ? orderShopsSet.size : 1;
 
     const carrierCost = order.actualDeliveryCost ??
       order.deliveryAssignment?.actualCarrierCost ??
@@ -397,6 +440,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       batchId: order.id,
       batchReference: `طلب فردي: ${order.reference}`,
       ordersCount: 1,
+      shopsCount,
       totalOrdersPriceFils: orderPrice,
       totalCarrierCostFils: carrierCost,
       netRequiredFils,
@@ -414,10 +458,12 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
   // الأعمدة المعتمدة الجديدة للطلبيات (Batches):
   // تم حذف: سائق الشحنة، عهدة معلقة، أجرة التوصيل الفردية، صافي التوريد، طريقة الدفع، شركة التوصيل، ورقم الشحنة.
   // تم دمج المتوقع والمحصل في عامود واحد هو "المطلوب" = سعر الطلبيات - سعر التوصيل الإجمالي.
+  // تم إضافة عامود "عدد المحلات التي استلم منها" بجانب عامود "عدد الطلبات".
   const columns = isDetailed
     ? [
         'طلبية التجميع (Batch)',
         'عدد الطلبات',
+        'عدد المحلات التي استلم منها',
         'مجموع أسعار الطلبيات',
         'مجموع سعر التوصيل',
         'المطلوب (الصافي)',
@@ -431,6 +477,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
     ? rawBatches.map(b => [
         b.batchReference,
         b.ordersCount.toString(),
+        b.shopsCount.toString(),
         filsToDisplay(b.totalOrdersPriceFils),
         filsToDisplay(b.totalCarrierCostFils),
         filsToDisplay(b.netRequiredFils),

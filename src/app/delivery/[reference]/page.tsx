@@ -116,7 +116,7 @@ export default async function DeliveryBatchPage({
 
         const stop = pickupStopsMap.get(stopKey);
 
-        const isPickedUp = fo.status === 'PICKED_UP' || ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status);
+        const isPickedUp = fo.status === 'PICKED_UP' || fo.status === 'DELIVERED' || order.status === 'DELIVERED';
 
         // إضافة الطرود
         if (fo.packages && fo.packages.length > 0) {
@@ -125,8 +125,9 @@ export default async function DeliveryBatchPage({
             stop.parcels.push({
               packageCode: pkg.packageCode,
               orderId: order.id,
+              fulfillmentOrderId: fo.id,
               orderReference: order.reference,
-              isPickedUp: isPickedUp || pkg.status === 'PICKED_UP' || pkg.status === 'OUT_FOR_DELIVERY' || pkg.status === 'DELIVERED',
+              isPickedUp: isPickedUp || pkg.status === 'PICKED_UP' || pkg.status === 'DELIVERED',
               items: pkg.items.map((pi) => ({
                 name: pi.fulfillmentItem?.productTitle || 'منتج',
                 variantTitle: pi.fulfillmentItem?.variantTitle,
@@ -140,6 +141,7 @@ export default async function DeliveryBatchPage({
           stop.parcels.push({
             packageCode: `PKG-${order.reference}-${supplierName.slice(0, 3)}`,
             orderId: order.id,
+            fulfillmentOrderId: fo.id,
             orderReference: order.reference,
             isPickedUp,
             items: fo.items.map((it) => ({
@@ -167,7 +169,7 @@ export default async function DeliveryBatchPage({
         });
       }
       totalParcelsCount += 1;
-      const isPickedUp = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status);
+      const isPickedUp = order.fulfillmentStatus === 'PICKED_UP' || order.status === 'DELIVERED';
       pickupStopsMap.get(stopKey).parcels.push({
         packageCode: `PKG-${order.reference}-1`,
         orderId: order.id,

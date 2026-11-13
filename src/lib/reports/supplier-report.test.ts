@@ -119,4 +119,37 @@ describe('generateSupplierReport itemStatus filter', () => {
 
     expect(result.rawRows).toHaveLength(3);
   });
+
+  it('correctly groups items under their respective orders in ordersGrouped', async () => {
+    (prisma.orderItem.findMany as any).mockResolvedValue([
+      ...mockOrderItems,
+      {
+        name: 'شال حرير',
+        sku: 'SHL-004',
+        quantity: 2,
+        total: 10000,
+        unitCostSnapshot: 4000,
+        supplierAmountSnapshot: 0,
+        supplierIdSnapshot: 'sup-1',
+        supplierNameSnapshot: 'متجر لافندر',
+        isRemoved: false,
+        removalReason: null,
+        order: {
+          reference: 'ORD-101',
+          status: 'DELIVERED',
+          createdAt: new Date('2026-11-10T10:00:00Z'),
+          fulfillmentOrders: [],
+        },
+      },
+    ]);
+    const result = await generateSupplierReport({ supplierId: 'sup-1', itemStatus: 'DELIVERED' });
+
+    expect(result.ordersGrouped).toBeDefined();
+    expect(result.ordersGrouped).toHaveLength(1);
+    expect(result.ordersGrouped![0].orderReference).toBe('ORD-101');
+    expect(result.ordersGrouped![0].items).toHaveLength(2);
+    expect(result.ordersGrouped![0].totalQuantity).toBe(3);
+    expect(result.ordersGrouped![0].items[0].productName).toBe('فستان زيتوني');
+    expect(result.ordersGrouped![0].items[1].productName).toBe('شال حرير');
+  });
 });

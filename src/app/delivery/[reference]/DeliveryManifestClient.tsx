@@ -52,6 +52,7 @@ interface Props {
       packageCode: string;
       orderReference: string;
       orderId?: string;
+      fulfillmentOrderId?: string;
       isPickedUp?: boolean;
       items: Array<{
         name: string;
@@ -93,12 +94,14 @@ export default function DeliveryManifestClient({
 
   const [localBatchStatus, setLocalBatchStatus] = useState(batch.status);
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
-  const [localPickedUpOrders, setLocalPickedUpOrders] = useState<Record<string, boolean>>(() => {
+  const [localPickedUpParcels, setLocalPickedUpParcels] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const stop of pickupStops) {
       for (const p of stop.parcels) {
-        if (p.orderId && p.isPickedUp) {
-          initial[p.orderId] = true;
+        if (p.isPickedUp) {
+          if (p.fulfillmentOrderId) initial[p.fulfillmentOrderId] = true;
+          if (p.packageCode) initial[p.packageCode] = true;
+          if (p.orderId) initial[p.orderId] = true;
         }
       }
     }
@@ -135,28 +138,41 @@ export default function DeliveryManifestClient({
     }));
   };
 
-  const handleConfirmSingleOrderPickup = async (orderId: string, orderRef: string) => {
+  const handleConfirmSingleOrderPickup = async (
+    orderId: string,
+    orderRef: string,
+    fulfillmentOrderId?: string,
+    packageCode?: string
+  ) => {
     if (!confirm(`هل أنت متأكد من استلام طرد الطلب #${orderRef} من المحل؟`)) {
       return;
     }
 
+    const confirmKey = fulfillmentOrderId || packageCode || orderId;
     try {
-      setIsConfirmingSinglePickup((prev) => ({ ...prev, [orderId]: true }));
+      setIsConfirmingSinglePickup((prev) => ({ ...prev, [confirmKey]: true }));
       const res = await confirmSingleOrderPickupFromManifestAction(
         batch.reference,
         orderId,
+        fulfillmentOrderId,
         batch.secureToken
       );
       if (res.success) {
-        setLocalPickedUpOrders((prev) => ({ ...prev, [orderId]: true }));
-        alert(`تم تأكيد استلام الطلب #${orderRef} بنجاح! ✓`);
+        setLocalPickedUpParcels((prev) => ({
+          ...prev,
+          [confirmKey]: true,
+          ...(fulfillmentOrderId ? { [fulfillmentOrderId]: true } : {}),
+          ...(packageCode ? { [packageCode]: true } : {}),
+          [orderId]: true,
+        }));
+        alert(`تم تأكيد استلام الطلب #${orderRef} من المحل بنجاح! ✓`);
       } else {
         alert(res.error || 'تعذر تأكيد استلام هذا الطلب.');
       }
     } catch (err: any) {
       alert(err.message || 'حدث خطأ أثناء تأكيد استلام الطلب');
     } finally {
-      setIsConfirmingSinglePickup((prev) => ({ ...prev, [orderId]: false }));
+      setIsConfirmingSinglePickup((prev) => ({ ...prev, [confirmKey]: false }));
     }
   };
 
@@ -217,6 +233,17 @@ export default function DeliveryManifestClient({
       const res = await confirmBatchPickupFromManifestAction(batch.reference, batch.secureToken);
       if (res.success) {
         setLocalBatchStatus('IN_DELIVERY');
+        setLocalPickedUpParcels((prev) => {
+          const updated = { ...prev };
+          for (const stop of pickupStops) {
+            for (const p of stop.parcels) {
+              if (p.fulfillmentOrderId) updated[p.fulfillmentOrderId] = true;
+              if (p.packageCode) updated[p.packageCode] = true;
+              if (p.orderId) updated[p.orderId] = true;
+            }
+          }
+          return updated;
+        });
         alert('تم تأكيد الاستلام بنجاح! تم تحديث حالة الإرسالية إلى (جارٍ التوصيل). 🚚');
       } else {
         alert(res.error || 'تعذر تأكيد الاستلام.');
@@ -516,14 +543,17 @@ export default function DeliveryManifestClient({
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {stop.parcels.map((pkg) => {
+                          const parcelKey = pkg.fulfillmentOrderId || pkg.packageCode || pkg.orderId || '';
                           const isChecked = checkedParcels[pkg.packageCode];
                           const isPickedUp = Boolean(
-                            (pkg.orderId && localPickedUpOrders[pkg.orderId]) ||
+                            (parcelKey && localPickedUpParcels[parcelKey]) ||
+                            (pkg.packageCode && localPickedUpParcels[pkg.packageCode]) ||
+                            (pkg.fulfillmentOrderId && localPickedUpParcels[pkg.fulfillmentOrderId]) ||
+                            (pkg.orderId && localPickedUpParcels[pkg.orderId]) ||
                             pkg.isPickedUp ||
-                            localBatchStatus === 'IN_DELIVERY' ||
-                            localBatchStatus === 'COMPLETED'
+                            (pkg.orderId && localDeliveredOrders[pkg.orderId])
                           );
-                          const isConfirming = pkg.orderId ? Boolean(isConfirmingSinglePickup[pkg.orderId]) : false;
+                          const isConfirming = parcelKey ? Boolean(isConfirmingSinglePickup[parcelKey]) : false;
 
                           return (
                             <div
@@ -572,7 +602,7 @@ export default function DeliveryManifestClient({
                                   <button
                                     type="button"
                                     disabled={isConfirming}
-                                    onClick={() => handleConfirmSingleOrderPickup(pkg.orderId!, pkg.orderReference)}
+                                    onClick={() => handleConfirmSingleOrderPickup(pkg.orderId!, pkg.orderReference, pkg.fulfillmentOrderId, pkg.packageCode)}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-bold transition active:scale-95 cursor-pointer disabled:opacity-50"
                                   >
                                     {isConfirming ? (

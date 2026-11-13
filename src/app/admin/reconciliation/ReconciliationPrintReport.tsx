@@ -15,12 +15,32 @@ export type ReconciliationPrintReportProps = {
   settlements?: {
     batchReference: string;
     deliveredOrdersCount: number;
+    shopsCount?: number;
     netRequiredFils: number;
     settledAmountFils: number;
     remainingBalanceFils: number;
     status: string;
     settlementDate?: string;
   }[];
+  ordersGrouped?: Array<{
+    orderReference: string;
+    date: string;
+    deliveryStatus: string;
+    eligibilityStatus: string;
+    fulfillmentStatus?: string;
+    totalQuantity: number;
+    totalCostFils: number;
+    totalDueFils: number;
+    items: Array<{
+      productName: string;
+      specs?: string;
+      quantity: number;
+      unitCostFils: number;
+      totalCostFils: number;
+      totalDueFils: number;
+    }>;
+  }>;
+  department?: string;
   issuedByName?: string;
   issuedByRole?: string;
   approvedByName?: string;
@@ -41,6 +61,8 @@ export function ReconciliationPrintReport({
   rows,
   referenceCode,
   departmentNote,
+  department,
+  ordersGrouped,
   payments,
   settlements,
   issuedByName,
@@ -192,14 +214,107 @@ export function ReconciliationPrintReport({
         </div>
       </section>
 
-      {/* ── 4. Detailed Data Table ── */}
+      {/* ── 4. Detailed Data Table / Hierarchical Order Breakdown ── */}
       <section className="mb-6">
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-200">
           <h3 className="text-xs font-bold text-emerald-950">سجل التفاصيل والعمليات المحاسبية</h3>
-          <span className="text-[11px] font-mono text-zinc-600">{rows.length.toLocaleString('en-GB')} سجل مسجل</span>
+          <span className="text-[11px] font-mono text-zinc-600">
+            {ordersGrouped && ordersGrouped.length > 0
+              ? `${ordersGrouped.length.toLocaleString('en-GB')} طلب (${rows.length.toLocaleString('en-GB')} صنف)`
+              : `${rows.length.toLocaleString('en-GB')} سجل مسجل`}
+          </span>
         </div>
 
-        {rows.length > 0 ? (
+        {ordersGrouped && ordersGrouped.length > 0 ? (
+          <div className="space-y-4">
+            {ordersGrouped.map((grp, oIdx) => (
+              <div
+                key={`order-grp-${grp.orderReference}-${oIdx}`}
+                className="rounded-xl border border-zinc-300 bg-white overflow-hidden shadow-2xs print:break-inside-avoid"
+              >
+                {/* Order Header Bar */}
+                <div className="bg-zinc-100/90 px-3.5 py-2.5 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="font-mono font-black text-emerald-950 text-xs bg-emerald-950/10 px-2.5 py-0.5 rounded-md">
+                      طلب #{grp.orderReference}
+                    </span>
+                    <span className="text-[11px] text-zinc-500 font-mono">
+                      📅 {grp.date}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      grp.deliveryStatus === 'تم التسليم بنجاح'
+                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        : grp.deliveryStatus === 'مرتجع / ملغي'
+                        ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                    }`}>
+                      {grp.deliveryStatus}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      grp.eligibilityStatus === 'جاهز للصرف فوراً'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : grp.eligibilityStatus === 'غير مستحق (ملغي)'
+                        ? 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200'
+                    }`}>
+                      {grp.eligibilityStatus}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-zinc-600 text-[11px]">
+                      إجمالي القطع: <strong className="font-mono text-zinc-900">{grp.totalQuantity}</strong>
+                    </span>
+                    <span className="text-zinc-700 text-[11px]">
+                      صافي المستحق للطلب:{' '}
+                      <strong className="font-mono font-black text-emerald-950 text-xs" dir="ltr">
+                        {filsToDisplay(grp.totalDueFils)} د.أ
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Products Table Under the Order */}
+                <div className="overflow-x-auto">
+                  <table className="rawaq-table w-full text-right text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-zinc-50 text-zinc-700 border-b border-zinc-200">
+                        <th className="py-2 px-3 font-bold text-center w-8 text-[10px] text-zinc-500">#</th>
+                        <th className="py-2 px-3 font-bold text-[11px]">اسم الصنف والمنتج والمواصفات</th>
+                        <th className="py-2 px-3 font-bold text-[11px] text-center w-16">الكمية</th>
+                        <th className="py-2 px-3 font-bold text-[11px]">سعر الشراء (للقطعة)</th>
+                        <th className="py-2 px-3 font-bold text-[11px]">إجمالي التكلفة</th>
+                        <th className="py-2 px-3 font-bold text-[11px]">المستحق النهائي</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 bg-white">
+                      {grp.items.map((prod, pIdx) => (
+                        <tr key={`item-${pIdx}`} className="hover:bg-zinc-50/70 transition">
+                          <td className="py-2 px-3 text-center font-mono text-[10px] text-zinc-400">{pIdx + 1}</td>
+                          <td className="py-2 px-3 text-[11px] font-medium text-zinc-900">
+                            {prod.productName}
+                          </td>
+                          <td className="py-2 px-3 text-[11px] font-mono text-center text-zinc-800 font-bold">
+                            {prod.quantity}
+                          </td>
+                          <td className="py-2 px-3 text-[11px] font-mono text-zinc-700" dir="ltr">
+                            {filsToDisplay(prod.unitCostFils)} د.أ
+                          </td>
+                          <td className="py-2 px-3 text-[11px] font-mono text-zinc-700" dir="ltr">
+                            {filsToDisplay(prod.totalCostFils)} د.أ
+                          </td>
+                          <td className="py-2 px-3 text-[11px] font-mono font-bold text-emerald-950" dir="ltr">
+                            {filsToDisplay(prod.totalDueFils)} د.أ
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : rows.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-zinc-300">
             <table className="rawaq-table w-full text-right text-xs border-collapse">
               <thead>
@@ -248,6 +363,7 @@ export function ReconciliationPrintReport({
                   <th className="py-2 px-3 font-bold text-center w-10 text-[11px]">#</th>
                   <th className="py-2 px-3 font-bold text-[11px]">طلبية التجميع (Batch)</th>
                   <th className="py-2 px-3 font-bold text-[11px]">عدد الطلبات</th>
+                  <th className="py-2 px-3 font-bold text-[11px]">عدد المحلات التي استلم منها</th>
                   <th className="py-2 px-3 font-bold text-[11px]">المطلوب (الصافي)</th>
                   <th className="py-2 px-3 font-bold text-[11px]">مبلغ التسوية</th>
                   <th className="py-2 px-3 font-bold text-[11px]">كم متبقي</th>
@@ -261,6 +377,7 @@ export function ReconciliationPrintReport({
                     <td className="py-2 px-3 text-center font-mono text-[11px] text-zinc-500">{sIdx + 1}</td>
                     <td className="py-2 px-3 text-[11px] font-mono font-bold text-zinc-900">{s.batchReference}</td>
                     <td className="py-2 px-3 text-[11px] font-mono text-zinc-700">{s.deliveredOrdersCount}</td>
+                    <td className="py-2 px-3 text-[11px] font-mono text-zinc-700">{s.shopsCount ?? 1} محلات</td>
                     <td className="py-2 px-3 text-[11px] font-mono font-bold text-zinc-900">{filsToDisplay(s.netRequiredFils)} د.أ</td>
                     <td className="py-2 px-3 text-[11px] font-mono font-bold text-emerald-800">{filsToDisplay(s.settledAmountFils)} د.أ</td>
                     <td className={`py-2 px-3 text-[11px] font-mono font-bold ${s.remainingBalanceFils > 0 ? 'text-amber-800' : 'text-zinc-500'}`}>

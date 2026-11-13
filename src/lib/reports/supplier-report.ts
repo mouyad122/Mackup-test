@@ -37,6 +37,27 @@ export interface SupplierReportRow {
   date: string;
 }
 
+export interface SupplierReportOrderItem {
+  productName: string;
+  specs?: string;
+  quantity: number;
+  unitCostFils: number;
+  totalCostFils: number;
+  totalDueFils: number;
+}
+
+export interface SupplierReportGroupedOrder {
+  orderReference: string;
+  date: string;
+  deliveryStatus: string;
+  eligibilityStatus: string;
+  fulfillmentStatus?: string;
+  totalQuantity: number;
+  totalCostFils: number;
+  totalDueFils: number;
+  items: SupplierReportOrderItem[];
+}
+
 export interface SupplierReportResult {
   reportTitle: string;
   department: 'SUPPLIER';
@@ -48,6 +69,7 @@ export interface SupplierReportResult {
   columns: string[];
   rows: string[][];
   rawRows?: SupplierReportRow[];
+  ordersGrouped?: SupplierReportGroupedOrder[];
   payments?: { date: string; reference: string; amountFils: number; type: string }[];
 }
 
@@ -87,6 +109,7 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
       select: {
         name: true,
         sku: true,
+        size: true,
         quantity: true,
         total: true,
         unitCostSnapshot: true,
@@ -140,6 +163,7 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
 
   const statusFilter = (filter.itemStatus || '').toUpperCase().trim();
   const rawRows: SupplierReportRow[] = [];
+  const groupedOrdersMap = new Map<string, SupplierReportGroupedOrder>();
 
   for (const item of orderItems) {
     const isCancelled = item.isRemoved || ['CANCELLED', 'REFUNDED', 'FAILED_DELIVERY'].includes(item.order.status);
@@ -164,7 +188,7 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
     const unitCost = item.unitCostSnapshot || 0;
     const totalCost = unitCost * item.quantity;
     const profitShare = item.supplierAmountSnapshot || 0;
-    const totalDue = totalCost + profitShare;
+    const totalDue = isCancelled ? 0 : (totalCost + profitShare);
 
     totalSalesValueFils += item.total;
     totalQuantitySupplied += item.quantity;
@@ -197,8 +221,15 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
       ? 'غير مستحق (ملغي)'
       : 'مستحق مؤجل حتى التسليم';
 
+    const sizeVal = (item as any).size;
+    const productTitle = sizeVal && sizeVal !== 'افتراضي' && sizeVal !== 'Default'
+      ? `${item.name} (${sizeVal})`
+      : item.name;
+
+    const formattedDate = new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Amman' }).format(item.order.createdAt);
+
     rawRows.push({
-      productName: item.name,
+      productName: productTitle,
       sku: item.sku || '—',
       orderReference: item.order.reference,
       quantity: item.quantity,
@@ -207,10 +238,40 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
       fulfillmentStatus,
       deliveryStatus: deliveryStatusLabel,
       eligibilityStatus,
-      totalDueFils: isCancelled ? 0 : totalDue,
-      date: new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Amman' }).format(item.order.createdAt),
+      totalDueFils: totalDue,
+      date: formattedDate,
+    });
+
+    const orderRef = item.order.reference;
+    if (!groupedOrdersMap.has(orderRef)) {
+      groupedOrdersMap.set(orderRef, {
+        orderReference: orderRef,
+        date: formattedDate,
+        deliveryStatus: deliveryStatusLabel,
+        eligibilityStatus,
+        fulfillmentStatus,
+        totalQuantity: 0,
+        totalCostFils: 0,
+        totalDueFils: 0,
+        items: [],
+      });
+    }
+
+    const orderGroup = groupedOrdersMap.get(orderRef)!;
+    orderGroup.totalQuantity += item.quantity;
+    orderGroup.totalCostFils += totalCost;
+    orderGroup.totalDueFils += totalDue;
+    orderGroup.items.push({
+      productName: productTitle,
+      specs: sizeVal && sizeVal !== 'افتراضي' && sizeVal !== 'Default' ? sizeVal : undefined,
+      quantity: item.quantity,
+      unitCostFils: unitCost,
+      totalCostFils: totalCost,
+      totalDueFils: totalDue,
     });
   }
+
+  const ordersGrouped = Array.from(groupedOrdersMap.values());
 
   // حساب الدفعات المسددة الفعلية مع خصم العكس المالي إن وجد
   let totalPaidFils = 0;
@@ -323,6 +384,7 @@ export async function generateSupplierReport(filter: SupplierReportFilter = {}):
     columns,
     rows,
     rawRows,
+    ordersGrouped,
     payments: formattedPayments,
   };
 }

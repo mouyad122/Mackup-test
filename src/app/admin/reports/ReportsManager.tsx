@@ -288,6 +288,7 @@ export function ReportsManager({
             filtersApplied: reportData.filtersApplied,
             payments: reportData.payments,
             settlements: reportData.settlements,
+            ordersGrouped: reportData.ordersGrouped,
           },
         },
         filterPayload: reportData.filtersApplied,
@@ -813,6 +814,8 @@ export function ReportsManager({
                   rows={reportData.rows || []}
                   payments={reportData.payments}
                   settlements={reportData.settlements}
+                  ordersGrouped={reportData.ordersGrouped}
+                  department={reportData.department}
                 />
               </div>
 
@@ -839,6 +842,7 @@ export function ReportsManager({
                         <tr>
                           <th className="p-3">طلبية التجميع</th>
                           <th className="p-3">الطلبات المسلمة</th>
+                          <th className="p-3">عدد المحلات التي استلم منها</th>
                           <th className="p-3">مجموع أسعار الطلبيات</th>
                           <th className="p-3">مجموع سعر التوصيل</th>
                           <th className="p-3">المطلوب (الصافي)</th>
@@ -853,6 +857,7 @@ export function ReportsManager({
                           <tr key={s.batchId} className="hover:bg-zinc-50/50">
                             <td className="p-3 font-mono font-bold text-zinc-900">{s.batchReference}</td>
                             <td className="p-3 font-mono">{s.deliveredOrdersCount}</td>
+                            <td className="p-3 font-mono">{s.shopsCount ?? 1}</td>
                             <td className="p-3 font-mono">{filsToDisplay(s.totalOrdersPriceFils)} د.أ</td>
                             <td className="p-3 font-mono">{filsToDisplay(s.totalDeliveryCostFils)} د.أ</td>
                             <td className="p-3 font-mono font-bold text-emerald-950">{filsToDisplay(s.netRequiredFils)} د.أ</td>
@@ -1001,6 +1006,8 @@ export function ReportsManager({
                   rows={selectedArchivedReport.dataPayload?.rows || []}
                   payments={selectedArchivedReport.dataPayload?.metadata?.payments}
                   settlements={selectedArchivedReport.dataPayload?.metadata?.settlements}
+                  ordersGrouped={selectedArchivedReport.dataPayload?.metadata?.ordersGrouped}
+                  department={selectedArchivedReport.department}
                   isArchived={true}
                 />
               </div>
