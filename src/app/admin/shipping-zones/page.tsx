@@ -1,11 +1,16 @@
 import { requirePermission } from '@/lib/dal';
 import { prisma } from '@/lib/db';
 import { AdminSidebar } from '@/components/AdminSidebar';
+import { configureJordanShipping } from '@/lib/jordan-shipping';
 import ShippingZonesClient from './ShippingZonesClient';
 
 export default async function ShippingZonesPage() {
   const session = await requirePermission('manage:settings');
   
+  await prisma.$transaction(async (tx) => {
+    await configureJordanShipping(tx);
+  });
+
   const zones = await prisma.shippingZone.findMany({
     orderBy: { nameAr: 'asc' }
   });

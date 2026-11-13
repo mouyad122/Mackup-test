@@ -28,6 +28,7 @@ import {
   Trash2,
   RotateCcw,
   Filter,
+  Truck,
 } from 'lucide-react';
 import {
   disburseSalaryPaymentAction,
@@ -761,11 +762,34 @@ export default function ProfitsClientTabs({
               </div>
 
               <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 p-3 rounded-2xl bg-stone-50 text-stone-600">
-                <span>− أجور شركة التوصيل والخدمات اللوجستية</span>
+                <div className="flex flex-col">
+                  <span>− أجور شركة التوصيل والخدمات اللوجستية</span>
+                  <span className="text-[11px] text-stone-400">
+                    مستحقة لشركة التوصيل بواقع 2.00 د.أ / طلب (محجوبة عن المحل وتفاصيل المنصة)
+                  </span>
+                </div>
                 <span className="font-mono whitespace-nowrap shrink-0" dir="ltr">
                   -{filsToDisplay(kpis.courierCostsFils)}
                 </span>
               </div>
+
+              {/* صافي ربح التوصيل للمنصة */}
+              {kpis.deliveryProfitMarginFils !== undefined && (
+                <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 p-3 rounded-2xl bg-emerald-50/70 text-emerald-950 font-bold border border-emerald-200/70">
+                  <div className="flex flex-col">
+                    <span className="flex items-center gap-1.5 text-xs text-emerald-900 font-extrabold">
+                      <Truck className="w-3.5 h-3.5 text-emerald-700" />
+                      + مساهمة أرباح التوصيل في دخل المنصة (فارق 1.00 د.أ لكل طلب)
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-normal">
+                      محصّل من الزبائن ({filsToDisplay(kpis.deliveryRevenueFils || 0)}) − مدفوع لشركة التوصيل ({filsToDisplay(kpis.courierCostsFils)}) • ربح خاص بالمنصة فقط
+                    </span>
+                  </div>
+                  <span className="font-mono font-black text-emerald-800 whitespace-nowrap shrink-0 text-xs" dir="ltr">
+                    +{filsToDisplay(kpis.deliveryProfitMarginFils)}
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 p-3 rounded-2xl bg-stone-50 text-stone-600">
                 <span>− المصاريف التشغيلية (تسويق، برمجيات، ضيافة)</span>

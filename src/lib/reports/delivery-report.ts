@@ -290,7 +290,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
       const carrierCost = order.actualDeliveryCost ??
         order.deliveryAssignment?.actualCarrierCost ??
         order.deliveryAssignment?.captainEarning ??
-        order.shippingCost ?? 0;
+        (order.shippingCost ? Math.min(order.shippingCost, 2000) : 2000);
 
       const orderPrice = order.totalAmount ?? 0;
 
@@ -414,7 +414,7 @@ export async function generateDeliveryReport(filter: DeliveryReportFilter = {}):
     const carrierCost = order.actualDeliveryCost ??
       order.deliveryAssignment?.actualCarrierCost ??
       order.deliveryAssignment?.captainEarning ??
-      order.shippingCost ?? 0;
+      (order.shippingCost ? Math.min(order.shippingCost, 2000) : 2000);
     const orderPrice = order.totalAmount ?? 0;
     const netRequiredFils = Math.max(0, orderPrice - carrierCost);
 

@@ -7,7 +7,10 @@ import { revalidatePath } from 'next/cache';
 export async function createShippingZone(formData: FormData) {
   await requirePermission('manage:settings');
   
-  const fee = Math.round(parseFloat(formData.get('fee') as string) * 1000);
+  const feeInput = formData.get('fee') as string;
+  const fee = feeInput ? Math.round(parseFloat(feeInput) * 1000) : 3000;
+  const actualCostStr = formData.get('actualDeliveryCost') as string;
+  const actualDeliveryCost = actualCostStr ? Math.round(parseFloat(actualCostStr) * 1000) : 2000;
   const freeThresholdStr = formData.get('freeShippingThreshold') as string;
   const freeShippingThreshold = freeThresholdStr ? Math.round(parseFloat(freeThresholdStr) * 1000) : null;
 
@@ -15,11 +18,11 @@ export async function createShippingZone(formData: FormData) {
     data: {
       nameAr: formData.get('nameAr') as string,
       nameEn: formData.get('nameEn') as string,
-      estimatedDeliveryTime: formData.get('estimatedDeliveryTime') as string,
+      estimatedDeliveryTime: (formData.get('estimatedDeliveryTime') as string) || '2-3 أيام',
       fee,
       freeShippingThreshold,
-      captainEarning: fee,
-      actualDeliveryCost: fee,
+      captainEarning: actualDeliveryCost,
+      actualDeliveryCost: actualDeliveryCost,
       isEnabled: formData.get('isEnabled') === 'true',
     }
   });
@@ -31,7 +34,10 @@ export async function createShippingZone(formData: FormData) {
 export async function updateShippingZone(id: string, formData: FormData) {
   await requirePermission('manage:settings');
   
-  const fee = Math.round(parseFloat(formData.get('fee') as string) * 1000);
+  const feeInput = formData.get('fee') as string;
+  const fee = feeInput ? Math.round(parseFloat(feeInput) * 1000) : 3000;
+  const actualCostStr = formData.get('actualDeliveryCost') as string;
+  const actualDeliveryCost = actualCostStr ? Math.round(parseFloat(actualCostStr) * 1000) : 2000;
   const freeThresholdStr = formData.get('freeShippingThreshold') as string;
   const freeShippingThreshold = freeThresholdStr ? Math.round(parseFloat(freeThresholdStr) * 1000) : null;
 
@@ -43,8 +49,8 @@ export async function updateShippingZone(id: string, formData: FormData) {
       estimatedDeliveryTime: formData.get('estimatedDeliveryTime') as string,
       fee,
       freeShippingThreshold,
-      captainEarning: fee,
-      actualDeliveryCost: fee,
+      captainEarning: actualDeliveryCost,
+      actualDeliveryCost: actualDeliveryCost,
       isEnabled: formData.get('isEnabled') === 'true',
     }
   });

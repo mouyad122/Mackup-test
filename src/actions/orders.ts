@@ -159,8 +159,9 @@ export async function confirmStorefrontOrder(orderId: string) {
         type: 'DELIVERY_REVENUE', direction: 'IN', amount: order.shippingCost, orderId: order.id,
         description: `Customer delivery fee for ${order.reference}`, createdByEmployeeId: employeeId,
       } });
-      if (order.actualDeliveryCost !== null && order.actualDeliveryCost > 0) await tx.financialTransaction.create({ data: {
-        type: 'DELIVERY_COST', direction: 'OUT', amount: order.actualDeliveryCost, orderId: order.id,
+      const carrierCost = order.actualDeliveryCost ?? 2000;
+      if (carrierCost > 0) await tx.financialTransaction.create({ data: {
+        type: 'DELIVERY_COST', direction: 'OUT', amount: carrierCost, orderId: order.id,
         description: `Carrier cost for ${order.reference}`, createdByEmployeeId: employeeId,
       } });
       const normalDiscount = Math.max(0, order.discountAmount - order.couponDiscount - order.rewardDiscount);

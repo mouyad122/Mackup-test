@@ -11,6 +11,8 @@ export interface ProfitsKPIs {
   grossRevenueFils: number;
   supplierObligationsFils: number;
   courierCostsFils: number;
+  deliveryRevenueFils?: number;
+  deliveryProfitMarginFils?: number;
   operatingExpensesFils: number;
   accruedSalariesFils: number;
   paidSalariesFils: number;
@@ -112,11 +114,13 @@ export class ProfitsService {
     // هامش نشاط رَواق (Platform Gross Margin)
     const platformGrossMarginFils = Math.max(0, grossRevenueFils - supplierObligationsFils);
 
-    // 3. تكاليف التوصيل
+    // 3. تكاليف التوصيل وإيراداته (الزبون يدفع 3 د.أ افتراضياً، شركة التوصيل تستحق 2 د.أ، والفارق 1 د.أ ربح صاف للمنصة)
+    const deliveryRevenueFils = deliveredOrders.reduce((sum, o) => sum + (o.shippingCost || 0), 0);
     const courierCostsFils = deliveredOrders.reduce(
-      (sum, o) => sum + (o.actualDeliveryCost ?? o.shippingCost ?? 0),
+      (sum, o) => sum + (o.actualDeliveryCost ?? 2000),
       0
     );
+    const deliveryProfitMarginFils = Math.max(0, deliveryRevenueFils - courierCostsFils);
 
     // 4. المصاريف التشغيلية (تسويق، برمجيات، ضيافة...)
     const expenseDateFilter = fromDate && toDate ? {
@@ -250,6 +254,8 @@ export class ProfitsService {
       grossRevenueFils,
       supplierObligationsFils,
       courierCostsFils,
+      deliveryRevenueFils,
+      deliveryProfitMarginFils,
       operatingExpensesFils,
       accruedSalariesFils,
       paidSalariesFils,

@@ -335,8 +335,8 @@ export async function processCheckout(prevState: any, formData: FormData) {
       where: { id: shippingZoneId }
     });
     if (zone && zone.isEnabled) {
-      shippingCost = zone.fee;
-      actualDeliveryCost = zone.actualDeliveryCost ?? zone.fee;
+      shippingCost = zone.fee ?? 3000;
+      actualDeliveryCost = zone.actualDeliveryCost ?? 2000;
       zoneName = zone.nameAr;
       zoneFreeThreshold = zone.freeShippingThreshold;
     } else {
