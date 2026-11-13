@@ -352,7 +352,7 @@ export function ReconciliationClientTabs({
                     <th className="p-3">شركة التوصيل</th>
                     <th className="p-3">حالة الطلبات</th>
                     <th className="p-3">COD المحصل</th>
-                    <th className="p-3">رسوم التوصيل</th>
+                    <th className="p-3">رسوم التوصيل (سعر التكلفة)</th>
                     <th className="p-3">الصافي المتوقع</th>
                     <th className="p-3">المورّد سابقاً</th>
                     <th className="p-3">المتبقي بذمة الشركة</th>

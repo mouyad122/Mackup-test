@@ -334,7 +334,7 @@ export function ReportsManager({
           { label: 'إجمالي طلبيات التجميع (Batches)', value: summary?.totalBatches?.toString() || '0' },
           { label: 'إجمالي عدد الطلبات', value: `${summary?.totalOrders || 0} طلب (${summary?.deliverySuccessRate || '100%'} تسليم)` },
           { label: 'مجموع أسعار الطلبيات الإجمالي', value: `${filsToDisplay(summary?.totalOrdersPriceFils || summary?.totalCodExpectedFils || 0)} د.أ` },
-          { label: 'مجموع سعر التوصيل الإجمالي', value: `${filsToDisplay(summary?.totalCarrierCostFils || 0)} د.أ` },
+          { label: 'مجموع سعر التوصيل الإجمالي (سعر التكلفة)', value: `${filsToDisplay(summary?.totalCarrierCostFils || 0)} د.أ` },
           { label: 'صافي المبلغ المطلوب (سعر الطلبيات - التوصيل)', value: `${filsToDisplay(summary?.totalNetRequiredFils ?? (summary?.totalNetRemittanceFils || 0))} د.أ` },
           { label: 'المسدد بالتسويات المعتمدة', value: `${filsToDisplay(summary?.totalSettledFils ?? (summary?.totalCodSettledToRawaqFils || 0))} د.أ` },
           { label: 'المتبقي بذمة شركة التوصيل', value: `${filsToDisplay(summary?.totalRemainingFils ?? (summary?.totalCodUnremittedFils || 0))} د.أ` },
@@ -844,7 +844,7 @@ export function ReportsManager({
                           <th className="p-3">الطلبات المسلمة</th>
                           <th className="p-3">عدد المحلات التي استلم منها</th>
                           <th className="p-3">مجموع أسعار الطلبيات</th>
-                          <th className="p-3">مجموع سعر التوصيل</th>
+                          <th className="p-3">مجموع سعر التوصيل (سعر التكلفة)</th>
                           <th className="p-3">المطلوب (الصافي)</th>
                           <th className="p-3">مبلغ التسوية</th>
                           <th className="p-3">كم متبقي</th>
