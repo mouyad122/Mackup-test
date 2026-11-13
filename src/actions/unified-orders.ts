@@ -14,6 +14,7 @@ import { OrderLifecycleService } from '@/lib/orders/order-lifecycle-service';
 import { filsToDisplay } from '@/lib/money';
 import { evaluateOrderRewardProtection } from '@/lib/orders/reward-protection';
 import { retryOrderTelegramNotification } from '@/lib/telegram';
+import { getMessageTemplate } from '@/lib/message-templates';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
@@ -78,10 +79,21 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
     ]);
 
   // بناء شرط التبويب
+  const rawTab = (filter?.tab || '').toUpperCase();
+  const normalizedTab =
+    rawTab === 'ALL' ? 'ALL' :
+    rawTab === 'NEW' ? 'NEW' :
+    rawTab === 'TELEGRAM_FAILED' || rawTab === 'TELEGRAM-FAILED' ? 'TELEGRAM_FAILED' :
+    rawTab === 'NEEDS_ACTION' || rawTab === 'NEEDS-ACTION' ? 'NEEDS_ACTION' :
+    rawTab === 'PREPARING' ? 'PREPARING' :
+    rawTab === 'DELIVERY' ? 'DELIVERY' :
+    rawTab === 'COMPLETED' ? 'COMPLETED' :
+    rawTab;
+
   let whereTab: any = {};
-  if (filter?.tab === 'NEW') {
+  if (normalizedTab === 'NEW') {
     whereTab = { status: { in: ['PENDING', 'AWAITING_WHATSAPP'] } };
-  } else if (filter?.tab === 'NEEDS_ACTION') {
+  } else if (normalizedTab === 'NEEDS_ACTION') {
     whereTab = {
       OR: [
         { fulfillmentStatus: 'FAILED_DELIVERY' },
@@ -89,21 +101,21 @@ export async function getOrdersCommandCenterSummaryAction(filter?: {
         { fulfillmentOrders: { some: { status: 'ISSUE_REPORTED' } } },
       ],
     };
-  } else if (filter?.tab === 'PREPARING') {
+  } else if (normalizedTab === 'PREPARING') {
     whereTab = {
       status: { in: ['CONFIRMED', 'PREPARING'] },
       fulfillmentStatus: { in: ['UNFULFILLED', 'SPLIT_PENDING', 'PROCESSING', 'PARTIALLY_READY'] },
     };
-  } else if (filter?.tab === 'DELIVERY') {
+  } else if (normalizedTab === 'DELIVERY') {
     whereTab = {
       OR: [
         { fulfillmentStatus: { in: ['READY_FOR_PICKUP', 'ALL_PICKED_UP', 'RECEIVED_AT_HUB', 'OUT_FOR_DELIVERY'] } },
         { status: { in: ['SHIPPED', 'OUT_FOR_DELIVERY'] } },
       ],
     };
-  } else if (filter?.tab === 'COMPLETED') {
+  } else if (normalizedTab === 'COMPLETED') {
     whereTab = { status: 'DELIVERED' };
-  } else if (filter?.tab === 'TELEGRAM_FAILED') {
+  } else if (normalizedTab === 'TELEGRAM_FAILED') {
     whereTab = { telegramStatus: 'FAILED' };
   }
 
@@ -264,6 +276,7 @@ export async function getOrderFullDetailsAction(orderId: string, customOrigin?: 
   }
 
   const secureToken = invoice?.secureToken || order.reference;
+  const orderConfTemplate = await getMessageTemplate('ORDER_CONFIRMATION');
   const customerWhatsApp = buildCustomerConfirmationWhatsAppMessage({
     customerName: order.customerName,
     orderReference: order.reference,
@@ -271,6 +284,7 @@ export async function getOrderFullDetailsAction(orderId: string, customOrigin?: 
     secureToken,
     customerPhone: order.customerPhone,
     origin: resolvedOrigin,
+    templateContent: orderConfTemplate.content,
   });
 
   return {

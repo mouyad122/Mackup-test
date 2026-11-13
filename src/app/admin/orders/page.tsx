@@ -36,6 +36,7 @@ export default async function AdminOrdersPage({
           initialOrders={summary.orders}
           captains={captains}
           selectedOrderId={params.orderId}
+          initialTab={params.tab}
         />
       </main>
     </div>

@@ -26,6 +26,7 @@ import {
   DollarSign,
   User,
   PlusCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { filsToDisplay } from '@/lib/money';
 import {
@@ -57,17 +58,29 @@ export default function ShopOperationsClient({ initialData }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [shopOrdersSearchQuery, setShopOrdersSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'SHORTAGES' | 'READY' | 'PREPARING'>('ALL');
+  const [prepStatusFilter, setPrepStatusFilter] = useState<'all' | 'ready' | 'preparing'>('all');
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Read ?shop=<id> parameter from URL on load
+  // Read ?shop=<id> and ?prep_status=<status> parameters from URL on load & popstate
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const paramShop = params.get('shop');
-      if (paramShop && data.shops.some((s) => s.id === paramShop)) {
-        setSelectedShopId(paramShop);
+    const handleUrlSync = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const paramShop = params.get('shop');
+        if (paramShop && data.shops.some((s) => s.id === paramShop)) {
+          setSelectedShopId(paramShop);
+        }
+        const paramPrep = params.get('prep_status') || params.get('section');
+        if (paramPrep && ['all', 'ready', 'preparing'].includes(paramPrep.toLowerCase())) {
+          setPrepStatusFilter(paramPrep.toLowerCase() as any);
+        }
       }
-    }
+    };
+    handleUrlSync();
+    window.addEventListener('popstate', handleUrlSync);
+    return () => window.removeEventListener('popstate', handleUrlSync);
   }, [data.shops]);
 
   const handleSelectShop = (id: string) => {
@@ -76,6 +89,20 @@ export default function ShopOperationsClient({ initialData }: Props) {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('shop', id);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  const handleSelectPrepStatus = (status: 'all' | 'ready' | 'preparing') => {
+    setPrepStatusFilter(status);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (status === 'all') {
+        url.searchParams.delete('prep_status');
+        url.searchParams.delete('section');
+      } else {
+        url.searchParams.set('prep_status', status);
+      }
       window.history.replaceState({}, '', url.toString());
     }
   };
@@ -115,10 +142,37 @@ export default function ShopOperationsClient({ initialData }: Props) {
 
   const [copiedText, setCopiedText] = useState(false);
 
-  const refreshData = async () => {
-    const updated = await getShopOperationsHubDataAction();
-    setData(updated);
+  // Real-time silent revalidation (every 10s and on tab focus)
+  const refreshData = async (silent = true) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const updated = await getShopOperationsHubDataAction();
+      setData(updated);
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Silent shop data sync error:', e);
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshData(true);
+    }, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -159,9 +213,7 @@ export default function ShopOperationsClient({ initialData }: Props) {
         return;
       }
       setMasterSessionModal(res);
-      if (res.whatsappUrl) {
-        window.open(res.whatsappUrl, '_blank');
-      }
+      // NOTE: Open modal first without immediate auto-redirect to WhatsApp
     } catch (err: any) {
       alert(err.message || 'حدث خطأ');
     }
@@ -402,18 +454,37 @@ export default function ShopOperationsClient({ initialData }: Props) {
           </p>
         </div>
 
-        {/* Global Page Switcher */}
-        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
-          <Link
-            href="/admin/orders"
-            className="px-3.5 py-2 rounded-xl text-xs font-bold text-stone-600 hover:text-stone-900 transition flex items-center gap-1.5"
-          >
-            <Package className="w-3.5 h-3.5" />
-            <span>مركز الطلبات</span>
-          </Link>
-          <div className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-[#3F4832] shadow-xs border border-stone-200 flex items-center gap-1.5">
-            <Store className="w-3.5 h-3.5" />
-            <span>تجهيز المحلات والطرود (نشط)</span>
+        {/* Global Page Switcher & Live Indicator */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>محدث لحظياً</span>
+            <span className="text-[10px] text-emerald-700/80 font-mono" dir="ltr">
+              {lastSyncTime.toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+            <button
+              type="button"
+              onClick={() => refreshData(false)}
+              disabled={isRefreshing}
+              className="p-1 rounded-lg hover:bg-emerald-200/50 transition cursor-pointer text-emerald-800"
+              title="تحديث البيانات الآن"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
+            <Link
+              href="/admin/orders"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold text-stone-600 hover:text-stone-900 transition flex items-center gap-1.5"
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>مركز الطلبات</span>
+            </Link>
+            <div className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-[#3F4832] shadow-xs border border-stone-200 flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5" />
+              <span>تجهيز المحلات والطرود (نشط)</span>
+            </div>
           </div>
         </div>
       </div>
@@ -947,13 +1018,48 @@ export default function ShopOperationsClient({ initialData }: Props) {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs font-bold">
-                          <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
-                            جاهز للاستلام: {readyOrders.length}
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                            قيد التجهيز: {preparingOrders.length}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPrepStatus('all')}
+                            className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                              prepStatusFilter === 'all'
+                                ? 'bg-stone-900 text-white shadow-2xs'
+                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                            }`}
+                          >
+                            كافة الأقسام ({shopOrders.length})
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPrepStatus('ready')}
+                            className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                              prepStatusFilter === 'ready'
+                                ? 'bg-purple-700 text-white shadow-2xs'
+                                : 'bg-purple-100 text-purple-900 hover:bg-purple-200 border border-purple-200'
+                            }`}
+                          >
+                            <span>قسم الجاهز للاستلام</span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-purple-900/20">
+                              {readyOrders.length}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPrepStatus('preparing')}
+                            className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                              prepStatusFilter === 'preparing'
+                                ? 'bg-amber-600 text-white shadow-2xs'
+                                : 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-200'
+                            }`}
+                          >
+                            <span>قسم قيد التجهيز</span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-900/20">
+                              {preparingOrders.length}
+                            </span>
+                          </button>
                         </div>
                       </div>
 
@@ -979,72 +1085,76 @@ export default function ShopOperationsClient({ initialData }: Props) {
                     </div>
 
                     {/* SECTION 1: الطلبات الجاهزة للاستلام */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between bg-purple-50/90 border border-purple-200 p-3.5 rounded-2xl">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                            ✓
+                    {(prepStatusFilter === 'all' || prepStatusFilter === 'ready') && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between bg-purple-50/90 border border-purple-200 p-3.5 rounded-2xl">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                              ✓
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-extrabold text-purple-950">
+                                قسم الطلبات الجاهزة للاستلام
+                              </h4>
+                              <p className="text-[11px] text-purple-800">
+                                الطلبات التي تم تجهيزها وتغليفها وجاهزة لحضور المندوب
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-extrabold text-purple-950">
-                              قسم الطلبات الجاهزة للاستلام
-                            </h4>
-                            <p className="text-[11px] text-purple-800">
-                              الطلبات التي تم تجهيزها وتغليفها وجاهزة لحضور المندوب
-                            </p>
-                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-200/90 text-purple-900 border border-purple-300">
+                            {readyOrders.length} طلبات
+                          </span>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-200/90 text-purple-900 border border-purple-300">
-                          {readyOrders.length} طلبات
-                        </span>
-                      </div>
 
-                      {readyOrders.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
-                          {shopOrdersSearchQuery
-                            ? 'لا توجد طلبات جاهزة للاستلام تطابق البحث.'
-                            : 'لا توجد طلبات جاهزة للاستلام حالياً في هذا المحل.'}
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {readyOrders.map(renderOrderCard)}
-                        </div>
-                      )}
-                    </div>
+                        {readyOrders.length === 0 ? (
+                          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
+                            {shopOrdersSearchQuery
+                              ? 'لا توجد طلبات جاهزة للاستلام تطابق البحث.'
+                              : 'لا توجد طلبات جاهزة للاستلام حالياً في هذا المحل.'}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {readyOrders.map(renderOrderCard)}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* SECTION 2: الطلبات قيد التجهيز */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between bg-amber-50/90 border border-amber-200 p-3.5 rounded-2xl">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                            ⏳
+                    {(prepStatusFilter === 'all' || prepStatusFilter === 'preparing') && (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between bg-amber-50/90 border border-amber-200 p-3.5 rounded-2xl">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                              ⏳
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-extrabold text-amber-950">
+                                قسم الطلبات قيد التجهيز
+                              </h4>
+                              <p className="text-[11px] text-amber-800">
+                                الطلبات الجديدة أو قيد التحضير أو التي عليها بلاغات نقص
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-extrabold text-amber-950">
-                              قسم الطلبات قيد التجهيز
-                            </h4>
-                            <p className="text-[11px] text-amber-800">
-                              الطلبات الجديدة أو قيد التحضير أو التي عليها بلاغات نقص
-                            </p>
-                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200/90 text-amber-900 border border-amber-300">
+                            {preparingOrders.length} طلبات
+                          </span>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200/90 text-amber-900 border border-amber-300">
-                          {preparingOrders.length} طلبات
-                        </span>
-                      </div>
 
-                      {preparingOrders.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
-                          {shopOrdersSearchQuery
-                            ? 'لا توجد طلبات قيد التجهيز تطابق البحث.'
-                            : 'لا توجد طلبات قيد التجهيز حالياً في هذا المحل.'}
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {preparingOrders.map(renderOrderCard)}
-                        </div>
-                      )}
-                    </div>
+                        {preparingOrders.length === 0 ? (
+                          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-400">
+                            {shopOrdersSearchQuery
+                              ? 'لا توجد طلبات قيد التجهيز تطابق البحث.'
+                              : 'لا توجد طلبات قيد التجهيز حالياً في هذا المحل.'}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {preparingOrders.map(renderOrderCard)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })()}

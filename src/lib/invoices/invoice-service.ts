@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma } from '@/lib/db';
 import { calculateInclusiveTax, calculateExclusiveTax } from '@/lib/money';
+import { compileTemplate } from '@/lib/message-templates-shared';
 
 /**
  * توليد رمز أمان تشفيري غير قابل للتخمين للفاتورة (Secure 192-bit Token)
@@ -237,23 +238,34 @@ export function buildCustomerConfirmationWhatsAppMessage(params: {
   secureToken: string;
   customerPhone?: string;
   origin?: string;
+  templateContent?: string;
 }) {
   const baseUrl = resolveCustomerFacingBaseUrl(params.origin);
   const invoiceUrl = `${baseUrl}/invoice/view/${params.secureToken}`;
   const totalJod = (params.totalAmountFils / 1000).toFixed(3);
   const cleanRef = (params.orderReference || '').replace(/^#/, '');
 
-  const text =
-    `أهلاً فيكِ بعالم رَواق 🤍\n\n` +
-    `شكراً لاختياركِ وثقتكِ فينا، يسعدنا نكون جزء من أناقتكِ. ✨\n\n` +
-    `تم تأكيد طلبكِ بنجاح! 🌿\n\n` +
-    `🛍️ **رقم الطلب:** #${cleanRef}\n` +
-    `💰 **الإجمالي:** ${totalJod} د.أ\n` +
-    `💳 **الدفع:** عند الاستلام\n\n` +
-    `🧾 **تفاصيل طلبكِ وفاتورتكِ:**\n` +
-    `${invoiceUrl}\n\n` +
-    `رح نبلغكِ أول ما يكون طلبكِ بطريقه إلكِ.\n\n` +
-    `**رَواق | أناقة من روح الأصالة 🤎**`;
+  let text: string;
+  if (params.templateContent) {
+    text = compileTemplate(params.templateContent, {
+      customerName: params.customerName,
+      orderReference: cleanRef,
+      totalAmount: totalJod,
+      invoiceUrl,
+    });
+  } else {
+    text =
+      `أهلاً فيكِ بعالم رَواق 🤍\n\n` +
+      `شكراً لاختياركِ وثقتكِ فينا، يسعدنا نكون جزء من أناقتكِ. ✨\n\n` +
+      `تم تأكيد طلبكِ بنجاح! 🌿\n\n` +
+      `🛍️ **رقم الطلب:** #${cleanRef}\n` +
+      `💰 **الإجمالي:** ${totalJod} د.أ\n` +
+      `💳 **الدفع:** عند الاستلام\n\n` +
+      `🧾 **تفاصيل طلبكِ وفاتورتكِ:**\n` +
+      `${invoiceUrl}\n\n` +
+      `رح نبلغكِ أول ما يكون طلبكِ بطريقه إلكِ.\n\n` +
+      `**رَواق | أناقة من روح الأصالة 🤎**`;
+  }
 
   // تجهيز رابط wa.me
   let cleanPhone = (params.customerPhone || '').replace(/\D/g, '');

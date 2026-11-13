@@ -31,10 +31,12 @@ import {
   XCircle,
   Store,
   PlusCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { filsToDisplay } from '@/lib/money';
 import { checkOrderRewardThresholdDrop } from '@/lib/orders/reward-protection';
 import {
+  getOrdersCommandCenterSummaryAction,
   confirmAndInitializeOrderAction,
   getOrderFullDetailsAction,
   markCustomerWhatsAppSentAction,
@@ -56,6 +58,28 @@ import {
   getOrderDeliveryManifestAction,
 } from '@/actions/fulfillment-admin';
 
+const TAB_TO_PARAM: Record<string, string> = {
+  ALL: 'all',
+  NEW: 'new',
+  TELEGRAM_FAILED: 'telegram_failed',
+  NEEDS_ACTION: 'needs_action',
+  PREPARING: 'preparing',
+  DELIVERY: 'delivery',
+  COMPLETED: 'completed',
+};
+
+const PARAM_TO_TAB: Record<string, string> = {
+  all: 'ALL',
+  new: 'NEW',
+  telegram_failed: 'TELEGRAM_FAILED',
+  'telegram-failed': 'TELEGRAM_FAILED',
+  needs_action: 'NEEDS_ACTION',
+  'needs-action': 'NEEDS_ACTION',
+  preparing: 'PREPARING',
+  delivery: 'DELIVERY',
+  completed: 'COMPLETED',
+};
+
 interface Props {
   initialKpis: {
     newCount: number;
@@ -67,6 +91,7 @@ interface Props {
   initialOrders: any[];
   captains: any[];
   selectedOrderId?: string;
+  initialTab?: string;
 }
 
 export default function UnifiedOrdersCommandCenter({
@@ -74,6 +99,7 @@ export default function UnifiedOrdersCommandCenter({
   initialOrders,
   captains,
   selectedOrderId: defaultSelectedId,
+  initialTab,
 }: Props) {
   const [kpis, setKpis] = useState(initialKpis);
   const [orders, setOrders] = useState(initialOrders);
@@ -81,8 +107,84 @@ export default function UnifiedOrdersCommandCenter({
     defaultSelectedId || (initialOrders.length > 0 ? initialOrders[0].id : null)
   );
 
-  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (initialTab && PARAM_TO_TAB[initialTab.toLowerCase()]) {
+      return PARAM_TO_TAB[initialTab.toLowerCase()];
+    }
+    return 'ALL';
+  });
+
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync tab with URL search parameter on mount and popstate
+  useEffect(() => {
+    const handleUrlSync = () => {
+      if (typeof window !== 'undefined') {
+        const param = new URLSearchParams(window.location.search).get('tab');
+        if (param && PARAM_TO_TAB[param.toLowerCase()]) {
+          setActiveTab(PARAM_TO_TAB[param.toLowerCase()]);
+        }
+      }
+    };
+    handleUrlSync();
+    window.addEventListener('popstate', handleUrlSync);
+    return () => window.removeEventListener('popstate', handleUrlSync);
+  }, []);
+
+  const handleSelectTab = (tabId: string) => {
+    setActiveTab(tabId);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const paramVal = TAB_TO_PARAM[tabId] || 'all';
+      if (paramVal === 'all') {
+        url.searchParams.delete('tab');
+      } else {
+        url.searchParams.set('tab', paramVal);
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  // Real-time background sync without page reload (every 10s and on tab focus)
+  const refreshOrdersData = async (silent = true) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const summary = await getOrdersCommandCenterSummaryAction({
+        tab: activeTab,
+        search: searchQuery,
+      });
+      if (summary) {
+        setKpis(summary.kpis);
+        setOrders(summary.orders);
+        setLastSyncTime(new Date());
+      }
+    } catch (err) {
+      console.error('Silent orders sync error:', err);
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshOrdersData(true);
+    }, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshOrdersData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [activeTab, searchQuery]);
+
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -851,7 +953,24 @@ export default function UnifiedOrdersCommandCenter({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>محدث لحظياً</span>
+              <span className="text-[10px] text-emerald-700/80 font-mono" dir="ltr">
+                {lastSyncTime.toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+              <button
+                type="button"
+                onClick={() => refreshOrdersData(false)}
+                disabled={isRefreshing}
+                className="p-1 rounded-lg hover:bg-emerald-200/50 transition cursor-pointer text-emerald-800"
+                title="تحديث البيانات الآن"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
             <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
               <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-[#3F4832] shadow-xs border border-stone-200 flex items-center gap-1.5">
                 <PackageIcon className="w-3.5 h-3.5" />
@@ -872,7 +991,7 @@ export default function UnifiedOrdersCommandCenter({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {/* Card 1: New Orders */}
           <button
-            onClick={() => setActiveTab('NEW')}
+            onClick={() => handleSelectTab('NEW')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
               activeTab === 'NEW'
                 ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400'
@@ -891,7 +1010,7 @@ export default function UnifiedOrdersCommandCenter({
 
           {/* Card 2: Telegram Notifications */}
           <button
-            onClick={() => setActiveTab('TELEGRAM_FAILED')}
+            onClick={() => handleSelectTab('TELEGRAM_FAILED')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
               activeTab === 'TELEGRAM_FAILED'
                 ? 'bg-sky-50/80 border-sky-300 ring-2 ring-sky-400'
@@ -914,7 +1033,7 @@ export default function UnifiedOrdersCommandCenter({
 
           {/* Card 3: Needs Action */}
           <button
-            onClick={() => setActiveTab('NEEDS_ACTION')}
+            onClick={() => handleSelectTab('NEEDS_ACTION')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
               activeTab === 'NEEDS_ACTION'
                 ? 'bg-rose-50/80 border-rose-300 ring-2 ring-rose-400'
@@ -933,7 +1052,7 @@ export default function UnifiedOrdersCommandCenter({
 
           {/* Card 4: In Fulfillment */}
           <button
-            onClick={() => setActiveTab('PREPARING')}
+            onClick={() => handleSelectTab('PREPARING')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
               activeTab === 'PREPARING'
                 ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-400'
@@ -952,7 +1071,7 @@ export default function UnifiedOrdersCommandCenter({
 
           {/* Card 5: Ready for Delivery */}
           <button
-            onClick={() => setActiveTab('DELIVERY')}
+            onClick={() => handleSelectTab('DELIVERY')}
             className={`p-4 rounded-2xl border text-right transition shadow-xs flex flex-col justify-between ${
               activeTab === 'DELIVERY'
                 ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-400'
@@ -986,10 +1105,10 @@ export default function UnifiedOrdersCommandCenter({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+              onClick={() => handleSelectTab(tab.id)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-stone-900 text-white'
+                  ? 'bg-stone-900 text-white shadow-2xs'
                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
               }`}
             >

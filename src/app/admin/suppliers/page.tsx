@@ -7,11 +7,12 @@ import { createSupplier, updateSupplier, setSupplierOfferActive, toggleProductVi
 import { DeleteSupplierButton } from './DeleteSupplierButton';
 import { getSupplierProfitMargin } from '@/lib/supplier-margin';
 import { groupSupplierOffersByProduct } from '@/lib/supplier-products';
+import { getMessageTemplate, compileTemplate } from '@/lib/message-templates';
 import { Store, User, Phone, MapPin, ExternalLink, Percent, Mail, Eye, EyeOff, Image as ImageIcon } from 'lucide-react';
 
 export default async function SuppliersPage() {
   const session = await requirePermission('manage:settings');
-  const [suppliers, orders, supplierTransactions] = await Promise.all([
+  const [suppliers, orders, supplierTransactions, shopProfileTemplate] = await Promise.all([
     prisma.supplier.findMany({
       orderBy: { name: 'asc' },
       include: {
@@ -72,6 +73,7 @@ export default async function SuppliersPage() {
       },
       select: { supplierId: true, type: true, amount: true },
     }),
+    getMessageTemplate('SHOP_PROFILE_LINK'),
   ]);
 
   const supplierMargins = new Map(
@@ -298,16 +300,24 @@ export default async function SuppliersPage() {
                         <span>عرض بيانات المحل للمشاركة 👁️</span>
                       </Link>
 
-                      {supplier.phone && (
-                        <a
-                          href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(`مرحباً ${supplier.ownerName || supplier.name}،\nإليك رابط كشف بيانات محلك والأصناف وأسعار التكلفة وسعر البيع في المتجر على منصة رَواق:\nhttps://rawaq.jo/supplier-profile/${supplier.id}`)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs"
-                        >
-                          <span>إرسال الرابط للمحل واتساب 📲</span>
-                        </a>
-                      )}
+                      {supplier.phone && (() => {
+                        const profileUrl = `https://rawaq.jo/supplier-profile/${supplier.id}`;
+                        const greetingName = supplier.ownerName || supplier.name;
+                        const msgText = compileTemplate(shopProfileTemplate.content, {
+                          shopName: greetingName,
+                          profileUrl,
+                        });
+                        return (
+                          <a
+                            href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs"
+                          >
+                            <span>إرسال الرابط للمحل واتساب 📲</span>
+                          </a>
+                        );
+                      })()}
                     </div>
                   </div>
 

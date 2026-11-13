@@ -29,6 +29,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
       { href: '/admin/profits', label: 'الأرباح وتوزيع المستحقات 💰', permission: 'manage:settings' },
       { href: '/admin/deliveries', label: 'إدارة التوصيلات', permission: 'manage:settings' },
       { href: '/admin/rewards', label: 'مكافآت العملاء', permission: 'manage:settings' },
+      { href: '/admin/message-templates', label: 'قوالب الرسائل 💬', permission: 'manage:settings' },
       { href: '/admin/employees', label: 'الموظفين والصلاحيات', permission: 'manage:settings' },
       { href: '/admin/content', label: 'المحتوى والمدونة (CMS)', permission: 'manage:settings' },
       { href: '/admin/logs', label: 'سجلات النظام', permission: 'manage:settings' }
@@ -155,6 +156,7 @@ export function AdminSidebar({ employeeName, roleName = 'ADMIN' }: AdminSidebarP
             else if (link.href.includes('employees')) iconPath = <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />;
             else if (link.href.includes('shipping')) iconPath = <path d="M5 18H3c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h3 M5 18a2 2 0 0 0 4 0 M9 18h6 M15 18a2 2 0 0 0 4 0 M19 18h2c1.1 0 2-.9 2-2v-4l-3-4h-5v10z M14 6h5l3 4v2h-8V6z" />;
             else if (link.href.includes('content')) iconPath = <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />;
+            else if (link.href.includes('message-templates')) iconPath = <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />;
             else if (link.href.includes('audit-logs')) iconPath = <path d="M2 12h4l2-9 5 18 3-9h6" />;
 
             return (

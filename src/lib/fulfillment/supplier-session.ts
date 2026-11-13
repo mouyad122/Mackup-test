@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma } from '@/lib/db';
 import { SUPPLIER_FULFILLMENT_STATUS, FULFILLMENT_STATUS, PACKAGE_STATUS } from './types';
+import { getMessageTemplate, compileTemplate } from '@/lib/message-templates';
 
 export interface CreateSessionResult {
   sessionId: string;
@@ -83,18 +84,19 @@ export async function createSupplierAccessSession(
 
   const magicUrl = `${baseUrl}/supplier-portal/${rawToken}`;
 
-  // 3. صياغة نص رسالة الواتساب الجاهزة للإرسال بنقرة واحدة للمحل
+  // 3. صياغة نص رسالة الواتساب الجاهزة للإرسال بنقرة واحدة للمحل اعتماداً على القالب
   const totalOrders = assignedIds.length;
   const greetingName = supplier.ownerName
     ? `${supplier.ownerName} - ${supplier.name}`
     : supplier.name;
 
-  const whatsappMessage =
-    `مرحباً ${greetingName}،\n` +
-    `لديك (${totalOrders}) طلبات تجهيز جديدة من منصة رَواق.\n\n` +
-    `يرجى فتح الرابط التالي عبر هاتفك لمراجعة المنتجات وبدء التجهيز وتأكيد الجاهزية:\n` +
-    `${magicUrl}\n\n` +
-    `⏱️ الرابط صالح لمدة ${expiresInHours} ساعة بدون الحاجة لكلمة مرور.`;
+  const prepTemplate = await getMessageTemplate('SHOP_PREP_LINK');
+  const whatsappMessage = compileTemplate(prepTemplate.content, {
+    shopName: greetingName,
+    ordersCount: totalOrders,
+    prepLink: magicUrl,
+    expiresInHours,
+  });
 
   let cleanPhone = (supplier.phone || '').replace(/\D/g, '');
   if (cleanPhone.startsWith('07')) cleanPhone = '962' + cleanPhone.substring(1);
