@@ -269,21 +269,35 @@ export class OrderLifecycleService {
       });
 
       // 13. توثيق سجل التدقيق العام للنظام (AuditLog)
-      if (actorId) {
-        await tx.auditLog.create({
-          data: {
-            employeeId: actorId,
-            action: 'ORDER_DELIVERY_COMPLETED',
-            entityType: 'Order',
-            entityId: order.id,
-            details: JSON.stringify({
-              reference: order.reference,
-              source,
-              packagesCount: allPackages.length,
-            }),
-          },
-        });
-      }
+      await tx.auditLog.create({
+        data: {
+          employeeId: (source === 'ADMIN' && actorId) ? actorId : null,
+          actorType: source === 'CAPTAIN' || source === 'DELIVERY_BATCH' ? 'COURIER' : 'ADMIN',
+          actorId: actorId || null,
+          actorNameSnapshot: actorName || 'شركة التوصيل / المندوب',
+          category: 'DELIVERY',
+          severity: 'HIGH',
+          outcome: 'SUCCESS',
+          action: 'DELIVERY_CONFIRMED',
+          entityType: 'Order',
+          entityId: order.id,
+          correlationId: order.reference,
+          changes: JSON.stringify({
+            status: { before: order.status, after: 'DELIVERED' },
+            customerName: order.customerName,
+            totalAmount: order.totalAmount,
+            collectedCodAmount: input.collectedCodAmount ?? order.deliveryJob?.codAmountToCollect ?? 0,
+            packagesCount: allPackages.length,
+          }),
+          details: JSON.stringify({
+            reference: order.reference,
+            source,
+            actorName,
+            packagesCount: allPackages.length,
+            notes,
+          }),
+        },
+      });
 
       return {
         success: true,

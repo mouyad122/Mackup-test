@@ -57,6 +57,7 @@ import {
   confirmPackagePickupAction,
   getOrderDeliveryManifestAction,
 } from '@/actions/fulfillment-admin';
+import OrderLifecycleTimelineModal from '@/components/OrderLifecycleTimelineModal';
 
 const TAB_TO_PARAM: Record<string, string> = {
   ALL: 'all',
@@ -195,6 +196,7 @@ export default function UnifiedOrdersCommandCenter({
   const [copiedInvoiceUrl, setCopiedInvoiceUrl] = useState(false);
   const [supplierSessionModal, setSupplierSessionModal] = useState<any>(null);
   const [manifestModal, setManifestModal] = useState<any>(null);
+  const [timelineOrderRef, setTimelineOrderRef] = useState<string | null>(null);
 
   // Delivery quick assignment state
   const [selectedCaptainId, setSelectedCaptainId] = useState('');
@@ -1266,6 +1268,15 @@ export default function UnifiedOrdersCommandCenter({
                   {!isCompletedOrder ? (
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setTimelineOrderRef(selectedOrderDetails.order.reference)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-blue-200 text-blue-900 bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="عرض التسلسل الزمني وتاريخ الطلب الكامل وسجل التدقيق"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-blue-700" />
+                        <span>تاريخ الطلب 🕒</span>
+                      </button>
+
+                      <button
                         onClick={() => setIsDeliveryDrawerOpen(true)}
                         className="px-3 py-1.5 text-xs font-bold rounded-xl border border-stone-200 text-stone-700 bg-stone-50 hover:bg-stone-100 transition flex items-center gap-1.5"
                       >
@@ -1300,6 +1311,14 @@ export default function UnifiedOrdersCommandCenter({
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setTimelineOrderRef(selectedOrderDetails.order.reference)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-blue-200 text-blue-900 bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="عرض التسلسل الزمني وتاريخ الطلب الكامل وسجل التدقيق"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-blue-700" />
+                        <span>تاريخ الطلب 🕒</span>
+                      </button>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         <span>مكتمل ومسوّى بالكامل</span>
@@ -2569,6 +2588,12 @@ export default function UnifiedOrdersCommandCenter({
           </div>
         </div>
       )}
+      {/* Modal: Order Lifecycle Timeline */}
+      <OrderLifecycleTimelineModal
+        orderReferenceOrId={timelineOrderRef || ''}
+        isOpen={Boolean(timelineOrderRef)}
+        onClose={() => setTimelineOrderRef(null)}
+      />
     </div>
   );
 }

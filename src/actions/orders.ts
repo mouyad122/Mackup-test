@@ -203,15 +203,39 @@ export async function confirmStorefrontOrder(orderId: string) {
         }
       });
 
-      // 8. Write audit logs
+      // 8. Write comprehensive narrative audit log
       await tx.auditLog.create({
         data: {
           employeeId,
+          actorType: 'ADMIN',
+          actorId: employeeId,
+          actorNameSnapshot: session.employee.name,
           action: 'ORDER_CONFIRMED',
           entityType: 'Order',
           entityId: order.id,
-          details: JSON.stringify({ reference: order.reference, total: finalTotal })
-        }
+          category: 'ORDERS',
+          severity: 'NORMAL',
+          outcome: 'SUCCESS',
+          correlationId: order.reference,
+          changes: JSON.stringify({
+            status: { before: order.status, after: 'CONFIRMED' },
+            customerName: order.customerName,
+            totalAmount: finalTotal,
+          }),
+          details: JSON.stringify({
+            reference: order.reference,
+            customerName: order.customerName,
+            totalAmount: finalTotal,
+            itemsCount: order.items.length,
+            items: order.items.map(i => ({
+              name: i.name,
+              quantity: i.quantity,
+              price: i.unitPrice,
+            })),
+            previousStatus: order.status,
+            newStatus: 'CONFIRMED',
+          }),
+        },
       });
 
       // 9. Enqueue Multi-Vendor Fulfillment Split into Outbox within the same transaction

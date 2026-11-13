@@ -433,6 +433,33 @@ export async function updateSupplierFulfillmentStatus(
           notes: `أعلن المورد جاهزية ${packagesCount} طرد للاستلام.`,
         },
       });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'SUPPLIER_ORDER_READY',
+          entityType: 'FulfillmentOrder',
+          entityId: fulfillmentOrderId,
+          actorType: 'SUPPLIER',
+          actorId: session.supplierId,
+          actorNameSnapshot: session.supplier.name,
+          category: 'SUPPLIERS',
+          severity: 'NORMAL',
+          outcome: 'SUCCESS',
+          correlationId: fulfillment.order.reference,
+          reason: payload?.supplierNotes || null,
+          changes: JSON.stringify({
+            packagesCount,
+            status: { before: fulfillment.status, after: 'READY_FOR_PICKUP' },
+            itemsCount: fulfillment.items.length,
+            shopName: session.supplier.name,
+          }),
+          details: JSON.stringify({
+            orderRef: fulfillment.order.reference,
+            orderId: fulfillment.orderId,
+            packagesCount,
+          }),
+        },
+      });
     });
 
     return { success: true, status: SUPPLIER_FULFILLMENT_STATUS.READY_FOR_PICKUP };
@@ -523,6 +550,35 @@ export async function reportSupplierItemShortage(
         actorType: 'SUPPLIER',
         actorId: session.supplierId,
         notes: note,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: 'SUPPLIER_ITEM_SHORTAGE_REPORTED',
+        entityType: 'FulfillmentItem',
+        entityId: fulfillmentItemId,
+        actorType: 'SUPPLIER',
+        actorId: session.supplierId,
+        actorNameSnapshot: item.fulfillmentOrder.supplier.name,
+        category: 'SUPPLIERS',
+        severity: 'HIGH',
+        outcome: 'SUCCESS',
+        correlationId: item.fulfillmentOrder.order.reference,
+        reason,
+        changes: JSON.stringify({
+          productTitle: item.productTitle,
+          variantTitle: item.variantTitle,
+          missingQuantity: effectiveMissing,
+          originalQuantity: item.quantity,
+          shopName: item.fulfillmentOrder.supplier.name,
+        }),
+        details: JSON.stringify({
+          orderRef: item.fulfillmentOrder.order.reference,
+          orderId: item.fulfillmentOrder.orderId,
+          supplierId: session.supplierId,
+          supplierName: item.fulfillmentOrder.supplier.name,
+        }),
       },
     });
   });
@@ -642,6 +698,32 @@ export async function verifyCourierPackagePickup(
         actorType: actor.role,
         actorId: actor.employeeId || courierName,
         notes: `تم تأكيد استلام الطرد بواسطة (${courierName})`,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: 'PACKAGE_PICKUP_VERIFIED',
+        entityType: 'Package',
+        entityId: pkg.id,
+        employeeId: actor.employeeId || null,
+        actorType: actor.role === 'ADMIN' ? 'ADMIN' : 'COURIER',
+        actorId: actor.employeeId || courierName,
+        actorNameSnapshot: courierName,
+        category: 'DELIVERY',
+        severity: 'NORMAL',
+        outcome: 'SUCCESS',
+        correlationId: pkg.fulfillmentOrder.order.reference,
+        changes: JSON.stringify({
+          packageCode,
+          status: { before: pkg.status, after: PACKAGE_STATUS.PICKED_UP },
+          orderRef: pkg.fulfillmentOrder.order.reference,
+        }),
+        details: JSON.stringify({
+          packageCode,
+          orderRef: pkg.fulfillmentOrder.order.reference,
+          courierName,
+        }),
       },
     });
   });

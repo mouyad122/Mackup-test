@@ -1360,8 +1360,11 @@ export async function cancelUnifiedOrderAction(orderId: string, reason?: string)
       throw new Error('لا يمكن إلغاء طلب تم تسليمه للعميل أو اكتماله.');
     }
 
-    // 1. عكس العمليات المالية للطلب عبر المعاملة المركزية
-    await cancelOrderAndReverseFinancials(orderId, session.employeeId, true);
+    // 1. عكس العمليات المالية للطلب عبر المعاملة المركزية وتوثيق سبب الإلغاء والجهة الطالبة
+    await cancelOrderAndReverseFinancials(orderId, session.employeeId, true, {
+      reason: reason || 'عدم توفر المنتج أو طلب الإدارة',
+      requestedBy: 'ADMIN',
+    });
 
     // 2. تحديث الحالات اللوجستية للمرحلة الثانية
     await prisma.$transaction(async (tx) => {

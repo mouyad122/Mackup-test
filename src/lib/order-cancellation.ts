@@ -2,7 +2,15 @@ import 'server-only';
 import { prisma } from '@/lib/db';
 
 /** Shared cancellation transaction used by storefront, admin, and POS entry points. */
-export async function cancelOrderAndReverseFinancials(orderId: string, employeeId: string, storeBearsDeliveryCost?: boolean) {
+export async function cancelOrderAndReverseFinancials(
+  orderId: string,
+  employeeId: string,
+  storeBearsDeliveryCost?: boolean,
+  options?: {
+    reason?: string;
+    requestedBy?: 'CUSTOMER' | 'SUPPLIER' | 'ADMIN';
+  }
+) {
   return prisma.$transaction(async tx => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -81,10 +89,48 @@ export async function cancelOrderAndReverseFinancials(orderId: string, employeeI
         ? `Order cancelled in transit by employee: ${employeeId}; stock stays held until returned goods are inspected.`
         : `Order cancelled by employee: ${employeeId}`,
     } });
-    await tx.auditLog.create({ data: {
-      employeeId, action: 'ORDER_CANCELLED', entityType: 'Order', entityId: order.id,
-      details: JSON.stringify({ reference: order.reference, previousStatus: order.status }),
-    } });
+    const employee = await tx.employee.findUnique({
+      where: { id: employeeId },
+      select: { name: true },
+    });
+
+    const cancelReason = options?.reason || 'عدم توفر المنتج أو طلب الإلغاء';
+    const requestedBy = options?.requestedBy || 'ADMIN';
+
+    await tx.auditLog.create({
+      data: {
+        employeeId,
+        actorType: 'ADMIN',
+        actorId: employeeId,
+        actorNameSnapshot: employee?.name || 'موظف الإدارة',
+        action: 'ORDER_CANCELLED',
+        entityType: 'Order',
+        entityId: order.id,
+        category: 'ORDERS',
+        severity: 'CRITICAL',
+        outcome: 'SUCCESS',
+        correlationId: order.reference,
+        reason: cancelReason,
+        changes: JSON.stringify({
+          status: { before: order.status, after: 'CANCELLED' },
+          totalAmount: order.totalAmount,
+          customerName: order.customerName,
+          requestedBy,
+          wasDispatched,
+          reversedTransactionsCount: order.financialTransactions.length,
+        }),
+        details: JSON.stringify({
+          reference: order.reference,
+          previousStatus: order.status,
+          customerName: order.customerName,
+          totalAmount: order.totalAmount,
+          itemsCount: order.items.length,
+          reason: cancelReason,
+          requestedBy,
+          wasDispatched,
+        }),
+      },
+    });
     return tx.order.findUniqueOrThrow({ where: { id: order.id } });
   }, { isolationLevel: 'Serializable' });
 }
